@@ -1,0 +1,15 @@
+{
+  "name": "temple-of-records",
+  "version": "7.0.0",
+  "description": "The Temple of Records - Bilingual DFIR & CTF Platform",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node tests/public-boundaries.cjs && node tests/admin-regression.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Mina Max",
+  "license": "UNLICENSED"
+}
