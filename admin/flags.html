@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المعبد — إعداد الفلاجات</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<style>.hash-pill{font-family:var(--mono);font-size:.7rem;direction:ltr;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--dim);word-break:break-all;display:inline-block;max-width:100%}</style>
+</head>
+<body>
+<script src="app.js"></script>
+<script>
+(function(){
+var A=window.TORADMIN;
+A.boot().then(function(ok){
+ if(!ok)return;
+ A.shell('flags','<b>'+A.t('nFlags')+'</b>',function(c){
+  var ar=A.lang()==='ar';
+  A.api('/admin/api/content').then(function(j){
+   var items=j.collections.challenges||[];
+   Promise.all(items.map(function(it){return A.api('/admin/api/challenges/'+encodeURIComponent(it.id)+'/flag')})).then(function(flags){
+    A.api('/admin/api/flag-policy').then(function(pol){
+    c.innerHTML='<div class="panel"><h2>'+(ar?'قواعد صيغة الفلاج':'Flag format rules')+'</h2>'+
+    '<div class="frow"><div class="fcol"><label>'+(ar?'حساسية حالة الأحرف':'Case sensitivity')+'</label><select id="pol-case" class="input"><option value="1"'+(pol.case_sensitive?' selected':'')+'>'+(ar?'حساسة (TOR{...} ≠ tor{...})':'Sensitive (TOR{...} ≠ tor{...})')+'</option><option value="0"'+(!pol.case_sensitive?' selected':'')+'>'+(ar?'غير حساسة':'Insensitive')+'</option></select></div>'+
+    '<div class="fcol"><label>'+(ar?'نمط الصيغة (regex اختياري)':'Format pattern (optional regex)')+'</label><input id="pol-fmt" class="input mono" dir="ltr" placeholder="^TOR\\{.+\\}$" value="'+A.esc(pol.format_hint||'')+'"></div></div>'+
+    '<div class="small dim" style="margin:6px 0 10px">'+(ar?'تُطبَّق فور الحفظ بلا إعادة تشغيل. عند تعطيل الحساسية، الفلاجات المضبوطة بعدها فقط تقبل أي حالة أحرف (الهاش يُخزَّن مُطبَّعًا وقت الضبط).':'Applies instantly, no restart. With sensitivity off, only flags set afterwards accept any letter case (the hash is normalized at set time).')+'</div>'+
+    '<button class="btn primary sm" id="pol-save">'+A.t('save')+'</button></div>'+
+    '<div class="page-head"><h1>'+A.t('nFlags')+'</h1><span class="sub">'+(ar?'الفلاجات تعيش على الخادم فقط (SHA-256 مملّح). لا يظهر نص أي فلاج هنا أبدًا — الاستبدال يتطلب تأكيدًا.':'Flags live server-side only (salted SHA-256). Flag text is never shown here — replacement requires confirmation.')+'</span></div>'+
+    '<div class="panel" style="padding:0;overflow:hidden"><div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'الحالة':'State')+'</th><th>SHA-256</th><th>'+(ar?'استبدال':'Replace')+'</th></tr></thead><tbody>'+
+    items.map(function(it,i){
+     var f=flags[i];
+     return '<tr><td><div class="t-main">'+A.esc(ar?it.title_ar:(it.title_en||it.title_ar))+'</div><div class="t-sub mono">'+A.esc(it.id)+'</div></td>'+
+     '<td>'+(f.configured?A.badge('configured','ok'):A.badge('not set','warn'))+'</td>'+
+     '<td><span class="hash-pill">'+A.esc((f.sha256||'—').slice(0,24))+(f.sha256?'…':'')+'</span></td>'+
+     '<td><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="input mono" dir="ltr" style="max-width:220px;padding:7px 12px;font-size:.82rem" placeholder="TOR{…}" data-fl="'+A.esc(it.id)+'"><button class="btn sm danger" data-set="'+A.esc(it.id)+'">'+(ar?'استبدال':'Replace')+'</button></div></td></tr>';
+    }).join('')+'</tbody></table></div></div>';
+    c.querySelectorAll('[data-set]').forEach(function(b){
+     b.onclick=function(){
+      var id=b.dataset.set,v=c.querySelector('[data-fl="'+id+'"]').value.trim();
+      if(!v)return;
+      A.modal({title:ar?'استبدال الفلاج؟':'Replace flag?',body:(ar?'سيُستبدل فلاج «'+id+'» فورًا. التحقق الجديد يتطلب الفلاج الجديد، والحلول السابقة تبقى مسجلة.':'The flag for "'+id+'" is replaced immediately. New verification requires the new flag; previous solves stay recorded.'),danger:true,onConfirm:function(done){
+       A.api('/admin/api/challenges/'+encodeURIComponent(id)+'/flag',{method:'PUT',body:{flag:v,confirm_replace:true}}).then(function(r){
+        done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(r.error||A.t('failed'),'err');
+       }).catch(function(){done();A.toast(A.t('errNet'),'err')});
+      }});
+     };
+    });
+    document.getElementById('pol-save').onclick=function(){
+     A.api('/admin/api/flag-policy',{method:'PUT',body:{case_sensitive:document.getElementById('pol-case').value==='1',format_hint:document.getElementById('pol-fmt').value}}).then(function(r){
+      if(r._code===200)A.toast(A.t('updated'),'ok');else A.toast(r.error||A.t('failed'),'err');
+     }).catch(function(){A.toast(A.t('errNet'),'err')});
+    };
+    });
+   });
+  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+ });
+});
+})();
+</script>
+</body>
+</html>

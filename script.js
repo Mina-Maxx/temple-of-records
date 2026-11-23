@@ -1,0 +1,781 @@
+// The Temple of Records — interactions + content rendering + CTF flag service client
+// All content rendering is local: content.js defaults + this browser's localStorage overrides.
+// Flag verification and solve records live ONLY on the lightweight local server (server/server.js);
+// no expected flag or hash ever appears in client files.
+
+// ---------- shared content library ----------
+window.TOR = (function () {
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function fieldOverrides() {
+    try { return JSON.parse(localStorage.getItem('tor-content') || '{}'); } catch (e) { return {}; }
+  }
+  function getCollections() {
+    if (/^https?:$/.test(location.protocol)) return SITE_COLLECTIONS;
+    try {
+      var raw = localStorage.getItem('tor-collections');
+      if (raw) {
+        var c = JSON.parse(raw);
+        if (c && Array.isArray(c.articles) && Array.isArray(c.challenges)) return c;
+      }
+    } catch (e) {}
+    return SITE_COLLECTIONS;
+  }
+  function find(kind, id) {
+    var list = getCollections()[kind] || [];
+    for (var i = 0; i < list.length; i++) if ((list[i].id === id || list[i].slug && (list[i].slug.ar===id || list[i].slug.en===id)) && !list[i].hidden) return list[i];
+    return null;
+  }
+  function visible(kind) {
+    return (getCollections()[kind] || []).filter(function (x) { return !x.hidden; });
+  }
+  function imgOk(src) {
+    return typeof src === 'string' &&
+      (/^assets\/[A-Za-z0-9._-]+$/.test(src) || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src));
+  }
+  function urlOk(u) { return typeof u === 'string' && /^https:\/\/.+\..+/.test(u); }
+  function param(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  // anonymous player identity: random 128-bit token, this browser only
+  function identity() {
+    var id = localStorage.getItem('tor-identity');
+    if (!id || !/^[a-f0-9]{32}$/.test(id)) {
+      var b = new Uint8Array(16);
+      (window.crypto || {}).getRandomValues ? crypto.getRandomValues(b) : b.forEach(function (_, i) { b[i] = Math.floor(Math.random() * 256); });
+      id = Array.prototype.map.call(b, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      try { localStorage.setItem('tor-identity', id); } catch (e) {}
+    }
+    return id;
+  }
+  function apiBase() {
+    if (/^https?:$/.test(location.protocol)) return location.origin;
+    return 'http://127.0.0.1:8000'; // file:// preview talks to the local demo server
+  }
+  function localSolves() {
+    try { return JSON.parse(localStorage.getItem('tor-solves') || '[]'); } catch (e) { return []; }
+  }
+  function markLocalSolve(id) {
+    var s = localSolves();
+    if (s.indexOf(id) === -1) { s.push(id); try { localStorage.setItem('tor-solves', JSON.stringify(s)); } catch (e) {} }
+  }
+  return { esc: esc, fieldOverrides: fieldOverrides, getCollections: getCollections,
+           find: find, visible: visible, imgOk: imgOk, urlOk: urlOk, param: param,
+           identity: identity, apiBase: apiBase, localSolves: localSolves, markLocalSolve: markLocalSolve };
+})();
+
+// ---------- collection renderers ----------
+(function () {
+  var body = document.body;
+  if (!body) return;
+  var page = body.getAttribute('data-page') || '';
+  var lang = /-ar$/.test(page) ? 'ar' : 'en';
+  var L = function (obj) { return (obj && (obj[lang] || obj.ar || obj.en)) || ''; };
+  var copyLabel = lang === 'ar' ? 'نسخ' : 'Copy';
+  var copiedLabel = lang === 'ar' ? 'اتنسخ ✓' : 'Copied ✓';
+  var T = {
+    challenge: lang === 'ar' ? 'تحدي' : 'Challenge',
+    article: lang === 'ar' ? 'مقال' : 'Article',
+    category: lang === 'ar' ? 'التصنيف' : 'Category',
+    difficulty: lang === 'ar' ? 'الصعوبة' : 'Difficulty',
+    points: lang === 'ar' ? 'النقاط' : 'Points',
+    time: lang === 'ar' ? 'الوقت المقدّر' : 'Est. time',
+    availability: lang === 'ar' ? 'الحالة' : 'Status',
+    open: lang === 'ar' ? 'متاح' : 'Available',
+    soon: lang === 'ar' ? 'قريبًا' : 'Coming soon',
+    evidence: lang === 'ar' ? 'الأدلة' : 'Evidence',
+    files: lang === 'ar' ? 'ملفات' : 'files',
+    solved: lang === 'ar' ? 'محلول ✓' : 'Solved ✓',
+    unsolved: lang === 'ar' ? 'غير محلول' : 'Unsolved',
+    noDate: lang === 'ar' ? 'التاريخ: يُضاف لاحقًا' : 'Date: to be added'
+  };
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function toArDigits(s) { return String(s).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[+d]; }); }
+  function num(s) { return lang === 'ar' ? toArDigits(s) : String(s); }
+
+  function renderSection(sec, idx, counter) {
+    var t = sec.type, node;
+    if (t === 'heading') {
+      node = el('h2', null, L(sec));
+      node.id = 'sec-' + idx;
+      counter.headings.push({ id: node.id, text: L(sec) });
+      return node;
+    }
+    if (t === 'paragraph') return el('p', null, L(sec));
+    if(t==='inline_code')return el('code', 'inline-code', L(sec));
+    if(t==='link'){if(!TOR.urlOk(sec.url))return null;node=el('p');var a=el('a',null,L(sec)||sec.url);a.href=sec.url;a.target='_blank';a.rel='noopener noreferrer';node.appendChild(a);return node;}
+    if (t === 'quote') return el('blockquote', null, L(sec));
+    if (t === 'table') {
+      node=el('div','artifacts-wrap'); var tab=el('table','artifacts');
+      var hr=el('tr');(sec.headers||[]).forEach(function(x){hr.appendChild(el('th',null,L(x)))});tab.appendChild(hr);
+      (sec.rows||[]).forEach(function(row){var tr=el('tr');row.forEach(function(x){tr.appendChild(el('td',null,L(x)))});tab.appendChild(tr)});node.appendChild(tab);return node;
+    }
+    if (t === 'chips') return el('span', 'chips-inline', L(sec));
+    if (t === 'callout') {
+      node = el('div', 'callout');
+      node.appendChild(el('span', 'callout-title', lang === 'ar' ? sec.title_ar : sec.title_en));
+      node.appendChild(document.createTextNode(L(sec)));
+      return node;
+    }
+    if (t === 'code') {
+      node = el('div', 'codeblock');
+      var head = el('div', 'cb-head');
+      head.appendChild(el('span', null, lang === 'ar' ? sec.label_ar : sec.label_en));
+      var preId = 'code-' + idx;
+      var btn = el('button', 'copy-btn', copyLabel);
+      btn.type = 'button';
+      btn.setAttribute('data-target', preId);
+      btn.setAttribute('data-copied-label', copiedLabel);
+      head.appendChild(btn);
+      node.appendChild(head);
+      var pre = el('pre'); pre.id = preId; pre.textContent = sec.code || '';
+      node.appendChild(pre);
+      return node;
+    }
+    if (t === 'list') {
+      node = el(sec.ordered ? 'ol' : 'ul');
+      (sec.items || []).forEach(function (it) { node.appendChild(el('li', null, L(it))); });
+      return node;
+    }
+    if (t === 'timeline') {
+      node = el('div', 'timeline');
+      (sec.rows || []).forEach(function (r) {
+        var row = el('div', 'tl-row');
+        row.appendChild(el('span', 'tl-t', r.t || ''));
+        row.appendChild(el('span', 'tl-x', L(r)));
+        node.appendChild(row);
+      });
+      return node;
+    }
+    if (t === 'image') {
+      node = el('figure', 'fig');
+      if (TOR.imgOk(sec.src)) {
+        var img = el('img');
+        img.src = sec.src;
+        img.alt = lang === 'ar' ? (sec.alt_ar || '') : (sec.alt_en || '');
+        img.loading = 'lazy';
+        node.appendChild(img);
+      }
+      var cap = lang === 'ar' ? sec.caption_ar : sec.caption_en;
+      if (cap) node.appendChild(el('figcaption', null, cap));
+      return node;
+    }
+    return null;
+  }
+
+  function buildToc(container, entries) {
+    if (!container) return;
+    var title = container.querySelector('.toc-title');
+    var meta = container.querySelector('.toc-meta');
+    container.innerHTML = '';
+    if (title) container.appendChild(title);
+    entries.forEach(function (x, i) {
+      var n = String(i + 1).padStart(2, '0');
+      if (lang === 'ar') n = toArDigits(n);
+      var a = el('a', null, n + ' · ' + x.text);
+      a.href = '#' + x.id;
+      container.appendChild(a);
+    });
+    if (meta) container.appendChild(meta);
+  }
+
+  function fillChips(box, chips) {
+    if (!box) return;
+    box.innerHTML = '';
+    (chips || []).forEach(function (c) { box.appendChild(el('span', 'chip' + (c.gold ? ' gold' : ''), L(c))); });
+  }
+  function metaJoin(parts, fallback) {
+    var clean = parts.filter(function (x) { return x && String(x).trim(); });
+    return clean.length ? clean.join(' · ') : fallback;
+  }
+  function solveBadge(id, withUnsolved) {
+    var b = el('span', 'solve-badge', '');
+    b.setAttribute('data-solve-badge', id);
+    b.textContent = withUnsolved ? T.unsolved : '';
+    if (!withUnsolved) b.hidden = true;
+    return b;
+  }
+
+  // ---------- CTF challenge card ----------
+  function challengeCard(c) {
+    var card = el('article', 'papyrus ctf');
+    var ph = el('div', 'ph');
+    ph.appendChild(el('span', 'cid', c.id));
+    ph.appendChild(solveBadge(c.id, false));
+    card.appendChild(ph);
+    var h3 = el('h3');
+    var link = el('a', null, L(c.title));
+    link.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
+    h3.appendChild(link); card.appendChild(h3);
+    card.appendChild(el('p', null, L(c.excerpt)));
+    var meta = el('div', 'ctf-meta');
+    function row(k, v) { if (v == null || v === '') return; meta.appendChild(el('span', null, k + ': ' + v)); }
+    row(T.category, L(c.category));
+    row(T.difficulty, L(c.difficulty));
+    row(T.points, c.points ? num(c.points) : '');
+    row(T.time, L(c.est_time));
+    row(T.availability, c.availability === 'open' ? T.open : T.soon);
+    row(T.evidence, (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : '');
+    card.appendChild(meta);
+    card.appendChild(el('div', 'foot', metaJoin([c.date, (c.tags || []).join(' · ')], T.noDate)));
+    return card;
+  }
+
+
+  // ---------- wide record row (challenge list) ----------
+  function challengeRow(c) {
+    var card = el('article', 'tablet rec-row');
+    card.setAttribute('data-avail', c.availability === 'open' ? 'open' : 'soon');
+    var href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
+    if (TOR.imgOk(c.image)) {
+      var a0 = el('a', 'scene-link'); a0.href = href;
+      var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy';
+      a0.appendChild(im); card.appendChild(a0);
+    }
+    var body = el('div', 'body');
+    var labels = el('div', 'labels');
+    fillChips(labels, c.chips);
+    labels.appendChild(el('span', 'chip' + (c.availability === 'open' ? ' gold' : ''), c.availability === 'open' ? T.open : T.soon));
+    labels.appendChild(solveBadge(c.id, true));
+    body.appendChild(labels);
+    var h3 = el('h3'); var link = el('a', null, L(c.title)); link.href = href;
+    h3.appendChild(link); body.appendChild(h3);
+    if (L(c.excerpt)) body.appendChild(el('p', 'rec-ex', L(c.excerpt)));
+    body.appendChild(el('div', 'rec-meta', metaJoin([L(c.category), L(c.difficulty), c.points ? num(c.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(c.est_time),
+      (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : ''],
+      lang === 'ar' ? 'الصعوبة والنقاط: تُضافان لاحقًا' : 'Difficulty and points: to be added')));
+    card.appendChild(body);
+    return card;
+  }
+
+  // intro line, filter bar and end-of-list note around a list
+  function listChrome(box, kind, items) {
+    var ar = lang === 'ar';
+    var intro = el('p', 'list-intro', kind === 'challenges'
+      ? (ar ? 'كل تحقيق يبدأ بأثر. تحديات مبنية على الملاحظة والأدلة والفهم.' : 'Every investigation begins with a trace. Challenges built for observation, evidence, and understanding.')
+      : (ar ? 'مساحة للمقالات والملاحظات الميدانية.' : 'A home for articles and field notes.'));
+    var bar = el('div', 'filter-bar');
+    var mode = 'all';
+    function btn(key, label) {
+      var b = el('button', 'f-btn' + (key === 'all' ? ' on' : ''), label); b.type = 'button'; b.setAttribute('data-f', key);
+      b.addEventListener('click', function () {
+        mode = key;
+        bar.querySelectorAll('.f-btn').forEach(function (x) { x.classList.toggle('on', x === b); });
+        box.querySelectorAll('.rec-row').forEach(function (r) { r.hidden = !(mode === 'all' || r.getAttribute('data-avail') === mode); });
+      });
+      bar.appendChild(b);
+    }
+    if (kind === 'challenges') {
+      btn('all', ar ? 'كل التحديات' : 'All challenges');
+      btn('open', ar ? 'متاح' : 'Available');
+      btn('soon', ar ? 'قيد التحضير' : 'In preparation');
+      bar.appendChild(el('span', 'f-note', ar ? 'التصنيف: التحليل الجنائي الرقمي' : 'Category: digital forensics'));
+    } else {
+      btn('all', ar ? 'كل المقالات' : 'All articles');
+      bar.appendChild(el('span', 'f-note', (items && items.length) ? num(items.length) + ' ' + (ar ? 'مقال' : 'article(s)') : (ar ? 'الوسوم تُضاف لاحقًا' : 'Tags to be added')));
+    }
+    box.parentNode.insertBefore(intro, box);
+    box.parentNode.insertBefore(bar, box);
+    var end = el('div', 'list-end');
+    end.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><ellipse cx="12" cy="13" rx="5" ry="6"/><path d="M12 7V4M9 4h6M7 10 3 8M7 14l-4 1M17 10l4-2M17 14l4 1M12 8v10"/></svg>';
+    end.appendChild(el('p', null, kind === 'challenges'
+      ? (ar ? 'ستجد سجلات أخرى مكانها هنا.' : 'More records will find their place here.')
+      : (ar ? 'الأرشيف ينتظر سجله التالي.' : 'The archive awaits its next record.')));
+    box.parentNode.appendChild(end);
+  }
+
+  function articleCard(a) {
+    var card = el('article', 'papyrus');
+    var ph = el('div', 'ph');
+    ph.appendChild(el('span', null, T.article));
+    card.appendChild(ph);
+    var h3 = el('h3');
+    var link = el('a', null, L(a.title));
+    link.href = (lang === 'ar' ? 'article-ar.html' : 'article-en.html') + '?a=' + encodeURIComponent(a.id);
+    h3.appendChild(link); card.appendChild(h3);
+    card.appendChild(el('p', null, L(a.excerpt)));
+    card.appendChild(el('div', 'foot', metaJoin([a.date, (a.tags || []).join(' · ')],
+      lang === 'ar' ? 'التاريخ والوسوم: يُضافان لاحقًا' : 'Date and tags: to be added')));
+    return card;
+  }
+
+  // ---------- article detail ----------
+  if (page === 'article-ar' || page === 'article-en') {
+    var item = (TOR.param('a') || TOR.param('id')) ? TOR.find('articles', TOR.param('a') || TOR.param('id')) : TOR.visible('articles')[0];
+    var reader = document.getElementById('reader');
+    if (!item) {
+      if (reader) reader.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد مقالات بعد.' : 'No articles yet.'));
+    } else {
+      document.title = (L(item.seo_title||{})||L(item.title)) + (lang === 'ar' ? ' · مينا مكس' : ' · Mina Max');
+      var md=L(item.meta_description||{});if(md){var mm=document.querySelector('meta[name=description]')||document.createElement('meta');mm.name='description';mm.content=md;document.head.appendChild(mm)}
+      var cur = document.getElementById('crumb-cur'); if (cur) cur.textContent = L(item.title);
+      var ban = document.querySelector('.pagehead .banner');
+      if (ban && TOR.imgOk(item.image)) ban.src = item.image;
+      fillChips(document.getElementById('item-labels'), item.chips);
+      var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
+      var meta = document.getElementById('item-meta');
+      if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes],
+        lang === 'ar' ? 'التاريخ والوسوم وزمن القراءة: تُضاف لاحقًا' : 'Date, tags and reading time: to be added');
+      var counter = { headings: [] };
+      (item.sections || []).forEach(function (sec, i) {
+        var node = renderSection(sec, i, counter);
+        if (node) reader.appendChild(node);
+      });
+      buildToc(document.getElementById('toc'), counter.headings);
+    }
+  }
+
+  // ---------- challenge detail ----------
+  var currentChallenge = null;
+  if (page === 'challenge-ar' || page === 'challenge-en') {
+    var ch = (TOR.param('c') || TOR.param('id')) ? TOR.find('challenges', TOR.param('c') || TOR.param('id')) : TOR.visible('challenges')[0];
+    currentChallenge = ch;
+    if (!ch) {
+      var zm0 = document.getElementById('zone-main');
+      if (zm0) zm0.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد تحديات بعد.' : 'No challenges yet.'));
+      ['walkthrough-section','region-repo','region-artifacts','region-hints','region-flag'].forEach(function (id) {
+        var x = document.getElementById(id); if (x) x.style.display = 'none';
+      });
+    } else {
+      document.title = L(ch.title) + (lang === 'ar' ? ' · مينا مكس' : ' · Mina Max');
+      var cur2 = document.getElementById('crumb-cur'); if (cur2) cur2.textContent = L(ch.title);
+      var ban2 = document.querySelector('.pagehead .banner');
+      if (ban2 && TOR.imgOk(ch.image)) ban2.src = ch.image;
+      fillChips(document.getElementById('item-labels'), ch.chips);
+      var h1b = document.getElementById('item-title'); if (h1b) h1b.textContent = L(ch.title);
+      var meta2 = document.getElementById('item-meta');
+      if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty),
+        ch.points ? num(ch.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(ch.est_time), ch.date],
+        lang === 'ar' ? 'التصنيف والصعوبة والنقاط: تُضاف لاحقًا' : 'Category, difficulty and points: to be added');
+      var counter2 = { headings: [] };
+      var main = document.getElementById('zone-main');
+      [['scenario','السيناريو','Scenario'],['objectives','أهداف التحقيق','Investigation objectives'],['required_skills','المهارات المطلوبة','Required skills'],['tools','الأدوات المطلوبة','Tools required'],['instructions','التعليمات','Instructions']].forEach(function(x){var text=L(ch[x[0]]||{});if(text&&main){var h=el('h2',null,lang==='ar'?x[1]:x[2]);h.id='brief-'+x[0];main.appendChild(h);main.appendChild(el('p',null,text));counter2.headings.push({id:h.id,text:h.textContent})}});
+      var sol = document.getElementById('zone-solution');
+      var firstSolHeading = null;
+      (ch.sections || []).forEach(function (sec, i) {
+        var node = renderSection(sec, i, counter2);
+        if (!node) return;
+        if (sec.zone === 'solution') {
+          if (!firstSolHeading && sec.type === 'heading') { node.setAttribute('tabindex', '-1'); firstSolHeading = node; }
+          if (sol) sol.appendChild(node);
+        } else if (main) main.appendChild(node);
+      });
+
+      // --- evidence repository (repo link) ---
+      var repoBox = document.getElementById('repo-body');
+      if (repoBox) {
+        if (ch.repo && TOR.urlOk(ch.repo.url)) {
+          var ra = el('a', 'repo-link', (lang === 'ar' ? ch.repo.label_ar : ch.repo.label_en) || 'Repository');
+          ra.href = ch.repo.url; ra.target = '_blank'; ra.rel = 'noopener noreferrer';
+          repoBox.appendChild(ra);
+        } else {
+          repoBox.appendChild(el('p', 'muted-note', lang === 'ar' ? 'رابط المستودع: يُضاف لاحقًا.' : 'Repository link: to be added.'));
+        }
+      }
+
+      // --- artifacts table ---
+      var artBox = document.getElementById('artifacts-body');
+      if (artBox) {
+        var arts = ch.artifacts || [];
+        if (!arts.length) {
+          artBox.appendChild(el('p', 'muted-note', lang === 'ar' ? 'ملفات الأدلة: تُضاف لاحقًا.' : 'Evidence files: to be added.'));
+        } else {
+          var tbl = el('table', 'artifacts');
+          var trh = el('tr');
+          [lang === 'ar' ? 'الملف' : 'File', lang === 'ar' ? 'النوع' : 'Type',
+           lang === 'ar' ? 'الحجم' : 'Size', 'SHA-256', lang === 'ar' ? 'الوصف' : 'Description',
+           lang === 'ar' ? 'التحميل' : 'Download'].forEach(function (h) { trh.appendChild(el('th', null, h)); });
+          tbl.appendChild(trh);
+          arts.forEach(function (a) {
+            var tr = el('tr');
+            tr.appendChild(el('td', 'mono', a.name || ''));
+            tr.appendChild(el('td', 'mono', a.type || ''));
+            tr.appendChild(el('td', 'mono', a.size || ''));
+            var tdS = el('td', 'mono sha'); tdS.textContent = a.sha256 || ''; tdS.title = a.sha256 || ''; tr.appendChild(tdS);
+            tr.appendChild(el('td', null, lang === 'ar' ? a.desc_ar : a.desc_en));
+            var tdD = el('td', 'dl');
+            if (a.status === 'unavailable' || a.status === 'planned') {
+              tdD.appendChild(el('span', 'muted-note', a.status === 'planned' ? (lang === 'ar' ? 'مخطَّط، غير متاح بعد' : 'Planned, not available yet') : (lang === 'ar' ? 'غير متاح حاليًا' : 'Currently unavailable')));
+            } else if (TOR.urlOk(a.url)) {
+              var dl = el('a', 'btn-mini', lang === 'ar' ? 'تحميل' : 'Download');
+              dl.href = a.url; dl.target = '_blank'; dl.rel = 'noopener noreferrer';
+              tdD.appendChild(dl);
+              if (TOR.urlOk(a.mirror)) {
+                var mr = el('a', 'btn-mini ghost', lang === 'ar' ? 'مرآة' : 'Mirror');
+                mr.href = a.mirror; mr.target = '_blank'; mr.rel = 'noopener noreferrer';
+                tdD.appendChild(mr);
+              }
+            } else {
+              tdD.appendChild(el('span', 'muted-note', lang === 'ar' ? 'الرابط يُضاف لاحقًا' : 'Link to be added'));
+            }
+            tr.appendChild(tdD);
+            tbl.appendChild(tr);
+          });
+          var awrap = el('div', 'artifacts-wrap');
+          awrap.appendChild(tbl);
+          artBox.appendChild(awrap);
+          artBox.appendChild(el('p', 'muted-note', lang === 'ar'
+            ? 'الروابط خارجية يوفّرها صاحب التحدي (https فقط)، وبيانات الحجم والتكامل كما وردت منه. لا تُستضاف ملفات الأدلة على هذا الخادم.'
+            : 'Links are external, supplied by the challenge author (https only); size and checksum metadata as provided. Evidence files are not hosted on this server.'));
+        }
+      }
+
+      // --- hints ---
+      var hintBox = document.getElementById('hints-body');
+      if (hintBox) {
+        var hints = ch.hints || [];
+        if (!hints.length) {
+          hintBox.appendChild(el('p', 'muted-note', lang === 'ar' ? 'لا تلميحات لهذا التحدي.' : 'No hints for this challenge.'));
+        } else {
+          hints.forEach(function (h, i) {
+            var d = el('details', 'hint');
+            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1)));
+            d.appendChild(el('p', null, L(h)));
+            hintBox.appendChild(d);
+          });
+        }
+      }
+
+      // --- flag form meta ---
+      var fmt = document.getElementById('flag-format');
+      if (fmt && ch.flag) fmt.textContent = lang === 'ar' ? ch.flag.format_ar : ch.flag.format_en;
+
+      // --- TOC ---
+      var tocEntries = counter2.headings.slice();
+      tocEntries.push({ id: 'region-artifacts', text: lang === 'ar' ? 'مستودع الأدلة' : 'Evidence repository' });
+      tocEntries.push({ id: 'region-hints', text: lang === 'ar' ? 'التلميحات' : 'Hints' });
+      tocEntries.push({ id: 'region-flag', text: lang === 'ar' ? 'تسليم الفلاج' : 'Flag submission' });
+      tocEntries.push({ id: 'walkthrough-section', text: lang === 'ar' ? 'الحل' : 'Walkthrough' });
+      buildToc(document.getElementById('toc'), tocEntries);
+      var tocMeta = document.querySelector('#toc .toc-meta span:last-child');
+      if (tocMeta) tocMeta.textContent = (lang === 'ar' ? 'الصعوبة: ' : 'Difficulty: ') +
+        (L(ch.difficulty) || (lang === 'ar' ? 'تُضاف لاحقًا' : 'to be added'));
+    }
+  }
+
+  // ---------- listings ----------
+  if (page === 'articles-ar' || page === 'articles-en') {
+    var box = document.getElementById('listing');
+    var artsL = TOR.visible('articles');
+    if (box) {
+      if (!artsL.length) box.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد مقالات بعد — تُضاف من لوحة التحرير.' : 'No articles yet — add them from the editor.'));
+      artsL.forEach(function (a) { box.appendChild(articleCard(a)); });
+      listChrome(box, 'articles', artsL);
+    }
+  }
+  if (page === 'challenges-ar' || page === 'challenges-en') {
+    var box2 = document.getElementById('listing');
+    var chsL = TOR.visible('challenges');
+    if (box2) {
+      box2.className = 'rec-list';
+      if (!chsL.length) box2.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد تحديات بعد — تُضاف من لوحة التحرير.' : 'No challenges yet — add them from the editor.'));
+      chsL.forEach(function (c) { box2.appendChild(challengeRow(c)); });
+      listChrome(box2, 'challenges', chsL);
+    }
+  }
+
+  // ---------- index ----------
+  if (page === 'index-ar' || page === 'index-en') {
+    var fc = TOR.visible('challenges').find(function(c){return c.featured}) || TOR.visible('challenges')[0];
+    var tab = document.getElementById('feat-challenge');
+    if (tab) {
+      if (!fc) { tab.style.display = 'none'; }
+      else {
+        var im = tab.querySelector('img.scene');
+        if (im && TOR.imgOk(fc.image)) im.src = fc.image;
+        var a0 = tab.querySelector('a.scene-link');
+        if (a0) a0.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(fc.id);
+        fillChips(tab.querySelector('.labels'), fc.chips);
+        var th = tab.querySelector('[data-slot="title"]'); if (th) th.textContent = L(fc.title);
+        var tm = tab.querySelector('[data-slot="meta"]');
+        if (tm) tm.textContent = metaJoin([L(fc.difficulty), fc.points ? num(fc.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(fc.est_time)],
+          lang === 'ar' ? 'الصعوبة والنقاط: تُضافان لاحقًا' : 'Difficulty and points: to be added');
+        var lb = tab.querySelector('.labels'); if (lb) lb.appendChild(solveBadge(fc.id, false));
+      }
+    }
+    var box3 = document.getElementById('feat-articles');
+    if (box3) {
+      var fa = TOR.visible('articles').slice(0, 2);
+      if (!fa.length) box3.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد مقالات بعد.' : 'No articles yet.'));
+      fa.forEach(function (a) { box3.appendChild(articleCard(a)); });
+    }
+  }
+
+  // ---------- solved-state sync (server truth, local cache fallback) ----------
+  (function () {
+    var badges = document.querySelectorAll('[data-solve-badge]');
+    if (!badges.length) return;
+    function paint(solvedSet, fromServer) {
+      badges.forEach(function (b) {
+        var id = b.getAttribute('data-solve-badge');
+        var solved = solvedSet.indexOf(id) !== -1;
+        b.hidden = false;
+        b.textContent = solved ? T.solved : T.unsolved;
+        b.classList.toggle('yes', solved);
+      });
+      var fs = document.getElementById('flag-status');
+      var fbtn = document.getElementById('flag-submit');
+      if (currentChallenge && solvedSet.indexOf(currentChallenge.id) !== -1) {
+        if (fs) { fs.className = 'flag-status ok'; fs.textContent = lang === 'ar' ? 'هذا التحدي محلول بالفعل ✓' : 'Already solved ✓'; }
+        if (fbtn) fbtn.disabled = false;
+      }
+    }
+    // instant paint from local cache, then server truth
+    paint(TOR.localSolves(), false);
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 2500);
+    fetch(TOR.apiBase() + '/api/state?identity=' + TOR.identity(), { signal: ctrl.signal })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) {
+        clearTimeout(timer);
+        if (d && Array.isArray(d.solved)) {
+          paint(d.solved, true);
+          try { localStorage.setItem('tor-solves', JSON.stringify(d.solved)); } catch (e) {}
+        }
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        var note = document.getElementById('flag-server-note');
+        if (note) note.textContent = lang === 'ar'
+          ? 'التحقق من الفلاج يحتاج تشغيل الخادم المحلي (server/server.js). الحالة المعروضة من هذا المتصفح فقط.'
+          : 'Flag verification needs the local server (server/server.js) running. Status shown is from this browser only.';
+      });
+  })();
+
+  // ---------- flag submission + solvers ----------
+  (function () {
+    var form = document.getElementById('flag-form');
+    if (!form || !currentChallenge) return;
+    var nameIn = document.getElementById('flag-name');
+    var input = document.getElementById('flag-input');
+    var btn = document.getElementById('flag-submit');
+    var status = document.getElementById('flag-status');
+    var chId = currentChallenge.id;
+    var solversSec = document.getElementById('solvers-section');
+    var solversList = document.getElementById('solvers-list');
+
+    if (nameIn) {
+      var savedName = localStorage.getItem('tor-player-name') || '';
+      if (savedName) nameIn.value = savedName;
+    }
+
+    function renderSolvers(solvers) {
+      if (!solversSec || !solversList) return;
+      if (!solvers || !solvers.length) { solversSec.hidden = true; return; }
+      solversList.innerHTML = '';
+      solvers.forEach(function (s) {
+        var badge = document.createElement('span');
+        badge.className = 'solver-badge';
+        var nameSpan = document.createElement('b');
+        nameSpan.textContent = s.name || 'Anonymous';
+        badge.appendChild(nameSpan);
+        if (s.ts) {
+          var timeSpan = document.createElement('span');
+          timeSpan.className = 'ts';
+          var d = new Date(s.ts);
+          timeSpan.textContent = d.toLocaleDateString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { day: 'numeric', month: 'short' });
+          badge.appendChild(timeSpan);
+        }
+        solversList.appendChild(badge);
+      });
+      solversSec.hidden = false;
+    }
+
+    function loadSolvers() {
+      fetch(TOR.apiBase() + '/api/solvers?challenge=' + encodeURIComponent(chId))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (d && d.solvers) renderSolvers(d.solvers); })
+        .catch(function () {});
+    }
+    loadSolvers();
+
+    function set(cls, msg) { status.className = 'flag-status ' + cls; status.textContent = msg; }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nameVal = nameIn ? (nameIn.value || '').trim() : '';
+      var val = (input.value || '').trim();
+      if (!nameVal) {
+        set('err', lang === 'ar' ? 'اكتب اسمك أو لقبك أولًا.' : 'Enter your name or handle first.');
+        if (nameIn) nameIn.focus();
+        return;
+      }
+      if (nameVal.length > 50) {
+        set('err', lang === 'ar' ? 'الاسم طويل جدًا (حد أقصى 50 حرفًا).' : 'Name too long (max 50 chars).');
+        if (nameIn) nameIn.focus();
+        return;
+      }
+      if (nameIn) localStorage.setItem('tor-player-name', nameVal);
+      if (!val) { set('err', lang === 'ar' ? 'اكتب الفلاج أولًا.' : 'Enter a flag first.'); input.focus(); return; }
+      if (val.length > 200) { set('err', lang === 'ar' ? 'المدخل طويل بشكل غير متوقع.' : 'Input unexpectedly long.'); return; }
+      btn.disabled = true;
+      set('load', lang === 'ar' ? 'جارٍ التحقق…' : 'Verifying…');
+      fetch(TOR.apiBase() + '/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: TOR.identity(), name: nameVal, challenge: chId, flag: val })
+      }).then(function (r) {
+        return r.json().then(function (d) { return { code: r.status, d: d }; });
+      }).then(function (res) {
+        btn.disabled = false;
+        var d = res.d || {};
+        if (res.code === 429) { set('err', lang === 'ar' ? 'محاولات كثيرة بسرعة — انتظر دقيقة وحاول تاني.' : 'Too many attempts — wait a minute and retry.'); return; }
+        if (d.status === 'correct') {
+          set('ok', lang === 'ar' ? 'فلاج صحيح! اتسجّل الحل باسم «' + nameVal + '» ✓' : 'Correct flag! Solve recorded for "' + nameVal + '" ✓');
+          TOR.markLocalSolve(chId);
+          document.querySelectorAll('[data-solve-badge="' + chId + '"]').forEach(function (b) {
+            b.hidden = false; b.textContent = T.solved; b.classList.add('yes');
+          });
+          loadSolvers();
+        } else if (d.status === 'already') {
+          set('ok', lang === 'ar' ? 'هذا التحدي محلول بالفعل باسم «' + (d.name || nameVal) + '» ✓' : 'Already solved by "' + (d.name || nameVal) + '" ✓');
+          TOR.markLocalSolve(chId);
+          loadSolvers();
+        } else if (d.status === 'wrong') {
+          set('err', lang === 'ar' ? 'فلاج غير صحيح. راجع الأدلة وحاول مرة أخرى.' : 'Incorrect flag. Recheck the evidence and try again.');
+        } else {
+          set('err', lang === 'ar' ? 'استجابة غير متوقعة من الخادم.' : 'Unexpected server response.');
+        }
+      }).catch(function () {
+        btn.disabled = false;
+        set('err', lang === 'ar' ? 'الخادم غير متاح — شغّل server/server.js وحاول تاني.' : 'Server unavailable — run server/server.js and retry.');
+      });
+    });
+  })();
+
+  // ---------- keep ?a=/?c= across the language toggle ----------
+  var pill = document.querySelector('.pill-lang');
+  if (pill && location.search) {
+    pill.setAttribute('href', pill.getAttribute('href').split('?')[0] + location.search);
+  }
+})();
+
+// ---------- spoiler gate ----------
+(function () {
+  var btn = document.getElementById('seal-btn');
+  if (!btn) return;
+  var walk = document.getElementById('walkthrough');
+  var gateImg = document.getElementById('gate-img');
+  var gateTitle = document.getElementById('gate-title');
+  btn.addEventListener('click', function () {
+    var opening = walk.hidden;
+    walk.hidden = !opening;
+    btn.setAttribute('aria-expanded', String(opening));
+    if (opening) {
+      if (gateImg && gateImg.dataset.open) gateImg.src = gateImg.dataset.open;
+      if (gateTitle && gateTitle.dataset.openText) gateTitle.textContent = gateTitle.dataset.openText;
+      btn.textContent = btn.dataset.closeText;
+      var h = walk.querySelector('[tabindex="-1"]');
+      if (h) h.focus();
+    } else {
+      if (gateImg && gateImg.dataset.sealed) gateImg.src = gateImg.dataset.sealed;
+      if (gateTitle && gateTitle.dataset.sealedText) gateTitle.textContent = gateTitle.dataset.sealedText;
+      btn.textContent = btn.dataset.openText;
+      btn.focus();
+    }
+  });
+})();
+
+// ---------- code copy ----------
+(function () {
+  document.querySelectorAll('.copy-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var pre = document.getElementById(b.dataset.target);
+      if (!pre) return;
+      var text = pre.innerText;
+      function done() {
+        var old = b.textContent;
+        b.textContent = b.dataset.copiedLabel;
+        setTimeout(function () { b.textContent = old; }, 1600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
+      } else { fallback(); }
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+})();
+
+// ---------- fixed-field overrides from admin.html (this browser only) ----------
+(function () {
+  var page = document.body && document.body.getAttribute('data-page');
+  if (!page) return;
+  var ov = TOR.fieldOverrides();
+  var lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
+  var defs = (typeof SITE_CONTENT !== 'undefined' && SITE_CONTENT.defaults) || {};
+  var base = /-(ar|en)$/.test(page) ? page : page + '-' + lang; // data-page may already carry the language
+  function val(ckey) {
+    var v = ov[page + ':' + ckey];
+    if (v == null || v === '') v = defs[base + ':' + ckey]; // server-side admin edits
+    return v;
+  }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  document.querySelectorAll('[data-ckey-from]').forEach(function (el) { // text owned by the About page (home teaser)
+    var k = el.getAttribute('data-ckey-from'), ap = 'about-' + lang;
+    var v = ov[ap + ':' + k]; if (v == null || v === '') v = defs[ap + ':' + k];
+    if (v) el.textContent = v;
+  });
+  document.querySelectorAll('[data-ckey]').forEach(function (el) {
+    var v = val(el.getAttribute('data-ckey'));
+    if (v == null || v === '') return;
+    if (el.hasAttribute('data-multiline')) { el.innerHTML = esc(v).replace(/\n/g, '<br>'); }
+    else { el.textContent = v; }
+  });
+  document.querySelectorAll('[data-ckey-href]').forEach(function (el) {
+    var v = (val(el.getAttribute('data-ckey-href')) || '').trim();
+    if (!v) return;
+    if (el.getAttribute('data-ckey-href') === 'contact-email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) v = 'mailto:' + v;
+    if (!/^https:\/\//i.test(v) && !/^mailto:/i.test(v)) return;
+    el.setAttribute('href', v);
+    el.classList.add('linked');
+    var soon = el.querySelector('.soon');
+    if (soon) soon.remove();
+  });
+})();
+
+// ---------- current page in the main navigation ----------
+(function () {
+  var page = (document.body && document.body.getAttribute('data-page')) || '';
+  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^about/.test(page) ? 'about' : '';
+  if (!want) return;
+  document.querySelectorAll('header.site nav.main a').forEach(function (a) {
+    if (!a.classList.contains('pill-lang') && (a.getAttribute('href') || '').indexOf(want + '-') === 0) a.setAttribute('aria-current', 'page');
+  });
+})();
+
+(function(){var a=document.querySelector('a.pill-lang');if(a&&location.search)a.href=a.getAttribute('href').split('?')[0]+location.search})();
+
+// Optional site appearance and identity settings. No settings means original design.
+(function(){
+ if(typeof SITE_SETTINGS==='undefined')return;var s=SITE_SETTINGS,ar=/-ar$/.test(document.body.dataset.page||'');
+ if(s.gold)document.documentElement.style.setProperty('--gold',s.gold);
+ if(s.font_ar)document.documentElement.style.setProperty('--body-ar',"'"+s.font_ar+"', sans-serif");
+ if(s.mode==='light')document.documentElement.classList.add('light-mode');
+ var name=s[ar?'name_ar':'name_en'],desc=s[ar?'description_ar':'description_en'];
+ if(name)document.querySelectorAll('.brand .name,.brand-name').forEach(e=>e.textContent=name);
+ if(desc){var m=document.querySelector('meta[name=description]')||document.createElement('meta');m.name='description';m.content=desc;document.head.appendChild(m)}
+ if(s.logo&&TOR.imgOk(s.logo)){var old=document.querySelector('.brand svg');if(old){var im=document.createElement('img');im.src=s.logo;im.alt='';im.style.cssText='width:32px;height:32px;object-fit:contain';old.replaceWith(im)}}
+ if(s.favicon&&TOR.imgOk(s.favicon)){var f=document.querySelector('link[rel=icon]')||document.createElement('link');f.rel='icon';f.href=s.favicon;document.head.appendChild(f)}
+ if(s.social_image&&TOR.imgOk(s.social_image)){var m=document.createElement('meta');m.setAttribute('property','og:image');m.content=new URL(s.social_image,location.href).href;document.head.appendChild(m)}
+ if(s.other_link&&TOR.urlOk(s.other_link)){var box=document.querySelector('.contact-row');if(box){var a=document.createElement('a');a.className='contact-chip linked';a.textContent=ar?'رابط آخر':'Other link';a.href=s.other_link;a.target='_blank';a.rel='noopener noreferrer';box.appendChild(a)}}
+})();
+
+if(document.body.dataset.adminPreview){var banner=document.createElement('div');banner.textContent=document.documentElement.lang==='ar'?'معاينة خاصة للأدمن للمحتوى المحفوظ، قد تشمل مسودات.':'Private admin preview of saved content, may include drafts.';banner.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:9999;text-align:center;background:#D7B776;color:#251F15;padding:10px;font:14px sans-serif';document.body.appendChild(banner)}

@@ -1,0 +1,52 @@
+[
+ {
+  "file": "artifacts/log4shell-lab/access.log",
+  "name": "access.log",
+  "type": "LOG",
+  "size": 907,
+  "sha256": "4192f4357dbb01faa5c9c6b1b710ca327a8d55587d33fdd22a2e73eeb197decd",
+  "desc_ar": "سجل وصول مُلفّق يحتوي محاولة استغلال JNDI",
+  "desc_en": "Fabricated access log containing a JNDI exploitation attempt",
+  "mirror": ""
+ },
+ {
+  "file": "artifacts/log4shell-lab/timeline.json",
+  "name": "timeline.json",
+  "type": "JSON",
+  "size": 728,
+  "sha256": "f74bd9a88a6bfbf45f30c17e5893bac1760d5fb0585d0a28511115ecfd4798a7",
+  "desc_ar": "خط زمني مُهيكل لأحداث الحادثة (عيّنة)",
+  "desc_en": "Structured timeline of the incident events (sample)",
+  "mirror": ""
+ },
+ {
+  "file": "artifacts/log4shell-lab/capture.pcap",
+  "name": "capture.pcap",
+  "type": "PCAP",
+  "size": 169,
+  "sha256": "fd58ea94fde289c7cc98bf41b606010c53e018439253c2748b1d7b4a7af1839e",
+  "desc_ar": "التقطة حزم مصغّرة تحمل استدعاء JNDI (عيّنة)",
+  "desc_en": "Miniature packet capture carrying the JNDI callback (sample)",
+  "mirror": ""
+ },
+ {
+  "file": "artifacts/log4shell-lab/manifest.sha256",
+  "name": "manifest.sha256",
+  "type": "SHA256",
+  "size": 236,
+  "sha256": "3a929981c2c5e904de5534c7f336a783525e1f25c527d452d8093a07d67211eb",
+  "desc_ar": "بيان تكامل الملفات للتحقق من التحميل",
+  "desc_en": "File-integrity manifest to verify downloads",
+  "mirror": ""
+ },
+ {
+  "file": "artifacts/log4shell-lab/log4shell-lab-bundle.zip",
+  "name": "log4shell-lab-bundle.zip",
+  "type": "ZIP",
+  "size": 1432,
+  "sha256": "39b3a43768928575c3c028deaed6440cf47613acc8e93ffee37fdb73a1c7a4d0",
+  "desc_ar": "كل الأدلة في أرشيف واحد",
+  "desc_en": "All evidence files in one archive",
+  "mirror": ""
+ }
+]

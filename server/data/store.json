@@ -1,0 +1,378 @@
+{
+  "fixedDefaults": {
+    "index-en:hero-kicker": "Mina Max · The Temple of Records",
+    "index-en:hero-title": "Every digital trace,\nrecorded.",
+    "index-en:hero-sub": "Digital forensics & incident response. Challenges, investigations, and lessons from the field.",
+    "index-en:hero-cta": "Enter the challenge archive",
+    "index-en:about-title": "THE SCRIBE BEHIND THE RECORDS",
+    "index-en:about-text": "I'm Mina Max. I work in digital forensics and incident response, and this site documents the challenges I build, the investigations I walk through, and what I learn along the way.",
+    "index-ar:hero-kicker": "معبد السجلات · مينا مكس",
+    "index-ar:hero-title": "معبد السجلات",
+    "index-ar:hero-sub": "التحقيق الجنائي الرقمي والاستجابة للحوادث · تحديات وتحقيقات ومعرفة على الطريق",
+    "index-ar:hero-cta": "ادخل سجلّ التحديات",
+    "index-ar:about-title": "كاتب هذا السجل",
+    "index-ar:about-text": "أنا مينا مكس. شغال في التحقيق الجنائي الرقمي والاستجابة للحوادث، والموقع ده بيوثّق التحديات اللي ببنيها، والتحقيقات اللي بمشي فيها، واللي بتعلمه في الطريق.",
+    "challenges-en:page-title": "INSIDE THE EVIDENCE CHAMBER",
+    "challenges-en:page-sub": "Original forensic challenges, recorded as they are built.",
+    "challenges-ar:page-title": "داخل حجرة الأدلة",
+    "challenges-ar:page-sub": "تحديات تحقيق جنائي أصلية، تُسجَّل أول ما تتبني.",
+    "articles-en:page-title": "FROM THE PAPYRUS ARCHIVE",
+    "articles-en:page-sub": "Field notes and investigations, in English and Arabic.",
+    "articles-ar:page-title": "من أرشيف البردي",
+    "articles-ar:page-sub": "ملاحظات ميدانية وتحقيقات، بالعربي والإنجليزي.",
+    "about-en:about-title": "I'M MINA MAX.",
+    "about-en:about-intro": "I work in digital forensics and incident response: reading what systems remember after something goes wrong. This site documents the challenges I build, the investigations I walk through, and what I learn along the way.",
+    "about-en:c1-title": "WHAT THIS SITE IS",
+    "about-en:c1-text": "A field register: forensic challenges I design, and articles I write about investigations and the craft behind them.",
+    "about-en:c2-title": "WHAT YOU'LL FIND HERE",
+    "about-en:c2-text": "Challenge briefs with sealed walkthroughs, evidence-first writeups, and honest notes on what worked and what didn't.",
+    "about-en:c3-title": "WHAT I'M WORKING TOWARD",
+    "about-en:c3-text": "Deeper DFIR practice, one documented incident at a time, recorded in the open so others can follow the trail.",
+    "about-ar:about-title": "أنا مينا مكس.",
+    "about-ar:about-intro": "شغال في التحقيق الجنائي الرقمي والاستجابة للحوادث: قراءة اللي الأنظمة بتفتكره بعد ما حاجة تبوظ. الموقع ده بيوثّق التحديات اللي ببنيها، والتحقيقات اللي بمشي فيها، واللي بتعلمه في الطريق.",
+    "about-ar:c1-title": "الموقع ده إيه",
+    "about-ar:c1-text": "سجلّ ميداني: تحديات تحقيق جنائي بصمّمها، ومقالات بكتبها عن التحقيقات والحرفة وراها.",
+    "about-ar:c2-title": "اللي هتلاقيه هنا",
+    "about-ar:c2-text": "تحديات بحلول مختومة، كتابات بتبدأ من الأدلة، وملاحظات صريحة عن اللي نجح واللي لأ.",
+    "about-ar:c3-title": "اللي بشتغل ناحيته",
+    "about-ar:c3-text": "ممارسة أعمق في الـDFIR، حادثة موثّقة واحدة كل مرة، مسجّلة قدام الناس عشان غيري يمشي على الأثر.",
+    "about-en:sec1-kick": "Investigate · Learn · Record",
+    "about-en:sec1-title": "What this temple records",
+    "about-en:cred-kick": "Reserved cartouches · placeholders",
+    "about-en:cred-title": "Credentials, when added",
+    "about-en:cred1": "Credentials: to be added",
+    "about-en:cred2": "Achievements: to be added",
+    "about-en:photo-ph": "Photograph: to be added",
+    "about-en:contact-title": "Contact",
+    "about-ar:sec1-kick": "حقّق · تعلّم · سجّل",
+    "about-ar:sec1-title": "ما الذي يسجّله هذا المعبد",
+    "about-ar:cred-kick": "خراطيش محجوزة · أماكن مؤقتة",
+    "about-ar:cred-title": "الشهادات، عند إضافتها",
+    "about-ar:cred1": "الشهادات: تُضاف لاحقًا",
+    "about-ar:cred2": "الإنجازات: تُضاف لاحقًا",
+    "about-ar:photo-ph": "الصورة الشخصية: تُضاف لاحقًا",
+    "about-ar:contact-title": "التواصل"
+  },
+  "collections": {
+    "challenges": [
+      {
+        "id": "log4shell-lab",
+        "hidden": false,
+        "image": "assets/challenge.jpg",
+        "title": {
+          "ar": "تحدي Log4Shell: تحقيق في محاكاة معملية مستوحاة من حادثة موثّقة",
+          "en": "Log4Shell Challenge: investigating a lab simulation inspired by a documented incident"
+        },
+        "excerpt": {
+          "ar": "تحدي تجريبي كامل الميكانيكية: فلاج حقيقي يتحقق منه الخادم المحلي، وتلميحات، ومنطقة حل. روابط الأدلة الخارجية تُضاف عند توفيرها. الغرض اختبار المنصة قبل إضافة تحديات حقيقية.",
+          "en": "A full-mechanics demo challenge: a real flag verified by the local server, hints, and a solution area. External evidence links are added when provided. Its purpose is testing the platform before real challenges are added."
+        },
+        "date": "",
+        "tags": [
+          "DFIR"
+        ],
+        "chips": [
+          {
+            "ar": "تحدي تجريبي قابل للعب · بيانات مُلفّقة",
+            "en": "Playable demo challenge · fabricated data",
+            "gold": true
+          },
+          {
+            "ar": "لاختبار المنصة — ليس تحديًا منشورًا",
+            "en": "Platform test — not a published challenge",
+            "gold": false
+          }
+        ],
+        "category": {
+          "ar": "تحليل سجلات",
+          "en": "Log analysis"
+        },
+        "difficulty": {
+          "ar": "سهل",
+          "en": "Easy"
+        },
+        "points": 150,
+        "est_time": {
+          "ar": "٣٠–٤٥ دقيقة",
+          "en": "30–45 min"
+        },
+        "availability": "open",
+        "level": "",
+        "repo": {
+          "url": "",
+          "label_ar": "مستودع الكود",
+          "label_en": "Code repository"
+        },
+        "hints": [
+          {
+            "ar": "راجع سجل الوصول سطرًا بسطر: المحاولة الحقيقية لا تشبه باقي الطلبات.",
+            "en": "Read the access log line by line: the real attempt does not look like the other requests."
+          },
+          {
+            "ar": "سلسلة JNDI في ترويسة User-Agent تكشف مضيف LDAP الخبيث. الفلاج بصيغة TOR{المضيف}.",
+            "en": "The JNDI string in the User-Agent header reveals the malicious LDAP host. Flag format: TOR{host}."
+          }
+        ],
+        "flag": {
+          "format_ar": "صيغة الفلاج: TOR{…}",
+          "format_en": "Flag format: TOR{…}"
+        },
+        "artifacts": [
+          {
+            "name": "access.log",
+            "type": "LOG",
+            "size": "907 B",
+            "sha256": "4192f4357dbb01faa5c9c6b1b710ca327a8d55587d33fdd22a2e73eeb197decd",
+            "desc_ar": "سجل وصول مُلفّق يحتوي محاولة استغلال JNDI",
+            "desc_en": "Fabricated access log containing a JNDI exploitation attempt",
+            "url": "",
+            "mirror": ""
+          },
+          {
+            "name": "timeline.json",
+            "type": "JSON",
+            "size": "728 B",
+            "sha256": "f74bd9a88a6bfbf45f30c17e5893bac1760d5fb0585d0a28511115ecfd4798a7",
+            "desc_ar": "خط زمني مُهيكل لأحداث الحادثة (عيّنة)",
+            "desc_en": "Structured timeline of the incident events (sample)",
+            "url": "",
+            "mirror": ""
+          },
+          {
+            "name": "capture.pcap",
+            "type": "PCAP",
+            "size": "169 B",
+            "sha256": "fd58ea94fde289c7cc98bf41b606010c53e018439253c2748b1d7b4a7af1839e",
+            "desc_ar": "التقطة حزم مصغّرة تحمل استدعاء JNDI (عيّنة)",
+            "desc_en": "Miniature packet capture carrying the JNDI callback (sample)",
+            "url": "",
+            "mirror": ""
+          },
+          {
+            "name": "manifest.sha256",
+            "type": "SHA256",
+            "size": "236 B",
+            "sha256": "3a929981c2c5e904de5534c7f336a783525e1f25c527d452d8093a07d67211eb",
+            "desc_ar": "بيان تكامل الملفات للتحقق من التحميل",
+            "desc_en": "File-integrity manifest to verify downloads",
+            "url": "",
+            "mirror": ""
+          },
+          {
+            "name": "log4shell-lab-bundle.zip",
+            "type": "ZIP",
+            "size": "1.4 KB",
+            "sha256": "39b3a43768928575c3c028deaed6440cf47613acc8e93ffee37fdb73a1c7a4d0",
+            "desc_ar": "كل الأدلة في أرشيف واحد",
+            "desc_en": "All evidence files in one archive",
+            "url": "",
+            "mirror": ""
+          }
+        ],
+        "sections": [
+          {
+            "type": "heading",
+            "zone": "main",
+            "ar": "السيناريو",
+            "en": "Scenario"
+          },
+          {
+            "type": "paragraph",
+            "zone": "main",
+            "ar": "السيناريو: خادم ويب تعرّض لمحاولة استغلال Log4Shell. مهمتك تحليل سجل الوصول المُلفّق، وتحديد مضيف LDAP الخبيث الذي نادته الحمولة، وإرسال الفلاج بصيغة TOR{المضيف}. كل البيانات مُلفّقة لأغراض العرض.",
+            "en": "Scenario: a web server faced a Log4Shell exploitation attempt. Your task is to analyze the fabricated access log, identify the malicious LDAP host the payload called back, and submit the flag as TOR{host}. All data is fabricated for demo purposes."
+          },
+          {
+            "type": "heading",
+            "zone": "main",
+            "ar": "الأدلة المادّية",
+            "en": "Material evidence"
+          },
+          {
+            "type": "paragraph",
+            "zone": "main",
+            "ar": "جرد الأدلة المُلفّقة لهذا التحدي التجريبي. روابط التحميل خارجية فقط (https) وتُضاف عند توفيرها — لا تُستضاف ملفات الأدلة على هذا الخادم.",
+            "en": "Inventory of this demo challenge’s fabricated evidence. Download links are external only (https) and added when provided — evidence files are not hosted on this server."
+          },
+          {
+            "type": "code",
+            "zone": "main",
+            "label_ar": "هيكل الحزمة",
+            "label_en": "Bundle layout",
+            "code": "evidence/\n├── access.log\n├── memory.raw\n└── manifest.sha256"
+          },
+          {
+            "type": "heading",
+            "zone": "main",
+            "ar": "أسئلة التحقيق",
+            "en": "Investigation questions"
+          },
+          {
+            "type": "list",
+            "zone": "main",
+            "ordered": true,
+            "items": [
+              {
+                "ar": "ما المضيف الذي ظهر في سلسلة JNDI داخل ترويسة User-Agent؟",
+                "en": "Which host appeared in the JNDI string inside the User-Agent header?"
+              },
+              {
+                "ar": "في أي سطر من access.log ظهرت المحاولة، وما الطلب الذي سبقها؟",
+                "en": "On which access.log line did the attempt appear, and which request preceded it?"
+              },
+              {
+                "ar": "كيف تتحقق من تكامل الملفات بعد تحميلها؟",
+                "en": "How do you verify the files’ integrity after downloading them?"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "zone": "solution",
+            "ar": "الحل خطوة بخطوة",
+            "en": "Step-by-step walkthrough"
+          },
+          {
+            "type": "callout",
+            "zone": "solution",
+            "title_ar": "ملاحظة السجل",
+            "title_en": "Record note",
+            "ar": "منطقة الحل تكشف خطوات التحليل. افتحها حين تريد مقارنة تحليلك بالحل، وجرّب بنفسك أولًا.",
+            "en": "The solution area contains spoilers. Open it when you want to compare it with your own analysis, and try the analysis yourself first."
+          },
+          {
+            "type": "paragraph",
+            "zone": "solution",
+            "ar": "يظهر هنا الحل خطوة بخطوة عند نشره من الكاتب: قراءة السجل سطرًا بسطر، عزل سلسلة JNDI، واستخراج المضيف الخبيث.",
+            "en": "The step-by-step walkthrough appears here when the author publishes it: reading the log line by line, isolating the JNDI string, and extracting the malicious host."
+          }
+        ]
+      }
+    ],
+    "articles": [
+      {
+        "id": "first-record",
+        "hidden": false,
+        "image": "assets/archive.jpg",
+        "date": "",
+        "minutes": "",
+        "tags": [],
+        "title": {
+          "ar": "عنوان المقال، يُضاف لاحقًا",
+          "en": "Article title, to be added"
+        },
+        "excerpt": {
+          "ar": "ملخص المقال يُضاف هنا. هذا العنصر يوضّح شكل العرض فقط ولا يمثّل مقالًا منشورًا.",
+          "en": "Article summary will be added here. This is a layout placeholder, not a published article."
+        },
+        "chips": [
+          {
+            "ar": "عنصر نائب · ليس مقالًا منشورًا",
+            "en": "Placeholder · not a published article",
+            "gold": false
+          }
+        ],
+        "sections": [
+          {
+            "type": "callout",
+            "title_ar": "ملاحظة",
+            "title_en": "Note",
+            "ar": "هذا نموذج لتخطيط صفحة المقال. لم يتم توفير عنوان أو نص للمقال بعد، وهذا المحتوى لا يمثّل عملًا منشورًا.",
+            "en": "This is an article-layout placeholder. No article title or body has been supplied, and this content does not represent published work."
+          },
+          {
+            "type": "heading",
+            "ar": "المقدمة، تُضاف لاحقًا",
+            "en": "Introduction, to be added"
+          },
+          {
+            "type": "paragraph",
+            "ar": "[فقرة الافتتاح تُضاف هنا: تعرّف بالموضوع والسياق ونطاق المقال، مع التمييز بين المعلومات المؤكدة والافتراضات.]",
+            "en": "[Opening paragraph to be added here. Introduce the subject, context, and scope of the article, distinguishing confirmed information from assumptions.]"
+          },
+          {
+            "type": "paragraph",
+            "ar": "[فقرة داعمة تُضاف هنا لشرح سؤال التحقيق أو الفكرة المركزية، مع إبقاء النقاش في عمود قراءة مريح وهادئ.]",
+            "en": "[A supporting paragraph will be added here to explain the investigation question or central idea. Keep the discussion in a calm, comfortable reading column.]"
+          },
+          {
+            "type": "heading",
+            "ar": "القسم الرئيسي، يُضاف لاحقًا",
+            "en": "Main section, to be added"
+          },
+          {
+            "type": "paragraph",
+            "ar": "[التحليل الموثّق يُضاف هنا، مع روابط المصادر وتسلسل واضح في الاستدلال. النثر المتواصل للتفاصيل، والزخارف تبقى خارج عمود القراءة.]",
+            "en": "[Verified analysis will be added here, with source links and a clear sequence of reasoning. Use continuous prose for detail, keeping ornament outside the reading column.]"
+          },
+          {
+            "type": "chips",
+            "ar": "example.log · SHA-256 · /evidence/",
+            "en": "example.log · SHA-256 · /evidence/"
+          },
+          {
+            "type": "heading",
+            "ar": "أمثلة تقنية توضيحية · ليست أدلة حقيقية",
+            "en": "Illustrative technical samples · not real evidence"
+          },
+          {
+            "type": "paragraph",
+            "ar": "البلوكات التالية عيّنات تصميم لتوضيح شكل عرض الأدلة التقنية (سجلات، تفريغ سداسي عشري، خط زمني). كل القيم مُلفّقة للعرض فقط.",
+            "en": "The blocks below are design samples showing how technical evidence renders (logs, hex dump, timeline). All values are fabricated for display only."
+          },
+          {
+            "type": "code",
+            "label_ar": "مقتطف سجل · مثال توضيحي",
+            "label_en": "Log excerpt · illustrative sample",
+            "code": "# illustrative sample - not real evidence\n2026-11-02T03:14:07Z nginx[881]: 192.0.2.14 - - \"GET /index.html HTTP/1.1\" 200 4312\n2026-11-02T03:14:19Z nginx[881]: 198.51.100.23 - - \"POST /login HTTP/1.1\" 302 512\n2026-11-02T03:14:19Z auth[1204]: session 7f3a opened for user=mina src=198.51.100.23\n2026-11-02T03:15:02Z nginx[881]: 203.0.113.9 - - \"GET /admin/export HTTP/1.1\" 403 289\n2026-11-02T03:15:44Z kernel: [UFW BLOCK] IN=eth0 SRC=203.0.113.9 DPT=22 SYN"
+          },
+          {
+            "type": "code",
+            "label_ar": "تفريغ سداسي عشري · مثال توضيحي",
+            "label_en": "Hex dump · illustrative sample",
+            "code": "$ xxd fragments/header.bin | head\n00000000: 504b 0304 1400 0600 0800 1d85 475a 3ee3  PK..........GZ>.\n00000010: 8c1f 3a04 0000 f412 0000 1300 0800 6d61  ..:...........ma\n00000020: 6e69 6665 7374 2e73 6861 3235 36fd 0200  nifest.sha256...\n00000030: a94f 4d5a 9000 0300 0000 0400 0000 ffff  .OMZ............\n00000040: 0000 b800 0000 0000 0000 4000 0000 0000  ..........@....."
+          },
+          {
+            "type": "timeline",
+            "rows": [
+              {
+                "t": "03:14:07",
+                "ar": "أول طلب مشتبه في السجل",
+                "en": "First suspicious request in the log"
+              },
+              {
+                "t": "03:14:19",
+                "ar": "فتح جلسة من عنوان خارجي",
+                "en": "Session opened from an external address"
+              },
+              {
+                "t": "03:15:02",
+                "ar": "محاولة وصول مرفوضة إلى مسار الإدارة",
+                "en": "Denied access attempt on admin path"
+              },
+              {
+                "t": "03:15:44",
+                "ar": "الجدار الناري يحجب المصدر",
+                "en": "Firewall blocks the source"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "ar": "المراجع",
+            "en": "References"
+          },
+          {
+            "type": "paragraph",
+            "ar": "[روابط المصادر والاستشهادات تُضاف هنا مع المقال.]",
+            "en": "[Source links and citations will be added here with the article.]"
+          }
+        ]
+      }
+    ],
+    "investigations": [],
+    "kb": [],
+    "projects": [],
+    "categories": []
+  }
+}

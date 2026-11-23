@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.log
+
+# Runtime data generated on server
+server/data/sessions.json
+server/data/submissions.jsonl
+server/data/audit.jsonl
+server/data/solves.json
+server/data/players_names.json
+server/data/players_state.json

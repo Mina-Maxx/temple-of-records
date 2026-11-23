@@ -1,0 +1,22 @@
+# /etc/systemd/system/temple.service
+[Unit]
+Description=The Temple of Records
+After=network.target
+
+[Service]
+User=temple
+Group=temple
+WorkingDirectory=/opt/temple-of-records
+ExecStart=/usr/bin/node server/server.js
+Environment=TOR_HTTPS=1
+Environment=TOR_TRUST_PROXY=1
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# the CMS writes content.js, flags.json, assets/ and server/data/
+ReadWritePaths=/opt/temple-of-records
+
+[Install]
+WantedBy=multi-user.target

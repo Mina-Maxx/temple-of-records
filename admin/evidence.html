@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المعبد — مستودع الأدلة</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<script src="app.js"></script>
+<script>
+(function(){
+var A=window.TORADMIN;
+A.boot().then(function(ok){
+ if(!ok)return;
+ A.shell('evidence','<b>'+A.t('nEvidence')+'</b>',function(c){
+  var ar=A.lang()==='ar';
+  A.api('/admin/api/content').then(function(j){
+   var items=j.collections.challenges||[];
+   var rows=[];items.forEach(function(it){(it.artifacts||[]).forEach(function(a){rows.push({ch:it,art:a})})});
+   function paint(q,ty,ch){var shown=rows.filter(function(r){return (!q||(r.art.name+' '+r.art.desc_ar+' '+r.art.desc_en).toLowerCase().includes(q))&&(!ty||r.art.type===ty)&&(!ch||r.ch.id===ch)});
+   c.innerHTML='<div class="page-head"><h1>'+A.t('nEvidence')+'</h1><span class="sub">'+(ar?'كل الأدلة عبر التحديات. روابط https خارجية فقط — لا تُستضاف ملفات على هذا الخادم. الحجم والبصمة كما يوفرها المؤلف.':'All evidence across challenges. External https URLs only — no files hosted on this server. Size/hash as provided by the author.')+'</span></div>'+
+   '<div class="filter-bar"><input class="input" id="eq" placeholder="'+(ar?'بحث الملفات':'Search files')+'" value="'+A.esc(q||'')+'"><select class="input" id="et"><option value="">'+(ar?'كل الأنواع':'All types')+'</option>'+[...new Set(rows.map(r=>r.art.type))].filter(Boolean).map(t=>'<option'+(t===ty?' selected':'')+'>'+A.esc(t)+'</option>').join('')+'</select><select class="input" id="ec"><option value="">'+(ar?'كل التحديات':'All challenges')+'</option>'+items.map(i=>'<option value="'+A.esc(i.id)+'"'+(i.id===ch?' selected':'')+'>'+A.esc(i.id)+'</option>').join('')+'</select></div>'+
+   '<div class="panel" style="padding:0;overflow:hidden">'+
+   (shown.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+(ar?'الملف':'File')+'</th><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'النوع':'Type')+'</th><th>'+(ar?'الحجم':'Size')+'</th><th>SHA-256</th><th>'+(ar?'الرابط':'Link')+'</th></tr></thead><tbody>'+
+    shown.map(function(r){
+     var a=r.art,url=a.url||'';
+     return '<tr><td class="mono">'+A.esc(a.name||'')+'</td><td class="small">'+'<a href="challenge-edit.html?id='+encodeURIComponent(r.ch.id)+'">'+A.esc((r.ch.title||{})[ar?'ar':'en']||r.ch.title_ar||r.ch.id)+'</a>'+'</td><td><span class="tag mono">'+A.esc(a.type||'')+'</span></td><td class="mono small">'+A.esc(a.size||'—')+'</td><td class="mono small dim" title="'+A.esc(a.sha256||'')+'">'+A.esc((a.sha256||'').slice(0,12))+'…</td><td>'+(url?('<a class="mono small" href="'+A.esc(url)+'" target="_blank" rel="noopener noreferrer">'+A.esc(url.slice(0,38))+'…</a>'):A.badge(ar?'يُضاف لاحقًا':'to be added','dim'))+'</td></tr>';
+    }).join('')+
+   '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('box',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+
+   '</div>'+
+   '<p class="small muted">'+A.icon('box',13)+' '+(ar?'إضافة/تعديل الأدلة يتم من محرر التحدي ← تبويب «الأدلة».':'Add or edit evidence from the challenge editor, Evidence tab.')+'</p>';
+   ['eq','et','ec'].forEach(function(id){document.getElementById(id).oninput=function(){var val=this.value;var q1=document.getElementById('eq').value.toLowerCase(),t1=document.getElementById('et').value,c1=document.getElementById('ec').value;paint(q1,t1,c1);var inp=document.getElementById(id);inp.focus();if(inp.setSelectionRange)inp.setSelectionRange(val.length,val.length)}});
+   }paint('','','');
+  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+ });
+});
+})();
+</script>
+</body>
+</html>

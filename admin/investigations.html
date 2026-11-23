@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المعبد</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<style>
+.sec-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.sec-row .head{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.sec-row .num{font-family:var(--mono);font-size:.75rem;color:var(--muted);min-width:26px}
+</style>
+</head>
+<body>
+<script src="app.js"></script>
+<script src="collection.js"></script>
+<script>
+TORCOL.run({col:'investigations',nav:'investigations',t:'nInv',icon:'search',
+ sub:function(){return TORADMIN.lang()==='ar'?'سجل تحقيقات بحالات وخطوط زمنية ونتائج وأسباب جذرية وروابط.':'An investigations register with cases, timelines, findings, root causes, and links.'},
+ fields:[{k:'title',t:'bi',max:300},{k:'summary',t:'bi',max:4000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'date',t:'str',max:40},{k:'tags',t:'tags'},{k:'timeline',t:'entries',max:200},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'evidence',t:'links',max:50},{k:'analysis',t:'bi',max:20000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50}]});
+</script>
+</body>
+</html>

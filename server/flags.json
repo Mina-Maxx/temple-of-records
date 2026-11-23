@@ -1,0 +1,11 @@
+{
+ "_policy": {
+  "case_sensitive": true,
+  "format_hint": ""
+ },
+ "log4shell-lab": {
+  "salt": "c543f6e3fc534ee3e5f5b6d0244888c3",
+  "sha256": "6351e2df0dade59adb721da3e43cd3102eaabe0dcd77145e4366f7891de9aa18",
+  "points": 100
+ }
+}

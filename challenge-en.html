@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Challenge · Mina Max</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&amp;family=Tajawal:wght@400;700&amp;family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@400&amp;family=Aref+Ruqaa:wght@400;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="style.css" rel="stylesheet"/>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="en" data-page="challenge-en">
+<header class="site">
+<div class="container bar">
+<a aria-label="Mina Max, home" class="brand" href="index-en.html">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M2 12c3.5-5 7-7 10-7s6.5 2 10 7c-3.5 5-7 7-10 7s-6.5-2-10-7z"/><circle cx="12" cy="12" r="2.6"/><path d="M7 16.5c-1.5 1.5-2 3.5-1 5"/></svg>
+<span><span class="name">Mina Max</span><span class="tag">Digital forensics · Field records</span></span>
+</a>
+<nav aria-label="Main" class="main">
+<a href="challenges-en.html">Challenges</a>
+<a href="articles-en.html">Articles</a>
+<a href="about-en.html">About</a>
+<a class="pill-lang" href="challenge-ar.html" hreflang="ar" lang="ar">EN | ع</a>
+</nav>
+</div>
+</header>
+<main class="container">
+<nav aria-label="Breadcrumb" class="crumb"><a href="index-en.html">Home</a> / <a href="challenges-en.html">Challenges</a> / <span id="crumb-cur">…</span></nav>
+<div class="pagehead detail">
+<img alt="A hooded intruder moving between server obelisks, carved as a temple relief" class="banner" src="assets/challenge.jpg"/>
+<div class="labels" id="item-labels"></div>
+<h1 id="item-title">…</h1>
+<div class="meta-line" id="item-meta"></div>
+</div>
+<div class="detail-grid">
+<aside aria-label="Within this record" class="toc" id="toc">
+<div class="toc-title">Within this record</div>
+<div class="toc-meta">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M12 3v18M5 7l7-4 7 4M5 7v6a3.5 3.5 0 0 0 7 0M19 7v6a3.5 3.5 0 0 1-7 0M8 21h8"/></svg>
+<span id="toc-level"></span>
+</div>
+</aside>
+<div class="prose">
+<div id="zone-main"></div>
+<section class="ctf-region" id="region-repo">
+<h2>Code repository</h2>
+<div id="repo-body"></div>
+</section>
+<section class="ctf-region" id="region-artifacts">
+<h2>Evidence repository</h2>
+<div id="artifacts-body"></div>
+</section>
+<section class="ctf-region" id="region-hints">
+<h2>Hints</h2>
+<div id="hints-body"></div>
+</section>
+<section class="ctf-region" id="region-flag">
+<h2>Flag submission</h2>
+<form class="flag-form" id="flag-form" novalidate="">
+<label class="sr-only" for="flag-name">Your name or handle</label>
+<input autocomplete="name" id="flag-name" maxlength="50" name="name" placeholder="Your name or handle (e.g. Alex)" spellcheck="false" type="text"/>
+<label class="sr-only" for="flag-input">Flag</label>
+<input autocomplete="off" dir="ltr" id="flag-input" maxlength="200" name="flag" placeholder="TOR{…}" spellcheck="false" type="text"/>
+<button class="btn" id="flag-submit" type="submit">Submit flag</button>
+</form>
+<div class="flag-format" id="flag-format"></div>
+<div aria-live="polite" class="flag-status" id="flag-status"></div>
+<p class="muted-note">Verification happens on the server only — enter your name and the flag. No registration or complex setup required.</p>
+<p class="muted-note" id="flag-server-note"></p>
+<div class="solvers-section" id="solvers-section" hidden>
+<div class="solvers-title">Challenge solvers:</div>
+<div class="solvers-list" id="solvers-list"></div>
+</div>
+</section>
+
+<div class="gate" id="walkthrough-section">
+<div class="gate-visual">
+<img alt="A sealed vault door between two guardian statues" data-open="assets/vault-open.jpg" data-sealed="assets/vault-sealed.jpg" id="gate-img" src="assets/vault-sealed.jpg"/>
+<div class="gate-center">
+<h2 data-open-text="The vault is open" data-sealed-text="The vault is sealed" id="gate-title">The vault is sealed</h2>
+<button aria-controls="walkthrough" aria-expanded="false" class="seal-btn" data-close-text="Seal it again" data-open-text="Break the seal" id="seal-btn">Break the seal</button>
+</div>
+</div>
+<div class="walkthrough" hidden="" id="walkthrough">
+<div id="zone-solution"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="site">
+<div class="container">
+<div class="mark">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><ellipse cx="12" cy="13.5" rx="5" ry="6"/><path d="M12 7.5v12M9 4h6M9.5 6.5 12 4l2.5 2.5M7 11 3 9M7 15l-4 1.5M17 11l4-2M17 15l4 1.5"/></svg>
+</div>
+<div class="motto">EVERY DIGITAL TRACE, RECORDED.</div>
+<div class="who">Mina Max · Digital forensics &amp; incident response</div>
+<nav aria-label="Footer">
+<a href="challenges-en.html">Challenges</a>
+<a href="articles-en.html">Articles</a>
+<a href="about-en.html">About</a>
+</nav>
+</div>
+</footer>
+<script src="content.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

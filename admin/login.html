@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المعبد — دخول</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="login-wrap"><div class="login-card">
+ <div class="login-mark" id="mark"></div>
+ <h1 id="ttl"></h1><p class="login-sub" id="sub"></p>
+ <div class="login-error" id="err" role="alert"></div>
+ <form id="form" novalidate>
+  <div class="field"><label for="u" id="lu"></label><input class="input" id="u" name="username" autocomplete="username" required></div>
+  <div class="field"><label for="p" id="lp"></label><input class="input" id="p" type="password" name="password" autocomplete="current-password" required><div class="hint" id="pwHint"></div></div>
+  <button class="btn primary wide" id="go" type="submit"></button>
+ </form>
+ <div style="text-align:center;margin-top:14px"><span class="lang-sw"><button id="lar">ع</button><button id="len">EN</button></span></div>
+ <p class="login-foot" id="foot"></p>
+</div></div>
+<script src="app.js"></script>
+<script>
+(function(){
+var A=window.TORADMIN,mode='login';
+function paint(){
+ var ar=A.lang()==='ar';
+ document.documentElement.lang=A.lang();document.documentElement.dir=ar?'rtl':'ltr';document.body.classList.toggle('en',!ar);
+ document.title=(ar?'إدارة المعبد — ':'Temple Admin — ')+A.t('login');
+ document.getElementById('mark').innerHTML=A.icon('flag',26);
+ document.getElementById('ttl').textContent=mode==='setup'?A.t('setupTitle'):A.t('login');
+ document.getElementById('sub').textContent=mode==='setup'?A.t('setupSub'):A.t('loginSub');
+ document.getElementById('lu').textContent=A.t('username');
+ document.getElementById('lp').textContent=A.t('password');
+ document.getElementById('pwHint').textContent=mode==='setup'?A.t('minPw'):'';
+ document.getElementById('go').textContent=mode==='setup'?A.t('create'):A.t('login');
+ document.getElementById('foot').innerHTML=mode==='setup'?'':'<a href="recovery.html">'+(ar?'نسيت كلمة المرور؟':'Forgot password?')+'</a>';
+ document.getElementById('lar').className=A.lang()==='ar'?'on':'';
+ document.getElementById('len').className=A.lang()==='en'?'on':'';
+}
+document.getElementById('lar').onclick=function(e){e.preventDefault();A.setLang('ar')};
+document.getElementById('len').onclick=function(e){e.preventDefault();A.setLang('en')};
+var form=document.getElementById('form'),err=document.getElementById('err');
+form.addEventListener('submit',function(e){
+ e.preventDefault();err.className='login-error';
+ var u=document.getElementById('u').value.trim(),p=document.getElementById('p').value;
+ var path=mode==='setup'?'/admin/api/setup':'/admin/api/login';
+ fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})})
+ .then(function(r){return r.json().then(function(j){return{j:j,c:r.status}})})
+ .then(function(x){
+  if(x.c===200){
+   if(mode==='setup'){mode='login';paint();var t=document.createElement('div');document.getElementById('sub').textContent=A.t('setupDone')}
+   else{location.replace('/admin/index.html')}
+  }else{err.textContent=A.t('wrongCred');err.className='login-error on'}
+ })
+ .catch(function(){err.textContent=A.t('errNet');err.className='login-error on'});
+});
+A.api('/admin/api/me').then(function(j){
+ if(j._code===200){location.replace('/admin/index.html');return}
+ return fetch('/admin/api/content').catch(function(){return{status:0}}).then(function(r){
+  if(r.status===401){mode='login'} // server up, needs auth (setup may be done)
+  return fetch('/admin/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(function(sr){
+   if(sr.status===409||sr.status===403){mode='login'}else{mode='setup'}
+   paint();
+  });
+ });
+}).catch(function(){paint();err.textContent=A.t('errNet');err.className='login-error on'});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المعبد — مكتبة الوسائط</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<style>
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.mcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.mcard .pv{aspect-ratio:4/3;background:var(--bg2);display:grid;place-items:center;overflow:hidden}
+.mcard .pv img{width:100%;height:100%;object-fit:cover}
+.mcard .pv .ic{color:var(--muted)}
+.mcard .meta{padding:10px 12px}
+.mcard .nm{font-family:var(--mono);font-size:.72rem;direction:ltr;color:var(--sand);word-break:break-all}
+.mcard .dt{font-size:.68rem;color:var(--muted);margin:3px 0 8px}
+.mcard .acts{display:flex;gap:6px}
+.upzone{border:1.5px dashed var(--line);border-radius:var(--r);padding:26px;text-align:center;color:var(--dim);font-size:.88rem;margin-bottom:18px;cursor:pointer}
+.upzone:hover{border-color:var(--gold);color:var(--gold-soft)}
+.searchbar{margin-bottom:16px;max-width:340px}
+</style>
+</head>
+<body>
+<script src="app.js"></script>
+<script>
+(function(){
+var A=window.TORADMIN;
+A.boot().then(function(ok){
+ if(!ok)return;
+ A.shell('media','<b>'+A.t('nMedia')+'</b>',function(c){
+  var ar=A.lang()==='ar';
+  var all=[],q='';
+  function fmtB(n){return n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB'}
+  function paint(){
+   var rows=all.filter(function(m){return !q||m.name.toLowerCase().indexOf(q)>=0});
+   c.innerHTML='<div class="page-head"><h1>'+A.t('nMedia')+'</h1><span class="sub">'+(ar?'أصول الموقع الأصلية (صور الصفحات). أدلة التحقيقات الجنائية تبقى روابط خارجية فقط وتُدار من محرر التحديات.':'Original site assets (page images). Forensic evidence stays external-links-only and is managed from the challenge editor.')+'</span></div>'+
+   '<div class="upzone" id="up" role="button" tabindex="0">'+A.icon('img',22)+'<div style="margin-top:8px">'+(ar?'رفع صورة (jpg · png · gif · webp — بحد أقصى 4MB)':'Upload an image (jpg · png · gif · webp — max 4MB)')+'</div><input type="file" id="f" accept=".jpg,.jpeg,.png,.gif,.webp" hidden></div>'+
+   '<input class="input searchbar" id="q" placeholder="'+A.t('search')+'" value="'+A.esc(q)+'">'+
+   '<div class="mgrid">'+(rows.length?rows.map(function(m){
+    return '<div class="mcard"><div class="pv">'+(m.kind==='image'?'<img src="../assets/'+A.esc(m.name)+'" alt="'+A.esc(m.name)+'" loading="lazy">':A.icon('doc',26))+'</div>'+
+    '<div class="meta"><div class="nm">'+A.esc(m.name)+'</div><div class="dt">'+fmtB(m.bytes)+' · '+A.fmtTs(m.mtime)+'</div>'+
+    '<div class="acts"><button class="btn sm ghost" data-cp="'+A.esc(m.name)+'">'+(ar?'نسخ المسار':'Copy path')+'</button>'+(m.builtin?'<span class="small dim" style="flex-basis:100%">'+(ar?'مدمجة: استبدال فقط':'Built-in: replace only')+'</span>':'<button class="btn sm danger" data-del="'+A.esc(m.name)+'">'+(m.overridden?(ar?'استعادة الأصل':'Restore original'):A.t('del'))+'</button>')+'</div></div></div>';
+   }).join(''):'<div class="empty" style="grid-column:1/-1"><div class="ic">'+A.icon('img',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>';
+   document.getElementById('q').oninput=function(){q=this.value.toLowerCase();paint();var el=document.getElementById('q');el.focus();el.setSelectionRange(el.value.length,el.value.length)};
+   var f=document.getElementById('f');
+   document.getElementById('up').onclick=function(){f.click()};
+   document.getElementById('up').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();f.click()}};
+   f.onchange=function(){
+    var file=f.files[0];if(!file)return;
+    if(!f._decoded){var u=URL.createObjectURL(file),im=new Image();
+     im.onload=function(){URL.revokeObjectURL(u);f._decoded=true;f.onchange()};
+     im.onerror=function(){URL.revokeObjectURL(u);f.value='';A.toast(ar?'الملف ليس صورة صالحة: فشل فك الترميز في المتصفح':'Not a valid image: the browser could not decode it','err')};
+     im.src=u;return}
+    f._decoded=false;
+    var rd=new FileReader();
+    rd.onload=function(){
+     var b64=String(rd.result).split(',')[1];
+     var zone=document.getElementById('up');
+     var orig=zone.innerHTML;
+     function prog(pct){zone.innerHTML='<div style="width:100%"><div class="small dim" style="margin-bottom:6px">'+(ar?'رفع':'Uploading')+' '+file.name+' — '+pct+'%</div><div style="height:6px;background:#1a1e22;border-radius:3px"><div style="height:6px;width:'+pct+'%;background:#c9a45c;border-radius:3px;transition:width .15s"></div></div></div>'}
+     function done2(){zone.innerHTML=orig;zone.onclick=function(){f.click()};zone.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();f.click()}}}
+     function xhrUpload(replaceFlag,cb){
+      var x=new XMLHttpRequest();
+      x.open('POST','/admin/api/media');
+      x.setRequestHeader('Content-Type','application/json');
+      if(window.TORADMIN&&document.querySelector('meta')){}
+      x.upload.onprogress=function(e){if(e.lengthComputable)prog(Math.round(e.loaded/e.total*100))};
+      x.onload=function(){var r={};try{r=JSON.parse(x.responseText)}catch(e){}r._code=x.status;cb(r)};
+      x.onerror=function(){cb({_code:0,error:'network'})};
+      var hdr=window.TORADMIN.csrf();
+      if(hdr)x.setRequestHeader('x-csrf-token',hdr);
+      x.send(JSON.stringify({name:file.name,data_b64:b64,replace:!!replaceFlag}));
+     }
+     prog(0);
+     xhrUpload(false,function(r){
+      if(r._code===200){done2();A.toast(A.t('created'),'ok');load()}
+      else if(r._code===409&&r.error==='exists'){
+       done2();
+       A.modal({title:(ar?'استبدال ملف':'Replace file'),body:(ar?'«'+file.name+'» موجود بالفعل. استبداله؟':'"'+file.name+'" already exists. Replace it?'),danger:true,onConfirm:function(done){
+        prog(0);
+        xhrUpload(true,function(r2){done2();done();if(r2._code===200){A.toast(A.t('updated'),'ok');load()}else A.toast(r2.detail||r2.error||A.t('failed'),'err')});
+       }});
+      }
+      else{done2();A.toast(r.detail||r.error||A.t('failed'),'err')}
+     });
+     return;
+     /* legacy fetch path kept for reference — replaced by XHR for upload progress */
+     // eslint-disable-next-line no-unreachable
+     {
+     }
+    };
+    rd.readAsDataURL(file);
+   };
+   c.querySelectorAll('[data-cp]').forEach(function(b){b.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText('assets/'+b.dataset.cp);A.toast('assets/'+b.dataset.cp,'ok')}});
+   c.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+    A.modal({title:A.t('del')+' — '+b.dataset.del,body:A.t('confirmDel'),danger:true,onConfirm:function(done){
+     A.api('/admin/api/media/'+encodeURIComponent(b.dataset.del),{method:'DELETE'}).then(function(r){
+      if(r._code===200){done();A.toast(A.t('updated'),'ok');load()}
+      else if(r._code===409&&r.error==='referenced'){
+       done();
+       A.modal({title:(ar?'الملف مستخدم':'File in use'),body:(ar?'«'+b.dataset.del+'» مُشار إليه في: '+(r.refs||[]).join('، ')+'. الحذف سيترك مرجعًا مكسورًا. حذفه على أي حال؟':'"'+b.dataset.del+'" is referenced by: '+(r.refs||[]).join(', ')+'. Deleting leaves a broken reference. Delete anyway?'),danger:true,onConfirm:function(d2){
+        A.api('/admin/api/media/'+encodeURIComponent(b.dataset.del),{method:'DELETE',headers:{'x-force':'1'}}).then(function(r2){
+         d2();if(r2._code===200){A.toast(A.t('updated'),'ok');load()}else A.toast(r2.error||A.t('failed'),'err');
+        }).catch(function(){d2();A.toast(A.t('errNet'),'err')});
+       }});
+      }
+      else{done();A.toast(r.error||A.t('failed'),'err')}
+     }).catch(function(){done();A.toast(A.t('errNet'),'err')});
+    }});
+   }});
+  }
+  function load(){A.api('/admin/api/media').then(function(j){all=j.media||[];paint()}).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'})}
+  load();
+ });
+});
+})();
+</script>
+</body>
+</html>

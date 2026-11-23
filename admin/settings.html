@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المعبد — الإعدادات</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<style>.dirty{border-color:var(--warn)!important}.savebar{position:sticky;bottom:16px;background:var(--panel2);border:1px solid var(--gold);border-radius:12px;padding:12px 18px;display:none;align-items:center;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:30}.savebar.on{display:flex}</style>
+</head>
+<body>
+<script src="app.js"></script>
+<script>
+(function(){
+var A=window.TORADMIN;
+A.boot().then(function(ok){
+ if(!ok)return;
+ A.shell('settings','<b>'+A.t('nSettings')+'</b>',function(c){
+  var ar=A.lang()==='ar';
+  A.api('/admin/api/content').then(function(j){
+   var fields=j.fixedFields||[],vals=j.fixed||{};
+   var groups={};fields.forEach(function(f){(groups[f.group]=groups[f.group]||[]).push(f)});
+   var changed={};
+   var html='<div class="page-head"><h1>'+A.t('nSettings')+'</h1><span class="sub">'+(ar?'نصوص الموقع الثابتة باللغتين. التعديل يُحفظ على الخادم ويظهر على الصفحات العامة فورًا.':'Fixed site texts in both languages. Saving writes to the server and reflects on the public pages immediately.')+'</span></div>';
+   Object.keys(groups).forEach(function(g){
+    html+='<div class="panel"><h2>'+A.esc(g)+'</h2>';
+    groups[g].forEach(function(f){
+     var base=f.page+'-',sfx=':'+f.key;
+     html+='<div class="field"><label>'+A.esc(f.label||f.key)+'</label><div class="row2">'+
+      '<input class="input" data-k="'+base+'ar'+sfx+'" value="'+A.esc(vals[base+'ar'+sfx]||'')+'" placeholder="العربية">'+
+      '<input class="input" dir="ltr" data-k="'+base+'en'+sfx+'" value="'+A.esc(vals[base+'en'+sfx]||'')+'" placeholder="English">'+
+     '</div></div>';
+    });
+    html+='</div>';
+   });
+   html+='<div class="panel"><h2>SEO</h2><p class="sub">'+(ar?'وصف ميتا وكلمات مفتاحية لكل لغة — تُحقن في الصفحات العامة الثماني وتظهر في نتائج البحث والمشاركة.':'Meta description and keywords per language — injected into the eight public pages for search results and sharing.')+'</p>'+
+   '<div class="frow"><div class="fcol"><label>'+(ar?'الوصف (عربي)':'Description (Arabic)')+'</label><textarea class="input" id="seo-ar" rows="2" maxlength="300"></textarea></div>'+
+   '<div class="fcol"><label>'+(ar?'الوصف (إنجليزي)':'Description (English)')+'</label><textarea class="input" id="seo-en" rows="2" maxlength="300" dir="ltr"></textarea></div></div>'+
+   '<div class="frow"><div class="fcol"><label>'+(ar?'كلمات مفتاحية (عربي، اختياري)':'Keywords (Arabic, optional)')+'</label><input class="input" id="seo-ar-kw" maxlength="300"></div>'+
+   '<div class="fcol"><label>'+(ar?'كلمات مفتاحية (إنجليزي، اختياري)':'Keywords (English, optional)')+'</label><input class="input" id="seo-en-kw" maxlength="300" dir="ltr"></div></div>'+
+   '<button class="btn primary sm" id="seo-save" style="margin-top:8px">'+A.t('save')+'</button> <span class="small dim" id="seo-note"></span></div>';
+   html+='<div class="savebar" id="savebar"><span class="small" id="chgcount"></span><span style="flex:1"></span><button class="btn ghost" id="revert">'+A.t('cancel')+'</button><button class="btn primary" id="saveall">'+A.t('save')+'</button></div>';
+   var configFields=[["name_ar", "اسم الموقع (عربي)", "Website name AR"], ["name_en", "اسم الموقع (إنجليزي)", "Website name EN"], ["description_ar", "وصف الموقع (عربي)", "Website description AR"], ["description_en", "وصف الموقع (إنجليزي)", "Website description EN"], ["logo", "مسار الشعار", "Logo path"], ["favicon", "مسار الأيقونة", "Favicon path"], ["social_image", "صورة المشاركة", "Social sharing image"], ["other_link", "رابط آخر https", "Other link https"], ["base_url", "نطاق الموقع https لإنتاج sitemap (اتركه فارغا محليا)", "Site origin https for sitemap (blank locally)"], ["gold", "الذهبي #HEX", "Gold #HEX"]];
+   html+='<div class="panel" id="site-config"><h2>'+(ar?'إعدادات الهوية والمظهر':'Identity and appearance')+'</h2>'+configFields.map(f=>'<div class="field"><label>'+A.esc(ar?f[1]:f[2])+'</label><input class="input" data-cfg="'+f[0]+'"></div>').join('')+
+   '<div class="field"><label>'+(ar?'اللغة الافتراضية':'Default language')+'</label><select class="input" data-cfg="default_language"><option value="ar">العربية</option><option value="en">English</option></select></div>'+
+   '<div class="field"><label>'+(ar?'المظهر':'Appearance')+'</label><select class="input" data-cfg="mode"><option value="dark">Dark</option><option value="light">Light</option></select></div>'+
+   '<div class="field"><label>'+(ar?'خط النص العربي':'Arabic body font')+'</label><select class="input" data-cfg="font_ar"><option>IBM Plex Sans Arabic</option><option>Tajawal</option></select></div>'+
+   '<button class="btn primary" id="cfg-save">'+A.t('save')+'</button><p class="small dim">'+(ar?'الروابط الخارجية لا تُفحص تلقائيا. RTL يتبع اللغة تلقائيا للحفاظ على القراءة.':'External links are not checked automatically. RTL follows the language automatically.')+'</p></div>';
+   html+='<div class="panel"><h2>'+(ar?'تغيير كلمة المرور':'Change password')+'</h2><p class="small dim">'+(ar?'يشترط كلمة المرور الحالية. تنتهي جميع الجلسات بعد التغيير.':'Requires your current password. All sessions end after the change.')+'</p><div class="field"><label>'+(ar?'الحالية':'Current')+'</label><input class="input" type="password" id="pw-current" autocomplete="current-password"></div><div class="field"><label>'+(ar?'الجديدة (10 أحرف على الأقل)':'New (at least 10 characters)')+'</label><input class="input" type="password" id="pw-new" autocomplete="new-password"></div><div class="field"><label>'+(ar?'تأكيد الجديدة':'Confirm new')+'</label><input class="input" type="password" id="pw-confirm" autocomplete="new-password"></div><button class="btn danger" id="pw-save">'+(ar?'تغيير':'Change')+'</button></div>';
+   c.innerHTML=html;
+   A.api('/admin/api/site-settings').then(function(r){var o=r.settings||{};c.querySelectorAll('[data-cfg]').forEach(function(i){if(o[i.dataset.cfg]!=null)i.value=o[i.dataset.cfg]});if(!o.gold)c.querySelector('[data-cfg=gold]').value='#D7B776'});
+   document.getElementById('cfg-save').onclick=function(){var o={};c.querySelectorAll('[data-cfg]').forEach(i=>o[i.dataset.cfg]=i.value);A.api('/admin/api/site-settings',{method:'PUT',body:o}).then(function(r){A.toast(r._code===200?A.t('saved'):(r.error||A.t('failed')),r._code===200?'ok':'err')})};
+   document.getElementById('pw-save').onclick=function(){var pass=document.getElementById('pw-new').value;if(pass!==document.getElementById('pw-confirm').value||pass.length<10){A.toast(ar?'تأكد من تطابق الكلمتين وطولهما':'Check matching passwords and length','err');return}A.modal({title:ar?'تغيير كلمة المرور؟':'Change password?',body:ar?'ستنتهي جميع الجلسات.':'All sessions will end.',danger:true,onConfirm:function(done){A.api('/admin/api/password',{method:'PUT',body:{current:document.getElementById('pw-current').value,password:pass}}).then(function(r){done();if(r._code===200)location.replace('login.html');else A.toast(r.error||A.t('failed'),'err')})}})};
+   var bar=document.getElementById('savebar');
+   function refresh(){var n=Object.keys(changed).length;bar.className='savebar'+(n?' on':'');document.getElementById('chgcount').textContent=n?(ar?n+' حقل معدّل':n+' field(s) changed'):''}
+   c.querySelectorAll('[data-k]').forEach(function(inp){
+    inp.addEventListener('input',function(){
+     var k=inp.dataset.k;
+     if(inp.value===(vals[k]||'')){delete changed[k];inp.classList.remove('dirty')}else{changed[k]=inp.value;inp.classList.add('dirty')}
+     refresh();
+    });
+   });
+   document.getElementById('revert').onclick=function(){location.reload()};
+   A.api('/admin/api/seo').then(function(r){
+    if(r._code===200&&r.seo){
+     document.getElementById('seo-ar').value=(r.seo.ar||{}).description||'';
+     document.getElementById('seo-en').value=(r.seo.en||{}).description||'';
+     document.getElementById('seo-ar-kw').value=(r.seo.ar||{}).keywords||'';
+     document.getElementById('seo-en-kw').value=(r.seo.en||{}).keywords||'';
+    }
+   }).catch(function(){});
+   document.getElementById('seo-save').onclick=function(){
+    A.api('/admin/api/seo',{method:'PUT',body:{ar:{description:document.getElementById('seo-ar').value,keywords:document.getElementById('seo-ar-kw').value},en:{description:document.getElementById('seo-en').value,keywords:document.getElementById('seo-en-kw').value}}}).then(function(r){
+     if(r._code===200){A.toast(A.t('saved')+' — SEO ('+r.pages+' '+(ar?'صفحات':'pages')+')','ok');document.getElementById('seo-note').textContent=(ar?'حُقن في ':'Injected into ')+r.pages+(ar?' صفحات':' pages')}
+     else A.toast(r.error||A.t('failed'),'err');
+    }).catch(function(){A.toast(A.t('errNet'),'err')});
+   };
+   document.getElementById('saveall').onclick=function(){
+    A.api('/admin/api/content/fixed',{method:'PUT',body:{values:changed}}).then(function(r){
+     if(r._code===200){A.toast(A.t('saved')+' ('+r.count+')','ok');Object.assign(vals,changed);for(var k in changed)delete changed[k];c.querySelectorAll('.dirty').forEach(function(x){x.classList.remove('dirty')});refresh()}
+     else A.toast(r.error||A.t('failed'),'err');
+    }).catch(function(){A.toast(A.t('errNet'),'err')});
+   };
+  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+ });
+});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>تحدي · مينا مكس</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&amp;family=Tajawal:wght@400;700&amp;family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@400&amp;family=Aref+Ruqaa:wght@400;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="style.css" rel="stylesheet"/>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="ar" data-page="challenge-ar">
+<header class="site">
+<div class="container bar">
+<a aria-label="مينا مكس، الرئيسية" class="brand" href="index-ar.html">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M2 12c3.5-5 7-7 10-7s6.5 2 10 7c-3.5 5-7 7-10 7s-6.5-2-10-7z"/><circle cx="12" cy="12" r="2.6"/><path d="M7 16.5c-1.5 1.5-2 3.5-1 5"/></svg>
+<span><span class="name">مينا مكس</span><span class="tag">التحقيق الجنائي الرقمي · سجلات ميدانية</span></span>
+</a>
+<nav aria-label="التنقل الرئيسي" class="main">
+<a href="challenges-ar.html">التحديات</a>
+<a href="articles-ar.html">المقالات</a>
+<a href="about-ar.html">نبذة عنّي</a>
+<a class="pill-lang" href="challenge-en.html" hreflang="en" lang="en">EN | ع</a>
+</nav>
+</div>
+</header>
+<main class="container">
+<nav aria-label="مسار الصفحة" class="crumb"><a href="index-ar.html">الرئيسية</a> / <a href="challenges-ar.html">التحديات</a> / <span id="crumb-cur">…</span></nav>
+<div class="pagehead detail">
+<img alt="متسلل مقنّع يتحرك بين مسلات الخوادم، منحوت كجدارية معبد" class="banner" src="assets/challenge.jpg"/>
+<div class="labels" id="item-labels"></div>
+<h1 id="item-title">…</h1>
+<div class="meta-line" id="item-meta"></div>
+</div>
+<div class="detail-grid">
+<aside aria-label="داخل هذا السجل" class="toc" id="toc">
+<div class="toc-title">داخل هذا السجل</div>
+<div class="toc-meta">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><path d="M12 3v18M5 7l7-4 7 4M5 7v6a3.5 3.5 0 0 0 7 0M19 7v6a3.5 3.5 0 0 1-7 0M8 21h8"/></svg>
+<span id="toc-level"></span>
+</div>
+</aside>
+<div class="prose">
+<div id="zone-main"></div>
+<section class="ctf-region" id="region-repo">
+<h2>مستودع الكود</h2>
+<div id="repo-body"></div>
+</section>
+<section class="ctf-region" id="region-artifacts">
+<h2>مستودع الأدلة</h2>
+<div id="artifacts-body"></div>
+</section>
+<section class="ctf-region" id="region-hints">
+<h2>التلميحات</h2>
+<div id="hints-body"></div>
+</section>
+<section class="ctf-region" id="region-flag">
+<h2>تسليم الفلاج</h2>
+<form class="flag-form" id="flag-form" novalidate="">
+<label class="sr-only" for="flag-name">الاسم أو اللقب</label>
+<input autocomplete="name" id="flag-name" maxlength="50" name="name" placeholder="اسمك أو لقبك (مثال: أحمد)" spellcheck="false" type="text"/>
+<label class="sr-only" for="flag-input">الفلاج</label>
+<input autocomplete="off" dir="ltr" id="flag-input" maxlength="200" name="flag" placeholder="TOR{…}" spellcheck="false" type="text"/>
+<button class="btn" id="flag-submit" type="submit">إرسال الفلاج</button>
+</form>
+<div class="flag-format" id="flag-format"></div>
+<div aria-live="polite" class="flag-status" id="flag-status"></div>
+<p class="muted-note">التحقق بيتم على الخادم فقط — اكتب اسمك والفلاج وهيتم تسجيل حلك وعرض اسمك بين أبطال التحدي بدون أي تعقيد أو تسجيل حسابات.</p>
+<p class="muted-note" id="flag-server-note"></p>
+<div class="solvers-section" id="solvers-section" hidden>
+<div class="solvers-title">أبطال حلّوا هذا التحدي:</div>
+<div class="solvers-list" id="solvers-list"></div>
+</div>
+</section>
+
+<div class="gate" id="walkthrough-section">
+<div class="gate-visual">
+<img alt="باب خزنة مختوم بين تمثالين حارسين" data-open="assets/vault-open.jpg" data-sealed="assets/vault-sealed.jpg" id="gate-img" src="assets/vault-sealed.jpg"/>
+<div class="gate-center">
+<h2 data-open-text="انكسر الختم" data-sealed-text="الخزنة مختومة" id="gate-title">الخزنة مختومة</h2>
+<button aria-controls="walkthrough" aria-expanded="false" class="seal-btn" data-close-text="أغلق الختم" data-open-text="اكسر الختم" id="seal-btn">اكسر الختم</button>
+</div>
+</div>
+<div class="walkthrough" hidden="" id="walkthrough">
+<div id="zone-solution"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="site">
+<div class="container">
+<div class="mark">
+<svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24"><ellipse cx="12" cy="13.5" rx="5" ry="6"/><path d="M12 7.5v12M9 4h6M9.5 6.5 12 4l2.5 2.5M7 11 3 9M7 15l-4 1.5M17 11l4-2M17 15l4 1.5"/></svg>
+</div>
+<div class="motto">كل أثر رقمي يُوثَّق.</div>
+<div class="who">مينا مكس · التحقيق الجنائي الرقمي والاستجابة للحوادث</div>
+<nav aria-label="تنقل التذييل">
+<a href="challenges-ar.html">التحديات</a>
+<a href="articles-ar.html">المقالات</a>
+<a href="about-ar.html">نبذة عنّي</a>
+</nav>
+</div>
+</footer>
+<script src="content.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحرير المحتوى · مينا مكس</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Tajawal:wght@400;700&amp;family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&family=Aref+Ruqaa:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="ar">
+
+<header class="site">
+  <div class="container bar">
+    <a class="brand" href="index-ar.html" aria-label="مينا مكس، الرئيسية">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+        <path d="M2 12c3.5-5 7-7 10-7s6.5 2 10 7c-3.5 5-7 7-10 7s-6.5-2-10-7z"/><circle cx="12" cy="12" r="2.6"/><path d="M7 16.5c-1.5 1.5-2 3.5-1 5"/>
+      </svg>
+      <span><span class="name">مينا مكس</span><span class="tag">التحقيق الجنائي الرقمي · سجلات ميدانية</span></span>
+    </a>
+    <nav class="main" aria-label="التنقل الرئيسي">
+      <a href="index-ar.html">معاينة الموقع</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container" style="padding-bottom:60px;">
+  <nav class="crumb" aria-label="مسار الصفحة"><a href="index-ar.html">الرئيسية</a> / لوحة التحرير</nav>
+  <div class="pagehead detail">
+    <h1 style="font-size:clamp(28px,4vw,42px);">لوحة تحرير المحتوى</h1>
+    <div class="meta-line">عدّل أي نص، أضف أو احذف مقالات وتحديات وأقسام (فقرات، كود، سجلات، خطوط زمنية، صور) — بالعربي والإنجليزي.</div>
+  </div>
+
+  <div class="admin-note">
+    <strong>إزاي الشغل هنا بيشتغل بصدق:</strong><br>
+    · <strong>حفظ التعديلات</strong> بيخزنها في المتصفح ده على الجهاز ده بس — مفيش سيرفر ولا حساب. متصفح أو جهاز تاني مش هيعرف عنها حاجة.<br>
+    · بعد الحفظ، افتح <strong>معاينة الموقع</strong> من نفس المتصفح وهتلاقي تعديلاتك ظاهرة.<br>
+    · <strong>تصدير content.js</strong> بينزّل ملف فيه كل المحتوى بعد تعديلاتك. استبدل بيه ملف content.js الموجود في فولدر الموقع، وتعديلاتك تبقى <strong>جزء دائم من الموقع نفسه</strong> — يتفتح من أي متصفح أو جهاز، ومسح بيانات المتصفح مش بيمسحها.<br>
+    · <strong>نسخة احتياطية JSON</strong> نسخة أمان تقدر تستوردها هنا في أي وقت.<br>
+    · <strong>النشر للناس لسه مش متاح</strong>: مفيش استضافة أو دومين متعتمَدين لحد دلوقتي، فمفيش زر نشر أصلًا.
+  </div>
+
+  <div class="admin-actions">
+    <button type="button" class="btn" id="save-btn">حفظ التعديلات</button>
+    <a class="btn ghost" href="index-ar.html" target="_blank" rel="noopener">معاينة الموقع</a>
+    <button type="button" class="btn ghost" id="export-js-btn">تصدير content.js (دمج دائم)</button>
+    <button type="button" class="btn ghost" id="export-json-btn">نسخة احتياطية JSON</button>
+    <label class="btn ghost" for="import-input" style="cursor:pointer;">استيراد نسخة احتياطية<input type="file" id="import-input" accept=".json,application/json" hidden></label>
+    <button type="button" class="btn danger" id="reset-btn">مسح كل التعديلات</button>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <form id="editor" onsubmit="return false;"></form>
+  <div id="collections"></div>
+</main>
+
+<footer class="site">
+  <div class="container">
+    <div class="motto">كل أثر رقمي يُوثَّق.</div>
+    <div class="note">معاينة تصميم · لم يُنشر بعد</div>
+  </div>
+</footer>
+
+<script src="content.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

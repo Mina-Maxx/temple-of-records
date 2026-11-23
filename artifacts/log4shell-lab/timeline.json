@@ -1,0 +1,30 @@
+{
+ "note": "SAMPLE DATA - fabricated for the design preview",
+ "events": [
+  {
+   "t": "2026-11-02T03:13:51Z",
+   "source": "access.log",
+   "event": "Baseline traffic from 192.0.2.14"
+  },
+  {
+   "t": "2026-11-02T03:15:02Z",
+   "source": "access.log",
+   "event": "Denied access attempt on /admin/export from 203.0.113.9"
+  },
+  {
+   "t": "2026-11-02T03:15:44Z",
+   "source": "access.log",
+   "event": "JNDI lookup string in User-Agent, ldap://198.51.100.44:1389/a"
+  },
+  {
+   "t": "2026-11-02T03:15:45Z",
+   "source": "access.log",
+   "event": "Outbound callback from 198.51.100.44 (Java/1.8.0_181)"
+  },
+  {
+   "t": "2026-11-02T03:16:31Z",
+   "source": "access.log",
+   "event": "Second JNDI probe causing HTTP 500"
+  }
+ ]
+}
