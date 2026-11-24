@@ -196,7 +196,7 @@ async function handle(req, res, url, ip) {
     const out={};for(const k of ['name_ar','name_en','description_ar','description_en','logo','favicon','social_image','other_link'])out[k]=String(b[k]||'').slice(0,1000);
     for(const k of ['logo','favicon','social_image'])if(out[k]&&!/^assets\/[A-Za-z0-9._-]+$/.test(out[k]))return json(res,400,{error:'invalid_asset_path'});
     if(out.other_link&&!/^https:\/\//.test(out.other_link))return json(res,400,{error:'https_required'});
-    out.default_language=b.default_language==='en'?'en':'ar';out.mode=b.mode==='light'?'light':'dark';
+    out.default_language=b.default_language==='ar'?'ar':'en';out.mode=b.mode==='light'?'light':'dark';
     out.gold=/^#[A-Fa-f0-9]{6}$/.test(b.gold||'')?b.gold:'#D7B776';
     out.font_ar=b.font_ar==='Tajawal'?'Tajawal':'IBM Plex Sans Arabic';
     out.base_url=String(b.base_url||'').replace(/\/$/,'');if(out.base_url&&!/^https:\/\/[^/\s]+$/.test(out.base_url))return json(res,400,{error:'invalid_base_url'});
