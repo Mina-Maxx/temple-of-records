@@ -28,7 +28,7 @@ const FLAGS_FILE_PATH = path.join(__dirname, 'flags.json');
 function loadFlags() {
   try { return JSON.parse(fs.readFileSync(FLAGS_FILE_PATH, 'utf8')); } catch (e) { return {}; }
 }
-const PLAYERS_STATE_FILE = require('path').join(DATA_DIR, 'players_state.json');
+const PLAYERS_STATE_FILE = path.join(DATA_DIR, 'players_state.json');
 const PLAYER_NAMES_FILE = path.join(DATA_DIR, 'players_names.json');
 function loadPlayerNames() {
   try { return JSON.parse(fs.readFileSync(PLAYER_NAMES_FILE, 'utf8')); } catch (e) { return {}; }
@@ -119,6 +119,10 @@ function handleApi(req, res, url, ip) {
     return res.end();
   }
 
+  if (url.pathname === '/health' && req.method === 'GET') {
+    return json(res, 200, { status: 'ok', uptime: Math.floor(process.uptime()) }, true);
+  }
+
   if (url.pathname === '/api/state' && req.method === 'GET') {
     const identity = url.searchParams.get('identity') || '';
     if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
@@ -178,7 +182,7 @@ function handleApi(req, res, url, ip) {
           flag_masked: flag.slice(0, 3) + '\u2026(' + flag.length + ')',
           ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
         };
-        fs.appendFileSync(require('path').join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n');
+        fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n');
       };
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {

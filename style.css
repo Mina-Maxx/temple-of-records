@@ -585,7 +585,27 @@ body.ar .sec-h { font-family: 'IBM Plex Sans Arabic', var(--display-ar); font-we
 .cred-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 40px; }
 .pill-ph { border: 1px solid var(--hairline); border-radius: 40px; padding: 22px 26px; text-align: center; color: var(--text-dim); font-size: 14px; }
 .pill-ph.wide { grid-column: 1 / -1; }
-@media (max-width: 760px) { .about-hero { grid-template-columns: 1fr; gap: 20px; } .about-hero img { min-height: 0; max-height: 360px; } .cred-grid { grid-template-columns: 1fr; } }
+
+/* Honors & Achievements Grid */
+.honor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 44px; }
+.honor-card { background: var(--stone); background-image: var(--tex); border: 1px solid var(--hairline); border-radius: 8px; padding: 20px 22px; position: relative; transition: border-color .25s, transform .2s; }
+.honor-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+.honor-card .rank-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 1px; color: var(--gold); background: rgba(215,183,118,.12); border: 1px solid rgba(215,183,118,.3); padding: 4px 10px; border-radius: 20px; margin-bottom: 12px; }
+body.ar .honor-card .rank-badge { letter-spacing: 0; font-size: 12px; }
+.honor-card h3 { font-family: var(--display-en); font-size: 16px; color: var(--paper); margin: 0 0 6px; font-weight: 600; }
+body.ar .honor-card h3 { font-family: 'IBM Plex Sans Arabic', var(--display-ar); font-size: 16px; font-weight: 700; }
+.honor-card p { font-size: 13px; color: var(--text-dim); margin: 0; line-height: 1.55; }
+
+/* Certifications Grid */
+.cert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 44px; }
+.cert-item { background: var(--stone); background-image: var(--tex); border: 1px solid var(--hairline); border-radius: 6px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; transition: border-color .2s; }
+.cert-item:hover { border-color: var(--gold-dim); }
+.cert-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--gold); background: rgba(215,183,118,.15); padding: 4px 8px; border-radius: 4px; white-space: nowrap; }
+.cert-info { min-width: 0; }
+.cert-name { font-size: 13.5px; color: var(--paper); font-weight: 500; margin-bottom: 2px; }
+.cert-issuer { font-size: 11.5px; color: var(--text-dim); }
+
+@media (max-width: 760px) { .about-hero { grid-template-columns: 1fr; gap: 20px; } .about-hero img { min-height: 0; max-height: 360px; } .cred-grid { grid-template-columns: 1fr; } .honor-grid { grid-template-columns: 1fr; } .cert-grid { grid-template-columns: 1fr; } }
 
 /* v5 hero: tall hero, kicker on top, CTA below the hero (as in the design) */
 .hero { min-height: clamp(520px, 52vw, 760px); flex-direction: column; justify-content: flex-end; padding-bottom: 8%; }

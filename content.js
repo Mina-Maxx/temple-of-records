@@ -227,22 +227,32 @@ const SITE_CONTENT = {
   "articles-en:page-sub": "Field notes and investigations, in English and Arabic.",
   "articles-ar:page-title": "من أرشيف البردي",
   "articles-ar:page-sub": "ملاحظات ميدانية وتحقيقات، بالعربي والإنجليزي.",
-  "about-en:about-title": "I'M MINA MAX.",
-  "about-en:about-intro": "I work in digital forensics and incident response: reading what systems remember after something goes wrong. This site documents the challenges I build, the investigations I walk through, and what I learn along the way.",
+  "about-en:about-title": "MINA MAXIMOUS (MINA MAX)",
+  "about-en:about-intro": "SOC Analyst L1 specializing in Digital Forensics & Incident Response (DFIR). Hands-on experience built through DEPI internships, forensic investigations, and competitive CTF play. Solo 1st Place Winner in DPhish CTF 2026 (Forensics), Ranked 3rd in Egypt on LetsDefend, and Top 1% on TryHackMe and CyberDefenders. This temple documents the challenges I build, investigations I walk through, and field knowledge shared with the community.",
   "about-en:c1-title": "WHAT THIS SITE IS",
   "about-en:c1-text": "A field register: forensic challenges I design, and articles I write about investigations and the craft behind them.",
   "about-en:c2-title": "WHAT YOU'LL FIND HERE",
   "about-en:c2-text": "Challenge briefs with sealed walkthroughs, evidence-first writeups, and honest notes on what worked and what didn't.",
   "about-en:c3-title": "WHAT I'M WORKING TOWARD",
   "about-en:c3-text": "Deeper DFIR practice, one documented incident at a time, recorded in the open so others can follow the trail.",
-  "about-ar:about-title": "أنا مينا مكس.",
-  "about-ar:about-intro": "شغال في التحقيق الجنائي الرقمي والاستجابة للحوادث: قراءة اللي الأنظمة بتفتكره بعد ما حاجة تبوظ. الموقع ده بيوثّق التحديات اللي ببنيها، والتحقيقات اللي بمشي فيها، واللي بتعلمه في الطريق.",
+  "about-ar:about-title": "مينا مكسيموس (مينا مكس)",
+  "about-ar:about-intro": "محلل مركز عمليات أمنية (SOC Analyst L1) ومتخصص في التحقيق الجنائي الرقمي والاستجابة للحوادث (DFIR). خبرتي الميدانية بنيتها من تدريبات مكثفة في DEPI ومشاريع التحقيق العملي والمسابقات التنافسية. متمرس في منصات الـ SIEM، وتتبع التهديدات، وتحليل البرمجيات الخبيثة، وتطبيق إطار MITRE ATT&CK. بطل مسابقة DPhish CTF 2026 في الجنائي الرقمي (Solo)، وتوب 1% عالمياً في منصات TryHackMe و CyberDefenders، وتالت مصر على LetsDefend.",
   "about-ar:c1-title": "الموقع ده إيه",
   "about-ar:c1-text": "سجلّ ميداني: تحديات تحقيق جنائي بصمّمها، ومقالات بكتبها عن التحقيقات والحرفة وراها.",
   "about-ar:c2-title": "اللي هتلاقيه هنا",
   "about-ar:c2-text": "تحديات بحلول مختومة، كتابات بتبدأ من الأدلة، وملاحظات صريحة عن اللي نجح واللي لأ.",
   "about-ar:c3-title": "اللي بشتغل ناحيته",
-  "about-ar:c3-text": "ممارسة أعمق في الـDFIR، حادثة موثّقة واحدة كل مرة، مسجّلة قدام الناس عشان غيري يمشي على الأثر."
+  "about-ar:c3-text": "ممارسة أعمق في الـDFIR، حادثة موثّقة واحدة كل مرة، مسجّلة قدام الناس عشان غيري يمشي على الأثر.",
+  "about-en:contact-github": "https://github.com/Mina-Maxx",
+  "about-en:contact-linkedin": "https://linkedin.com/in/mina-max",
+  "about-en:contact-email": "mina.max.business@gmail.com",
+  "about-en:cred-kick": "Field Honors & Standings",
+  "about-en:cred-title": "Competitive Achievements & Rankings",
+  "about-ar:contact-github": "https://github.com/Mina-Maxx",
+  "about-ar:contact-linkedin": "https://linkedin.com/in/mina-max",
+  "about-ar:contact-email": "mina.max.business@gmail.com",
+  "about-ar:cred-kick": "سجل الشرف والبطولات الميدانية",
+  "about-ar:cred-title": "أبرز الإنجازات والترتيب التنافسي"
  }
 };
 ;
@@ -447,22 +457,27 @@ const SITE_COLLECTIONS = {
    "id": "first-record",
    "hidden": false,
    "image": "assets/archive.jpg",
-   "date": "",
-   "minutes": "",
-   "tags": [],
+   "date": "2026-11-20",
+   "minutes": "8 min",
+   "tags": [
+    "DFIR",
+    "Log Analysis",
+    "MITRE ATT&CK",
+    "Incident Response"
+   ],
    "title": {
-    "ar": "عنوان المقال، يُضاف لاحقًا",
-    "en": "Article title, to be added"
+    "ar": "تشريح هجمة Log4Shell: من أول أثر في السجلات حتى الاستجابة للحادثة",
+    "en": "Dissecting the Log4Shell Attack: From Initial Log Trace to Incident Containment"
    },
    "excerpt": {
-    "ar": "ملخص المقال يُضاف هنا. هذا العنصر يوضّح شكل العرض فقط ولا يمثّل مقالًا منشورًا.",
-    "en": "Article summary will be added here. This is a layout placeholder, not a published article."
+    "ar": "نظرة ميدانية في تشريح أسلوب استغلال ثغرة Log4Shell، كيفية رصد حقن JNDI داخل سجلات خوادم الويب، واستخراج مؤشرات الاختراق (IOCs) لبناء خط زمني دقيق للحادثة موثّق وفق إطار MITRE ATT&CK.",
+    "en": "A field investigation into Log4Shell exploitation mechanics: spotting JNDI injection patterns in web server logs, extracting IOCs, and reconstructing an incident timeline mapped to MITRE ATT&CK."
    },
    "chips": [
     {
-     "ar": "عنصر نائب · ليس مقالًا منشورًا",
-     "en": "Placeholder · not a published article",
-     "gold": false
+     "ar": "توثيق ميداني · DFIR",
+     "en": "Field Writeup · DFIR",
+     "gold": true
     }
    ],
    "sections": [
