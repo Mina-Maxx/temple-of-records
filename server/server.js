@@ -227,8 +227,17 @@ function serveStatic(req, res, url) {
     return res.end(admin.publicContentScript());
   }
   // Explicit static surface: no server files, backups, dotfiles or test fixtures.
-  const allowed = /^\/(?!admin\.html$)[a-z][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?)$/.test(p);
-  if (!allowed) { res.writeHead(404); return res.end('not found'); }
+  const allowed = /^\/(?!admin\.html$)[a-z0-9][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?)$/.test(p);
+  if (!allowed) {
+    if (req.headers.accept && req.headers.accept.includes('text/html')) {
+      try {
+        const err404 = fs.readFileSync(path.join(ROOT, '404.html'), 'utf8');
+        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+        return res.end(err404);
+      } catch (e) {}
+    }
+    res.writeHead(404); return res.end('not found');
+  }
   if (p.startsWith('/artifacts/')) { res.writeHead(403); return res.end('forbidden'); } // internal test fixture, not hosted evidence
   // admin HTML pages (except login) require a session; assets stay public
   if (/^\/admin\/(?!login\.html$|recovery\.html$).+\.html$/.test(p)) {

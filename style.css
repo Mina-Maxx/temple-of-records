@@ -479,6 +479,31 @@ details.hint p { color: var(--text-dim); font-size: 13.5px; margin-top: 8px; }
 .flag-status.ok { color: #7FA86B; }
 .flag-status.err { color: #C96A5A; }
 .flag-status.load { color: var(--gold); }
+
+/* Spinner & Loading Skeleton */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(215,183,118,0.25);
+  border-radius: 50%;
+  border-top-color: var(--gold);
+  animation: tor-spin 0.75s linear infinite;
+  vertical-align: middle;
+  margin-inline-end: 6px;
+}
+@keyframes tor-spin { to { transform: rotate(360deg); } }
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, rgba(215,183,118,0.06) 25%, rgba(215,183,118,0.2) 50%, rgba(215,183,118,0.06) 75%);
+  background-size: 200% 100%;
+  animation: tor-shimmer 1.5s infinite;
+  display: inline-block;
+}
+@keyframes tor-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .solvers-section { margin-top: 18px; padding: 14px 18px; background: var(--stone); border: 1px solid var(--hairline); border-radius: 8px; }
 .solvers-title { font-size: 13.5px; color: var(--gold); margin-bottom: 10px; font-weight: 600; }
 .solvers-list { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -605,7 +630,69 @@ body.ar .honor-card h3 { font-family: 'IBM Plex Sans Arabic', var(--display-ar);
 .cert-name { font-size: 13.5px; color: var(--paper); font-weight: 500; margin-bottom: 2px; }
 .cert-issuer { font-size: 11.5px; color: var(--text-dim); }
 
-@media (max-width: 760px) { .about-hero { grid-template-columns: 1fr; gap: 20px; } .about-hero img { min-height: 0; max-height: 360px; } .cred-grid { grid-template-columns: 1fr; } .honor-grid { grid-template-columns: 1fr; } .cert-grid { grid-template-columns: 1fr; } }
+/* Mobile Navigation Drawer */
+.nav-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--hairline);
+  color: var(--gold);
+  border-radius: 6px;
+  padding: 6px 9px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: border-color .2s, background .2s;
+}
+.nav-toggle:hover, .nav-toggle:focus-visible {
+  background: rgba(215,183,118,0.12);
+  border-color: var(--gold);
+}
+.nav-toggle .icon-close { display: none; }
+.nav-toggle.active .icon-burger { display: none; }
+.nav-toggle.active .icon-close { display: block; }
+
+@media (max-width: 760px) {
+  header.site .bar { position: relative; }
+  .nav-toggle { display: inline-flex; margin-inline-start: auto; }
+  nav.main {
+    display: none;
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 0;
+    right: 0;
+    background: #12201F var(--tex);
+    border-bottom: 2px solid var(--gold-dim);
+    border-top: 1px solid var(--hairline);
+    flex-direction: column;
+    padding: 16px 20px 20px;
+    gap: 10px;
+    align-items: stretch;
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+  }
+  nav.main.open { display: flex; animation: nav-slide-down 0.22s ease-out; }
+  @keyframes nav-slide-down {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  nav.main a {
+    padding: 10px 18px;
+    font-size: 15px;
+    text-align: center;
+    border-radius: 6px;
+  }
+  nav.main a.pill-lang {
+    margin-inline-start: 0;
+    margin-top: 6px;
+    text-align: center;
+  }
+  .about-hero { grid-template-columns: 1fr; gap: 20px; }
+  .about-hero img { min-height: 0; max-height: 360px; }
+  .cred-grid { grid-template-columns: 1fr; }
+  .honor-grid { grid-template-columns: 1fr; }
+  .cert-grid { grid-template-columns: 1fr; }
+}
 
 /* v5 hero: tall hero, kicker on top, CTA below the hero (as in the design) */
 .hero { min-height: clamp(520px, 52vw, 760px); flex-direction: column; justify-content: flex-end; padding-bottom: 8%; }
@@ -613,7 +700,30 @@ body.ar .honor-card h3 { font-family: 'IBM Plex Sans Arabic', var(--display-ar);
 .hero .kicker { position: absolute; top: 28px; left: 0; right: 0; text-align: center; }
 
 .hero-cta-row { text-align: center; padding: 44px 24px 4px; }
-@media (max-width: 640px) { .hero { min-height: 520px; padding-bottom: 40px; } }
+@media (max-width: 760px) {
+  .hero {
+    min-height: clamp(580px, 82vh, 740px) !important;
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+  .hero img.bg {
+    object-position: center 30%;
+    transform: scale(1.08);
+  }
+  .hero .content {
+    padding: 30px 16px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 8.5vw, 48px);
+    margin: 12px 0 16px;
+  }
+  .hero .sub {
+    font-size: 15.5px;
+    line-height: 1.65;
+    max-width: 95%;
+    margin-inline: auto;
+  }
+}
 .hero .content { position: static; }
 .hero .content > * { position: relative; z-index: 2; }
 .hero .content > .kicker { position: absolute; top: 30px; left: 0; right: 0; }

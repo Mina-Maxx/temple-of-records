@@ -524,9 +524,19 @@ window.TOR = (function () {
       });
       var fs = document.getElementById('flag-status');
       var fbtn = document.getElementById('flag-submit');
+      var finp = document.getElementById('flag-input');
       if (currentChallenge && solvedSet.indexOf(currentChallenge.id) !== -1) {
         if (fs) { fs.className = 'flag-status ok'; fs.textContent = lang === 'ar' ? 'هذا التحدي محلول بالفعل ✓' : 'Already solved ✓'; }
-        if (fbtn) fbtn.disabled = false;
+        if (fbtn) {
+          fbtn.disabled = true;
+          fbtn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
+          fbtn.style.opacity = '0.7';
+          fbtn.style.cursor = 'default';
+        }
+        if (finp) {
+          finp.disabled = true;
+          finp.placeholder = lang === 'ar' ? 'تم حل التحدي بنجاح' : 'Challenge already solved';
+        }
       }
     }
     // instant paint from local cache, then server truth
@@ -591,6 +601,10 @@ window.TOR = (function () {
     }
 
     function loadSolvers() {
+      if (solversList && !solversList.children.length) {
+        solversList.innerHTML = '<span class="solver-badge skeleton-pulse" style="width:110px;height:24px;">&nbsp;</span><span class="solver-badge skeleton-pulse" style="width:85px;height:24px;">&nbsp;</span>';
+        if (solversSec) solversSec.hidden = false;
+      }
       fetch(TOR.apiBase() + '/api/solvers?challenge=' + encodeURIComponent(chId))
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) { if (d && d.solvers) renderSolvers(d.solvers); })
@@ -598,7 +612,10 @@ window.TOR = (function () {
     }
     loadSolvers();
 
-    function set(cls, msg) { status.className = 'flag-status ' + cls; status.textContent = msg; }
+    function set(cls, msg, isHtml) {
+      status.className = 'flag-status ' + cls;
+      if (isHtml) status.innerHTML = msg; else status.textContent = msg;
+    }
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var nameVal = nameIn ? (nameIn.value || '').trim() : '';
@@ -617,7 +634,7 @@ window.TOR = (function () {
       if (!val) { set('err', lang === 'ar' ? 'اكتب الفلاج أولًا.' : 'Enter a flag first.'); input.focus(); return; }
       if (val.length > 200) { set('err', lang === 'ar' ? 'المدخل طويل بشكل غير متوقع.' : 'Input unexpectedly long.'); return; }
       btn.disabled = true;
-      set('load', lang === 'ar' ? 'جارٍ التحقق…' : 'Verifying…');
+      set('load', '<span class="spinner"></span> ' + (lang === 'ar' ? 'جارٍ التحقق من الفلاج…' : 'Verifying flag…'), true);
       fetch(TOR.apiBase() + '/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -625,11 +642,22 @@ window.TOR = (function () {
       }).then(function (r) {
         return r.json().then(function (d) { return { code: r.status, d: d }; });
       }).then(function (res) {
-        btn.disabled = false;
         var d = res.d || {};
-        if (res.code === 429) { set('err', lang === 'ar' ? 'محاولات كثيرة بسرعة — انتظر دقيقة وحاول تاني.' : 'Too many attempts — wait a minute and retry.'); return; }
+        if (res.code === 429) {
+          btn.disabled = false;
+          set('err', lang === 'ar' ? 'محاولات كثيرة بسرعة — انتظر دقيقة وحاول تاني.' : 'Too many attempts — wait a minute and retry.');
+          return;
+        }
         if (d.status === 'correct') {
           set('ok', lang === 'ar' ? 'فلاج صحيح! اتسجّل الحل باسم «' + nameVal + '» ✓' : 'Correct flag! Solve recorded for "' + nameVal + '" ✓');
+          btn.disabled = true;
+          btn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
+          btn.style.opacity = '0.7';
+          btn.style.cursor = 'default';
+          if (input) {
+            input.disabled = true;
+            input.placeholder = lang === 'ar' ? 'تم حل التحدي بنجاح' : 'Challenge already solved';
+          }
           TOR.markLocalSolve(chId);
           document.querySelectorAll('[data-solve-badge="' + chId + '"]').forEach(function (b) {
             b.hidden = false; b.textContent = T.solved; b.classList.add('yes');
@@ -637,11 +665,21 @@ window.TOR = (function () {
           loadSolvers();
         } else if (d.status === 'already') {
           set('ok', lang === 'ar' ? 'هذا التحدي محلول بالفعل باسم «' + (d.name || nameVal) + '» ✓' : 'Already solved by "' + (d.name || nameVal) + '" ✓');
+          btn.disabled = true;
+          btn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
+          btn.style.opacity = '0.7';
+          btn.style.cursor = 'default';
+          if (input) {
+            input.disabled = true;
+            input.placeholder = lang === 'ar' ? 'تم حل التحدي بنجاح' : 'Challenge already solved';
+          }
           TOR.markLocalSolve(chId);
           loadSolvers();
         } else if (d.status === 'wrong') {
+          btn.disabled = false;
           set('err', lang === 'ar' ? 'فلاج غير صحيح. راجع الأدلة وحاول مرة أخرى.' : 'Incorrect flag. Recheck the evidence and try again.');
         } else {
+          btn.disabled = false;
           set('err', lang === 'ar' ? 'استجابة غير متوقعة من الخادم.' : 'Unexpected server response.');
         }
       }).catch(function () {
@@ -758,6 +796,44 @@ window.TOR = (function () {
   if (!want) return;
   document.querySelectorAll('header.site nav.main a').forEach(function (a) {
     if (!a.classList.contains('pill-lang') && (a.getAttribute('href') || '').indexOf(want + '-') === 0) a.setAttribute('aria-current', 'page');
+  });
+})();
+
+// ---------- mobile hamburger navigation ----------
+(function () {
+  var bar = document.querySelector('header.site .bar');
+  var nav = document.querySelector('header.site nav.main');
+  if (!bar || !nav) return;
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'nav-toggle';
+  var isAr = document.documentElement.lang === 'ar' || /-ar$/.test(document.body && document.body.getAttribute('data-page') || '');
+  btn.setAttribute('aria-label', isAr ? 'القائمة' : 'Navigation menu');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<svg class="icon-burger" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><svg class="icon-close" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><path d="M6 18L18 6M6 6l12 12"></path></svg>';
+  bar.appendChild(btn);
+
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var open = nav.classList.toggle('open');
+    btn.classList.toggle('active', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!bar.contains(e.target)) {
+      nav.classList.remove('open');
+      btn.classList.remove('active');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  nav.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      nav.classList.remove('open');
+      btn.classList.remove('active');
+      btn.setAttribute('aria-expanded', 'false');
+    });
   });
 })();
 
