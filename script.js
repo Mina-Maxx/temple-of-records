@@ -205,6 +205,95 @@ window.TOR = (function () {
     return b;
   }
 
+  function formatSolveTime(ts, lang) {
+    if (!ts) return { relative: '', full: '', date: '', time: '' };
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return { relative: '', full: '', date: '', time: '' };
+    var now = new Date();
+    var diffMs = now - d;
+    var diffSec = Math.floor(diffMs / 1000);
+    var diffMin = Math.floor(diffSec / 60);
+    var diffHours = Math.floor(diffMin / 60);
+    var diffDays = Math.floor(diffHours / 24);
+
+    var isAr = lang === 'ar';
+    var timeStr = d.toLocaleTimeString(isAr ? 'ar-EG-u-nu-latn' : 'en-US', {
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+    var dateStr = d.toLocaleDateString(isAr ? 'ar-EG-u-nu-latn' : 'en-GB', {
+      day: 'numeric', month: 'short'
+    });
+
+    var relStr = '';
+    if (diffSec < 60) {
+      relStr = isAr ? 'الآن' : 'just now';
+    } else if (diffMin < 60) {
+      relStr = isAr ? ('منذ ' + diffMin + ' دقيقة') : (diffMin + 'm ago');
+    } else if (diffHours < 24 && d.getDate() === now.getDate()) {
+      relStr = isAr ? ('اليوم · ' + timeStr) : ('Today · ' + timeStr);
+    } else if (diffDays === 1) {
+      relStr = isAr ? ('أمس · ' + timeStr) : ('Yesterday · ' + timeStr);
+    } else {
+      relStr = dateStr + ' · ' + timeStr;
+    }
+
+    var fullStr = d.toLocaleDateString(isAr ? 'ar-EG-u-nu-latn' : 'en-GB', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }) + ' ' + timeStr;
+
+    return {
+      relative: relStr,
+      full: fullStr,
+      date: dateStr,
+      time: timeStr
+    };
+  }
+
+  function renderChallengeCardSolvers(box, list, cid) {
+    if (!box) return;
+    box.innerHTML = '';
+    var isAr = lang === 'ar';
+    var href = (isAr ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(cid);
+
+    if (!list || !list.length) {
+      box.innerHTML = '<div class="rec-solvers-empty"><span class="no-solvers-icon">⚔️</span><span>' +
+        (isAr ? 'لم يحلّه أحد بعد — كن صاحب أول حل (First Blood)! 🩸' : 'No solvers yet — claim First Blood! 🩸') +
+        '</span></div>';
+      return;
+    }
+
+    var hdr = el('div', 'rec-solvers-header');
+    hdr.appendChild(el('span', 'solver-trophy', '🏆'));
+    var lbl = el('span', 'rec-solvers-label', (isAr ? 'أبطال الحل (' : 'Solvers (') + list.length + '):');
+    hdr.appendChild(lbl);
+    box.appendChild(hdr);
+
+    var pillsBox = el('div', 'rec-solvers-list');
+    var maxShow = 5;
+    var showList = list.slice(0, maxShow);
+    showList.forEach(function (s, idx) {
+      var pill = el('span', 'solver-pill' + (idx === 0 ? ' first-blood' : ''));
+      var rank = el('span', 'rank', idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : '#' + (idx + 1))));
+      pill.appendChild(rank);
+      var name = el('b', 'solver-name', s.name || (isAr ? 'مجهول' : 'Anonymous'));
+      pill.appendChild(name);
+      if (s.ts) {
+        var tInfo = formatSolveTime(s.ts, lang);
+        var timeSpan = el('span', 'solver-time', tInfo.relative);
+        pill.appendChild(timeSpan);
+        pill.title = (isAr ? 'تم الحل في: ' : 'Solved on: ') + tInfo.full;
+      }
+      pillsBox.appendChild(pill);
+    });
+
+    if (list.length > maxShow) {
+      var more = el('a', 'solver-pill more', '+' + (list.length - maxShow) + (isAr ? ' آخرين' : ' more'));
+      more.href = href;
+      pillsBox.appendChild(more);
+    }
+    box.appendChild(pillsBox);
+  }
+
   // ---------- CTF challenge card ----------
   function challengeCard(c) {
     var card = el('article', 'papyrus ctf');
@@ -253,6 +342,19 @@ window.TOR = (function () {
     body.appendChild(el('div', 'rec-meta', metaJoin([L(c.category), L(c.difficulty), c.points ? num(c.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(c.est_time),
       (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : ''],
       lang === 'ar' ? 'الصعوبة والنقاط: تُضافان لاحقًا' : 'Difficulty and points: to be added')));
+
+    var solversBox = el('div', 'rec-solvers');
+    solversBox.setAttribute('data-solvers-challenge', c.id);
+    solversBox.setAttribute('data-solvers-avail', c.availability);
+    if (c.availability === 'open') {
+      solversBox.innerHTML = '<div class="rec-solvers-header"><span class="solver-trophy">🏆</span><span class="rec-solvers-label">' +
+        (lang === 'ar' ? 'أبطال الحل:' : 'Solvers:') +
+        '</span></div><div class="rec-solvers-list"><span class="solver-pill skeleton-pulse" style="width:110px;height:24px;">&nbsp;</span><span class="solver-pill skeleton-pulse" style="width:80px;height:24px;">&nbsp;</span></div>';
+    } else {
+      solversBox.innerHTML = '<div class="rec-solvers-empty soon"><span>' + (lang === 'ar' ? 'قيد التجهيز ⏳' : 'In preparation ⏳') + '</span></div>';
+    }
+    body.appendChild(solversBox);
+
     card.appendChild(body);
     return card;
   }
@@ -480,6 +582,27 @@ window.TOR = (function () {
       if (!chsL.length) box2.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد تحديات بعد — تُضاف من لوحة التحرير.' : 'No challenges yet — add them from the editor.'));
       chsL.forEach(function (c) { box2.appendChild(challengeRow(c)); });
       listChrome(box2, 'challenges', chsL);
+
+      fetch(TOR.apiBase() + '/api/solvers')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          var allSolvers = (data && data.solvers) || {};
+          document.querySelectorAll('[data-solvers-challenge]').forEach(function (box) {
+            var cid = box.getAttribute('data-solvers-challenge');
+            var avail = box.getAttribute('data-solvers-avail');
+            if (avail !== 'open') return;
+            var list = allSolvers[cid] || [];
+            renderChallengeCardSolvers(box, list, cid);
+          });
+        })
+        .catch(function () {
+          document.querySelectorAll('[data-solvers-challenge]').forEach(function (box) {
+            var avail = box.getAttribute('data-solvers-avail');
+            if (avail === 'open') {
+              renderChallengeCardSolvers(box, [], box.getAttribute('data-solvers-challenge'));
+            }
+          });
+        });
     }
   }
 
@@ -500,6 +623,21 @@ window.TOR = (function () {
         if (tm) tm.textContent = metaJoin([L(fc.difficulty), fc.points ? num(fc.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(fc.est_time)],
           lang === 'ar' ? 'الصعوبة والنقاط: تُضافان لاحقًا' : 'Difficulty and points: to be added');
         var lb = tab.querySelector('.labels'); if (lb) lb.appendChild(solveBadge(fc.id, false));
+
+        var tabBody = tab.querySelector('.body');
+        if (tabBody && fc.availability === 'open') {
+          var fSolvers = tab.querySelector('.feat-solvers');
+          if (!fSolvers) {
+            fSolvers = el('div', 'rec-solvers feat-solvers');
+            tabBody.appendChild(fSolvers);
+          }
+          fSolvers.setAttribute('data-solvers-challenge', fc.id);
+          fSolvers.setAttribute('data-solvers-avail', fc.availability);
+          fetch(TOR.apiBase() + '/api/solvers?challenge=' + encodeURIComponent(fc.id))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) { renderChallengeCardSolvers(fSolvers, d && d.solvers || [], fc.id); })
+            .catch(function () {});
+        }
       }
     }
     var box3 = document.getElementById('feat-articles');
@@ -580,35 +718,62 @@ window.TOR = (function () {
 
     function renderSolvers(solvers) {
       if (!solversSec || !solversList) return;
-      if (!solvers || !solvers.length) { solversSec.hidden = true; return; }
+      var isAr = lang === 'ar';
+      solversSec.hidden = false;
       solversList.innerHTML = '';
-      solvers.forEach(function (s) {
+
+      var titleEl = solversSec.querySelector('.solvers-title');
+      if (titleEl) {
+        titleEl.innerHTML = '<span>🏆 ' +
+          (isAr ? 'أبطال حلّوا هذا التحدي' : 'Champions of this Challenge') +
+          '</span>' +
+          (solvers && solvers.length ? '<span class="solvers-count-badge">' + solvers.length + (isAr ? ' حل صحيح' : ' solves') + '</span>' : '');
+      }
+
+      if (!solvers || !solvers.length) {
+        solversList.innerHTML = '<div class="solvers-empty-box">' +
+          '<div class="empty-icon">🩸⚔️</div>' +
+          '<div class="empty-title">' + (isAr ? 'لم يُسجَّل أي حل صحيح بعد!' : 'No correct solutions recorded yet!') + '</div>' +
+          '<div class="empty-desc">' + (isAr ? 'أرسل الفلاج الصحيح أعلاه لتخلّد اسمك كصاحب أول حل (First Blood) في معبد السجلات.' : 'Submit the correct flag above to etch your name as First Blood in the Temple Records.') + '</div>' +
+          '</div>';
+        return;
+      }
+
+      solvers.forEach(function (s, idx) {
         var badge = document.createElement('span');
-        badge.className = 'solver-badge';
+        badge.className = 'solver-badge' + (idx === 0 ? ' first-blood' : '');
+
+        var rankSpan = document.createElement('span');
+        rankSpan.className = 'rank';
+        rankSpan.textContent = idx === 0 ? '🥇 First Blood' : (idx === 1 ? '🥈 2nd' : (idx === 2 ? '🥉 3rd' : '#' + (idx + 1)));
+        badge.appendChild(rankSpan);
+
         var nameSpan = document.createElement('b');
-        nameSpan.textContent = s.name || 'Anonymous';
+        nameSpan.className = 'solver-name';
+        nameSpan.textContent = s.name || (isAr ? 'مجهول' : 'Anonymous');
         badge.appendChild(nameSpan);
+
         if (s.ts) {
+          var tInfo = formatSolveTime(s.ts, lang);
           var timeSpan = document.createElement('span');
           timeSpan.className = 'ts';
-          var d = new Date(s.ts);
-          timeSpan.textContent = d.toLocaleDateString(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { day: 'numeric', month: 'short' });
+          timeSpan.textContent = tInfo.relative;
           badge.appendChild(timeSpan);
+          badge.title = (isAr ? 'تم الحل في: ' : 'Solved on: ') + tInfo.full;
         }
         solversList.appendChild(badge);
       });
-      solversSec.hidden = false;
     }
 
     function loadSolvers() {
       if (solversList && !solversList.children.length) {
-        solversList.innerHTML = '<span class="solver-badge skeleton-pulse" style="width:110px;height:24px;">&nbsp;</span><span class="solver-badge skeleton-pulse" style="width:85px;height:24px;">&nbsp;</span>';
+        solversList.innerHTML = '<span class="solver-badge skeleton-pulse" style="width:140px;height:28px;">&nbsp;</span><span class="solver-badge skeleton-pulse" style="width:110px;height:28px;">&nbsp;</span>';
         if (solversSec) solversSec.hidden = false;
       }
       fetch(TOR.apiBase() + '/api/solvers?challenge=' + encodeURIComponent(chId))
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) { if (d && d.solvers) renderSolvers(d.solvers); })
-        .catch(function () {});
+        .then(function (d) { renderSolvers(d && d.solvers); })
+        .catch(function () { renderSolvers([]); });
     }
     loadSolvers();
 

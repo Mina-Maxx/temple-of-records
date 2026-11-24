@@ -132,20 +132,38 @@ function handleApi(req, res, url, ip) {
   }
 
   if (url.pathname === '/api/solvers' && req.method === 'GET') {
-    const challenge = url.searchParams.get('challenge') || '';
-    if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+    const challenge = url.searchParams.get('challenge');
     const names = loadPlayerNames();
-    const list = [];
+    if (challenge) {
+      if (!admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+      const list = [];
+      Object.keys(solves).forEach(id => {
+        if (solves[id] && solves[id][challenge]) {
+          list.push({
+            name: names[id] || 'Anonymous',
+            ts: solves[id][challenge]
+          });
+        }
+      });
+      list.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+      return json(res, 200, { challenge, solvers: list }, true);
+    }
+    const all = {};
     Object.keys(solves).forEach(id => {
-      if (solves[id] && solves[id][challenge]) {
-        list.push({
+      const pSolves = solves[id] || {};
+      Object.keys(pSolves).forEach(chId => {
+        if (!admin.challengeIsPublic(chId)) return;
+        if (!all[chId]) all[chId] = [];
+        all[chId].push({
           name: names[id] || 'Anonymous',
-          ts: solves[id][challenge]
+          ts: pSolves[chId]
         });
-      }
+      });
     });
-    list.sort((a, b) => new Date(a.ts) - new Date(b.ts));
-    return json(res, 200, { challenge, solvers: list }, true);
+    Object.keys(all).forEach(chId => {
+      all[chId].sort((a, b) => new Date(a.ts) - new Date(b.ts));
+    });
+    return json(res, 200, { solvers: all }, true);
   }
 
   if (url.pathname === '/api/submit' && req.method === 'POST') {
