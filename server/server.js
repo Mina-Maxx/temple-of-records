@@ -283,7 +283,7 @@ const server = http.createServer((req, res) => {
     const visible=require('./visibility').publicCollections(collections);for(const [key,page] of [['articles','article'],['challenges','challenge']])for(const item of visible[key]||[])for(const l of ['ar','en'])pages.push(page+'-'+l+'.html?id='+encodeURIComponent(item.slug&&item.slug[l]||item.id));
     res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'});return res.end('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+pages.map(p=>'<url><loc>'+esc(cfg.base_url+'/'+p)+'</loc></url>').join('')+'</urlset>');
   }
-  if (url.pathname.startsWith('/api/')) return handleApi(req, res, url, ip);
+  if (url.pathname === '/health' || url.pathname.startsWith('/api/')) return handleApi(req, res, url, ip);
   if (url.pathname.startsWith('/admin/api/')) {
     Promise.resolve(admin.handle(req, res, url, ip)).catch(e => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
