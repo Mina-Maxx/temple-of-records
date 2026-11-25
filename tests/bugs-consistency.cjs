@@ -47,6 +47,9 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const vOk = validators.validateCollections({ articles: [{ id: 'valid-1', title: { ar: 'ع', en: 'E' }, excerpt: { ar: '', en: '' }, slug: { ar: 'ع', en: 'e' }, sections: [] }], challenges: [] });
     check(vOk.ok && vOk.value.articles[0].id === 'valid-1', 'validators.js accepts valid article');
 
+    const admJs = require('node:fs').readFileSync(path.join(root, 'server/admin.js'), 'utf8');
+    check(!admJs.includes('content.js.tmp'), 'admin.js publishStore does not write back to content.js');
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();
