@@ -237,6 +237,23 @@ function handleApi(req, res, url, ip) {
     return json(res, 200, { solvers: all }, true);
   }
 
+  if (url.pathname === '/api/solution' && req.method === 'GET') {
+    const challenge = url.searchParams.get('challenge') || '';
+    const identity = url.searchParams.get('identity') || '';
+    if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+    if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
+    if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
+    const cols = seo.loadCollections(DATA_DIR);
+    const ch = (cols.challenges || []).find(c => c.id === challenge);
+    if (!ch) return json(res, 404, { error: 'unknown_challenge' }, true);
+    const solved = !!(solves[identity] && solves[identity][challenge]);
+    if (!solved && ch.solution_public !== true && process.env.TOR_GATE_SOLUTIONS === '1') {
+      return json(res, 403, { error: 'solve_required' }, true);
+    }
+    const sol = (ch.sections || []).filter(s => s && s.published !== false && s.zone === 'solution');
+    return json(res, 200, { challenge, sections: sol }, true);
+  }
+
   if (url.pathname === '/api/hint' && req.method === 'POST') {
     if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
     let body = '';

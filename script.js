@@ -937,6 +937,20 @@ window.TOR = (function () {
       var fbtn = document.getElementById('flag-submit');
       var finp = document.getElementById('flag-input');
       if (currentChallenge && solvedSet.indexOf(currentChallenge.id) !== -1) {
+        var solEl = document.getElementById('zone-solution');
+        if (solEl && !solEl.children.length) {
+          fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(currentChallenge.id) + '&identity=' + TOR.identity())
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (d && Array.isArray(d.sections) && d.sections.length && !solEl.children.length) {
+                var cTmp = { headings: [] };
+                d.sections.forEach(function (sec, idx) {
+                  var n = renderSection(sec, 'sol-' + idx, cTmp);
+                  if (n) solEl.appendChild(n);
+                });
+              }
+            }).catch(function () {});
+        }
         if (fs) { fs.className = 'flag-status ok'; fs.textContent = lang === 'ar' ? 'هذا التحدي محلول بالفعل ✓' : 'Already solved ✓'; }
         if (fbtn) {
           fbtn.disabled = true;

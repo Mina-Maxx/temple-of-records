@@ -100,6 +100,24 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     vm.runInNewContext(normMatch[0], ctx6);
     check(ctx6.normSearch('إِختِبَارْ مَدْرَسَةٌ') === 'اختبار مدرسه', 'Arabic search normalization strips tashkeel and unifies alef/ta marbuta');
 
+    // 6.7 Gated solutions (TOR_GATE_SOLUTIONS=1)
+    const portGate = 19452;
+    const baseGate = 'http://127.0.0.1:' + portGate;
+    const childGate = spawn(process.execPath, ['server/server.js'], { cwd: root, env: { ...process.env, TOR_PORT: String(portGate), TOR_SHOW_SAMPLES: '1', TOR_GATE_SOLUTIONS: '1' }, stdio: 'ignore' });
+    try {
+      for (let i = 0; i < 50; i++) { try { if ((await fetch(baseGate + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+      const cjsGate = await (await fetch(baseGate + '/content.js')).text();
+      check(!cjsGate.includes('"zone":"solution"'), 'TOR_GATE_SOLUTIONS=1 strips solution blocks from /content.js');
+      const unsolId = '33333333333333333333333333333333';
+      const r403 = await fetch(baseGate + '/api/solution?challenge=log4shell-lab&identity=' + unsolId);
+      check(r403.status === 403, '/api/solution returns 403 for unsolved identity');
+      const r200 = await fetch(baseGate + '/api/solution?challenge=log4shell-lab&identity=' + id1);
+      const j200 = await r200.json();
+      check(r200.status === 200 && Array.isArray(j200.sections) && j200.sections.length > 0, '/api/solution returns 200 + sections for solved identity');
+    } finally {
+      childGate.kill();
+    }
+
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {
     child.kill();

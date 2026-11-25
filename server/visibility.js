@@ -43,7 +43,10 @@ function publicCollections(collections, now = Date.now()) {
       const o = { ...r };
       if (Array.isArray(r.artifacts)) o.artifacts = r.artifacts.filter(a => a && a.visibility !== 'hidden');
       if (Array.isArray(r.hints)) o.hints = r.hints.filter(h => h.published !== false);
-      if (Array.isArray(r.sections)) o.sections = r.sections.filter(s => s.published !== false);
+      if (Array.isArray(r.sections)) {
+        const gateSol = key === 'challenges' && process.env.TOR_GATE_SOLUTIONS === '1' && r.solution_public !== true;
+        o.sections = r.sections.filter(s => s.published !== false && (!gateSol || s.zone !== 'solution'));
+      }
       return o;
     });
   }
