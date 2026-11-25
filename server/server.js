@@ -327,7 +327,7 @@ function serveStatic(req, res, url) {
     }
   }
   if(p==='/admin/preview.html'){
-    const kind=url.searchParams.get('kind')==='article'?'article':'challenge';const lang=url.searchParams.get('lang')==='en'?'en':'ar';
+    const k=url.searchParams.get('kind');const kind=(k==='article'||k==='investigation')?k:'challenge';const lang=url.searchParams.get('lang')==='en'?'en':'ar';
     let html=fs.readFileSync(path.join(ROOT,kind+'-'+lang+'.html'),'utf8').replace('<head>','<head><base href="/">').replace('<script src="content.js"></script>','<script src="/admin/api/preview-content"></script>');
     html=html.replace('<body','<body data-admin-preview="true"');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);
   }

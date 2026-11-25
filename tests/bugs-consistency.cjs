@@ -22,6 +22,9 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const h2 = await r2.text();
     check(r2.status === 404 && h2.includes('error-code') && h2.includes('noindex'), 'allowlisted missing .html returns styled 404.html');
 
+    const r3 = await fetch(base + '/admin/preview.html?kind=investigation&lang=en&id=x', { redirect: 'manual' });
+    check(r3.status === 302, 'investigation preview requires admin session');
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();
