@@ -758,7 +758,12 @@ async function handle(req, res, url, ip) {
 // challenges remain intentionally revealable without a solve gate.
 function publicContentScript() {
   const store = getStore();
-  const fixed = { fields: seedFields(), defaults: store.fixedDefaults };
+  const { isPlaceholder } = require('./placeholders');
+  const cleanDefaults = {};
+  for (const [k, v] of Object.entries(store.fixedDefaults || {})) {
+    cleanDefaults[k] = isPlaceholder(v) ? '' : v;
+  }
+  const fixed = { fields: seedFields(), defaults: cleanDefaults };
   const settings=readJson(path.join(DATA,'site-settings.json'),{});
   const collections = require('./visibility').publicCollections(store.collections);
   const safeJson = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');

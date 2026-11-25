@@ -5,7 +5,7 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node tests/public-boundaries.cjs && node tests/admin-regression.cjs && node tests/visibility-collections.cjs"
+    "test": "node tests/public-boundaries.cjs && node tests/admin-regression.cjs && node tests/visibility-collections.cjs && node tests/no-placeholders.cjs"
   },
   "engines": {
     "node": ">=18"

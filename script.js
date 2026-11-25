@@ -188,10 +188,24 @@ window.TOR = (function () {
     if (meta) container.appendChild(meta);
   }
 
-  function fillChips(box, chips) {
+  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
+  function isPlaceholder(str) {
+    if (typeof str !== 'string' || !str.trim()) return false;
+    var low = str.toLowerCase();
+    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) {
+      if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
+    }
+    return false;
+  }
+
+  function fillChips(box, chips, isSample) {
     if (!box) return;
     box.innerHTML = '';
-    (chips || []).forEach(function (c) { box.appendChild(el('span', 'chip' + (c.gold ? ' gold' : ''), L(c))); });
+    (chips || []).forEach(function (c) {
+      var txt = L(c);
+      if (!isSample && /playable demo|fabricated|platform test|تجريبي|مُلفّقة|لاختبار المنصة/i.test(txt)) return;
+      box.appendChild(el('span', 'chip' + (c.gold ? ' gold' : ''), txt));
+    });
   }
   function metaJoin(parts, fallback) {
     var clean = parts.filter(function (x) { return x && String(x).trim(); });
@@ -337,7 +351,7 @@ window.TOR = (function () {
     }
     var body = el('div', 'body');
     var labels = el('div', 'labels');
-    fillChips(labels, c.chips);
+    fillChips(labels, c.chips, !!c.sample);
     labels.appendChild(el('span', 'chip' + (c.availability === 'open' ? ' gold' : ''), c.availability === 'open' ? T.open : T.soon));
     labels.appendChild(solveBadge(c.id, true));
     body.appendChild(labels);
@@ -426,7 +440,7 @@ window.TOR = (function () {
       var cur = document.getElementById('crumb-cur'); if (cur) cur.textContent = L(item.title);
       var ban = document.querySelector('.pagehead .banner');
       if (ban && TOR.imgOk(item.image)) ban.src = item.image;
-      fillChips(document.getElementById('item-labels'), item.chips);
+      fillChips(document.getElementById('item-labels'), item.chips, !!item.sample);
       var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
       var meta = document.getElementById('item-meta');
       if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes],
@@ -456,7 +470,7 @@ window.TOR = (function () {
       var cur2 = document.getElementById('crumb-cur'); if (cur2) cur2.textContent = L(ch.title);
       var ban2 = document.querySelector('.pagehead .banner');
       if (ban2 && TOR.imgOk(ch.image)) ban2.src = ch.image;
-      fillChips(document.getElementById('item-labels'), ch.chips);
+      fillChips(document.getElementById('item-labels'), ch.chips, !!ch.sample);
       var h1b = document.getElementById('item-title'); if (h1b) h1b.textContent = L(ch.title);
       var meta2 = document.getElementById('item-meta');
       if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty),
@@ -702,7 +716,7 @@ window.TOR = (function () {
         if (im && TOR.imgOk(fc.image)) im.src = fc.image;
         var a0 = tab.querySelector('a.scene-link');
         if (a0) a0.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(fc.id);
-        fillChips(tab.querySelector('.labels'), fc.chips);
+        fillChips(tab.querySelector('.labels'), fc.chips, !!fc.sample);
         var th = tab.querySelector('[data-slot="title"]'); if (th) th.textContent = L(fc.title);
         var tm = tab.querySelector('[data-slot="meta"]');
         if (tm) tm.textContent = metaJoin([L(fc.difficulty), fc.points ? num(fc.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(fc.est_time)],
@@ -1018,14 +1032,23 @@ window.TOR = (function () {
     return v;
   }
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
+  function isPh(s) {
+    if (typeof s !== 'string' || !s.trim()) return false;
+    var low = s.toLowerCase();
+    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
+    return false;
+  }
   document.querySelectorAll('[data-ckey-from]').forEach(function (el) { // text owned by the About page (home teaser)
     var k = el.getAttribute('data-ckey-from'), ap = 'about-' + lang;
     var v = ov[ap + ':' + k]; if (v == null || v === '') v = defs[ap + ':' + k];
+    if (isPh(v)) { el.style.display = 'none'; return; }
     if (v) el.textContent = v;
   });
   document.querySelectorAll('[data-ckey]').forEach(function (el) {
     var v = val(el.getAttribute('data-ckey'));
     if (v == null || v === '') return;
+    if (isPh(v)) { el.style.display = 'none'; return; }
     if (el.hasAttribute('data-multiline')) { el.innerHTML = esc(v).replace(/\n/g, '<br>'); }
     else { el.textContent = v; }
   });

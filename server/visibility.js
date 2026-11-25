@@ -14,6 +14,7 @@ const INVESTIGATION_FIELDS = ['id', 'slug', 'title', 'summary', 'status', 'date'
 
 function isPublic(item) {
   if (!item || item.hidden || item.published === false || item.private === true) return false;
+  if (item.sample === true && process.env.TOR_SHOW_SAMPLES !== '1') return false;
   if (['draft', 'private', 'hidden', 'unpublished', 'archived'].includes(item.status)) return false;
   if (item.access && item.access !== 'public') return false;
   return item.availability !== 'archived';

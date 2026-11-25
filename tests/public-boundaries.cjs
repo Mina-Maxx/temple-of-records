@@ -23,7 +23,7 @@ let child;let port=19287;let count=0;
 const baseUrl='http://127.0.0.1:'+port;
 const check=(ok,label)=>{assert.ok(ok,label);console.log('PASS '+label);count++};
 const post=(endpoint,data)=>fetch(baseUrl+endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
-async function start(){child=spawn(process.execPath,['server/server.js'],{cwd:root,env:{...process.env,TOR_PORT:String(port)},stdio:['ignore','pipe','pipe']});for(let i=0;i<50;i++){try{if((await fetch(baseUrl+'/')).ok)return}catch{}await new Promise(r=>setTimeout(r,50))}throw new Error('server startup failed')}
+async function start(){child=spawn(process.execPath,['server/server.js'],{cwd:root,env:{...process.env,TOR_PORT:String(port),TOR_SHOW_SAMPLES:'1'},stdio:['ignore','pipe','pipe']});for(let i=0;i<50;i++){try{if((await fetch(baseUrl+'/')).ok)return}catch{}await new Promise(r=>setTimeout(r,50))}throw new Error('server startup failed')}
 async function stop(){if(child){child.kill();await new Promise(r=>child.once('exit',r));child=null}}
 (async()=>{try{
  await start();
