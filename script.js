@@ -962,10 +962,22 @@ window.TOR = (function () {
     });
   })();
 
-  // ---------- keep ?a=/?c= across the language toggle ----------
+  // ---------- keep ?a=/?c=/?id= across the language toggle (mapping bilingual slugs) ----------
   var pill = document.querySelector('.pill-lang');
   if (pill && location.search) {
-    pill.setAttribute('href', pill.getAttribute('href').split('?')[0] + location.search);
+    var baseHref = pill.getAttribute('href').split('?')[0];
+    var otherLang = lang === 'ar' ? 'en' : 'ar';
+    var qParam = TOR.param('id') || TOR.param('c') || TOR.param('a');
+    var mKind = /^(article|challenge|investigation)-(ar|en)$/.exec(page);
+    var mappedSearch = location.search;
+    if (mKind && qParam) {
+      var foundItem = TOR.find(mKind[1] + 's', qParam);
+      if (foundItem && foundItem.slug && foundItem.slug[otherLang]) {
+        var keyName = TOR.param('id') ? 'id' : (TOR.param('c') ? 'c' : 'a');
+        mappedSearch = '?' + keyName + '=' + encodeURIComponent(foundItem.slug[otherLang]);
+      }
+    }
+    pill.setAttribute('href', baseHref + mappedSearch);
   }
 })();
 
@@ -1129,8 +1141,6 @@ window.TOR = (function () {
     });
   });
 })();
-
-(function(){var a=document.querySelector('a.pill-lang');if(a&&location.search)a.href=a.getAttribute('href').split('?')[0]+location.search})();
 
 // Optional site appearance and identity settings. No settings means original design.
 (function(){

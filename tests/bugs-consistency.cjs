@@ -25,6 +25,10 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const r3 = await fetch(base + '/admin/preview.html?kind=investigation&lang=en&id=x', { redirect: 'manual' });
     check(r3.status === 302, 'investigation preview requires admin session');
 
+    const sjs = require('node:fs').readFileSync(path.join(root, 'script.js'), 'utf8');
+    check((sjs.match(/querySelector\(['"]a?\.pill-lang['"]\)/g) || []).length === 1, 'script.js has single pill-lang handler (no duplicate)');
+    check(sjs.includes('foundItem.slug[otherLang]'), 'pill-lang maps bilingual slugs across languages');
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();
