@@ -28,25 +28,25 @@ A.boot().then(function(ok){
     groups[g].forEach(function(f){
      var base=f.page+'-',sfx=':'+f.key;
      html+='<div class="field"><label>'+A.esc(f.label||f.key)+'</label><div class="row2">'+
-      '<input class="input" data-k="'+base+'ar'+sfx+'" value="'+A.esc(vals[base+'ar'+sfx]||'')+'" placeholder="العربية">'+
+      '<input class="input ar-only" data-k="'+base+'ar'+sfx+'" value="'+A.esc(vals[base+'ar'+sfx]||'')+'" placeholder="العربية">'+
       '<input class="input" dir="ltr" data-k="'+base+'en'+sfx+'" value="'+A.esc(vals[base+'en'+sfx]||'')+'" placeholder="English">'+
      '</div></div>';
     });
     html+='</div>';
    });
    html+='<div class="panel"><h2>SEO</h2><p class="sub">'+(ar?'وصف ميتا وكلمات مفتاحية لكل لغة — تُحقن في الصفحات العامة الثماني وتظهر في نتائج البحث والمشاركة.':'Meta description and keywords per language — injected into the eight public pages for search results and sharing.')+'</p>'+
-   '<div class="frow"><div class="fcol"><label>'+(ar?'الوصف (عربي)':'Description (Arabic)')+'</label><textarea class="input" id="seo-ar" rows="2" maxlength="300"></textarea></div>'+
+   '<div class="frow"><div class="fcol ar-only"><label>'+(ar?'الوصف (عربي)':'Description (Arabic)')+'</label><textarea class="input" id="seo-ar" rows="2" maxlength="300"></textarea></div>'+
    '<div class="fcol"><label>'+(ar?'الوصف (إنجليزي)':'Description (English)')+'</label><textarea class="input" id="seo-en" rows="2" maxlength="300" dir="ltr"></textarea></div></div>'+
-   '<div class="frow"><div class="fcol"><label>'+(ar?'كلمات مفتاحية (عربي، اختياري)':'Keywords (Arabic, optional)')+'</label><input class="input" id="seo-ar-kw" maxlength="300"></div>'+
+   '<div class="frow"><div class="fcol ar-only"><label>'+(ar?'كلمات مفتاحية (عربي، اختياري)':'Keywords (Arabic, optional)')+'</label><input class="input" id="seo-ar-kw" maxlength="300"></div>'+
    '<div class="fcol"><label>'+(ar?'كلمات مفتاحية (إنجليزي، اختياري)':'Keywords (English, optional)')+'</label><input class="input" id="seo-en-kw" maxlength="300" dir="ltr"></div></div>'+
    '<button class="btn primary sm" id="seo-save" style="margin-top:8px">'+A.t('save')+'</button> <span class="small dim" id="seo-note"></span></div>';
    html+='<div class="savebar" id="savebar"><span class="small" id="chgcount"></span><span style="flex:1"></span><button class="btn ghost" id="revert">'+A.t('cancel')+'</button><button class="btn primary" id="saveall">'+A.t('save')+'</button></div>';
    var configFields=[["name_ar", "اسم الموقع (عربي)", "Website name AR"], ["name_en", "اسم الموقع (إنجليزي)", "Website name EN"], ["description_ar", "وصف الموقع (عربي)", "Website description AR"], ["description_en", "وصف الموقع (إنجليزي)", "Website description EN"], ["logo", "مسار الشعار", "Logo path"], ["favicon", "مسار الأيقونة", "Favicon path"], ["social_image", "صورة المشاركة", "Social sharing image"], ["other_link", "رابط آخر https", "Other link https"], ["base_url", "نطاق الموقع https لإنتاج sitemap (اتركه فارغا محليا)", "Site origin https for sitemap (blank locally)"], ["gold", "الذهبي #HEX", "Gold #HEX"]];
-   html+='<div class="panel" id="site-config"><h2>'+(ar?'إعدادات الهوية والمظهر':'Identity and appearance')+'</h2>'+configFields.map(f=>'<div class="field"><label>'+A.esc(ar?f[1]:f[2])+'</label><input class="input" data-cfg="'+f[0]+'"></div>').join('')+
+   html+='<div class="panel" id="site-config"><h2>'+(ar?'إعدادات الهوية والمظهر':'Identity and appearance')+'</h2>'+configFields.map(f=>'<div class="field'+(/_ar$/.test(f[0])?' ar-only':'')+'"><label>'+A.esc(ar?f[1]:f[2])+'</label><input class="input" data-cfg="'+f[0]+'"></div>').join('')+
    '<div class="field"><label class="check"><input type="checkbox" data-cfg="arabic_enabled" id="cfg-arabic-enabled"> <span>'+(ar?'تفعيل الموقع العربي (Enable Arabic site)':'Enable Arabic site')+'</span></label><p class="small dim">When OFF, the public site is English only. Arabic pages redirect to English and Arabic content is never sent to visitors. Your Arabic content is kept and returns when you turn this back on.</p></div>'+
    '<div class="field"><label>'+(ar?'اللغة الافتراضية':'Default language')+'</label><select class="input" data-cfg="default_language" id="cfg-default-lang"><option value="en">English</option><option value="ar">العربية</option></select></div>'+
    '<div class="field"><label>'+(ar?'المظهر':'Appearance')+'</label><select class="input" data-cfg="mode"><option value="dark">Dark</option><option value="light">Light</option></select></div>'+
-   '<div class="field"><label>'+(ar?'خط النص العربي':'Arabic body font')+'</label><select class="input" data-cfg="font_ar"><option>IBM Plex Sans Arabic</option><option>Tajawal</option></select></div>'+
+   '<div class="field ar-only"><label>'+(ar?'خط النص العربي':'Arabic body font')+'</label><select class="input" data-cfg="font_ar"><option>IBM Plex Sans Arabic</option><option>Tajawal</option></select></div>'+
    '<button class="btn primary" id="cfg-save">'+A.t('save')+'</button><p class="small dim">'+(ar?'الروابط الخارجية لا تُفحص تلقائيا. RTL يتبع اللغة تلقائيا للحفاظ على القراءة.':'External links are not checked automatically. RTL follows the language automatically.')+'</p></div>';
    html+='<div class="panel"><h2>'+(ar?'تغيير كلمة المرور':'Change password')+'</h2><p class="small dim">'+(ar?'يشترط كلمة المرور الحالية. تنتهي جميع الجلسات بعد التغيير.':'Requires your current password. All sessions end after the change.')+'</p><div class="field"><label>'+(ar?'الحالية':'Current')+'</label><input class="input" type="password" id="pw-current" autocomplete="current-password"></div><div class="field"><label>'+(ar?'الجديدة (10 أحرف على الأقل)':'New (at least 10 characters)')+'</label><input class="input" type="password" id="pw-new" autocomplete="new-password"></div><div class="field"><label>'+(ar?'تأكيد الجديدة':'Confirm new')+'</label><input class="input" type="password" id="pw-confirm" autocomplete="new-password"></div><button class="btn danger" id="pw-save">'+(ar?'تغيير':'Change')+'</button></div>';
    c.innerHTML=html;

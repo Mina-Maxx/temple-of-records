@@ -170,7 +170,7 @@ async function handle(req, res, url, ip) {
     return json(res, 200, { status: 'ok' });
   }
   if (p === '/admin/api/me' && req.method === 'GET') {
-    return json(res, 200, { username: sess.username, csrf: sess.csrf, expiresAt: new Date(sess.exp).toISOString() });
+    return json(res, 200, { username: sess.username, csrf: sess.csrf, expiresAt: new Date(sess.exp).toISOString(), arabic_enabled: isArabicEnabled() });
   }
 
   // CSRF on all mutating routes
@@ -190,6 +190,11 @@ async function handle(req, res, url, ip) {
     for(const k of ['logo','favicon','social_image'])if(out[k]&&!/^assets\/[A-Za-z0-9._-]+$/.test(out[k]))return json(res,400,{error:'invalid_asset_path'});
     if(out.other_link&&!/^https:\/\//.test(out.other_link))return json(res,400,{error:'https_required'});
     out.arabic_enabled=b.arabic_enabled===true;
+    if(!out.arabic_enabled){
+      if(!out.name_ar&&old.name_ar)out.name_ar=old.name_ar;
+      if(!out.description_ar&&old.description_ar)out.description_ar=old.description_ar;
+      if(!b.font_ar&&old.font_ar)out.font_ar=old.font_ar;
+    }
     out.default_language=b.default_language==='ar'?'ar':'en';out.mode=b.mode==='light'?'light':'dark';
     out.gold=/^#[A-Fa-f0-9]{6}$/.test(b.gold||'')?b.gold:'#D7B776';
     out.font_ar=b.font_ar==='Tajawal'?'Tajawal':'IBM Plex Sans Arabic';
@@ -252,10 +257,12 @@ async function handle(req, res, url, ip) {
     try { declared = (seedFields() || []).map(f => f.page + ':' + f.key); } catch (e) {}
     const st2 = getStore();
     const bad = [];
+    const arOn = isArabicEnabled();
     Object.keys(values).forEach(k => {
       // keys look like "index-ar:hero-title"; validate the "page:key" part is declared
       const m = k.match(/^([a-z-]+)-(ar|en):(.+)$/);
       if (!m || !declared.includes(m[1] + ':' + m[3]) || typeof values[k] !== 'string' || values[k].length > 4000) { bad.push(k); return; }
+      if (!arOn && m[2] === 'ar' && values[k] === '' && st2.fixedDefaults[k]) return;
       st2.fixedDefaults[k] = values[k];
     });
     if (bad.length) return json(res, 400, { error: 'invalid_keys', details: bad.slice(0, 5) });
@@ -271,10 +278,12 @@ async function handle(req, res, url, ip) {
     const list = st.collections.challenges;
     if (req.method === 'POST' && !chMatch[1]) {
       const body = await readBody(req, 2 * 1024 * 1024);
-      const v = TorAdmin.validateCollections({ articles: [], challenges: [body] });
+      const arOn = isArabicEnabled();
+      const v = TorAdmin.validateCollections({ articles: [], challenges: [body] }, { arabicEnabled: arOn });
       if (!v.ok) return json(res, 400, { error: 'invalid', details: v.errors.slice(0, 5) });
       const entry = v.value.challenges[0];entry.updated_at=new Date().toISOString();
-      if (list.some(c => c.id === entry.id || ['ar','en'].some(l=>entry.slug&&entry.slug[l]&&(c.id===entry.slug[l]||c.slug&&c.slug[l]===entry.slug[l])))) return json(res, 409, { error: 'duplicate_id' });
+      const checkLangs = arOn ? ['ar', 'en'] : ['en'];
+      if (list.some(c => c.id === entry.id || checkLangs.some(l=>entry.slug&&entry.slug[l]&&(c.id===entry.slug[l]||c.slug&&c.slug[l]===entry.slug[l])))) return json(res, 409, { error: 'duplicate_id' });
       list.push(entry); publishStore(st);
       audit(sess.username, 'challenge_create', entry.id, 'ok');
       return json(res, 200, { status: 'created', id: entry.id });
@@ -285,9 +294,12 @@ async function handle(req, res, url, ip) {
       const body = await readBody(req, 2 * 1024 * 1024);
       if(!body)return json(res,400,{error:'invalid_json'});
       body.id = chMatch[1]; // id immutable via this route
-      const v = TorAdmin.validateCollections({ articles: [], challenges: [body] });
+      const arOn = isArabicEnabled();
+      const payload = arOn ? body : mergeArabic(body, entry);
+      const v = TorAdmin.validateCollections({ articles: [], challenges: [payload] }, { arabicEnabled: arOn });
       if (!v.ok) return json(res, 400, { error: 'invalid', details: v.errors.slice(0, 5) });
-      if(list.some(c=>c.id!==entry.id&&['ar','en'].some(l=>v.value.challenges[0].slug[l]&&(c.id===v.value.challenges[0].slug[l]||c.slug&&c.slug[l]===v.value.challenges[0].slug[l]))))return json(res,409,{error:'duplicate_slug'});
+      const checkLangs = arOn ? ['ar', 'en'] : ['en'];
+      if(list.some(c=>c.id!==entry.id&&checkLangs.some(l=>v.value.challenges[0].slug[l]&&(c.id===v.value.challenges[0].slug[l]||c.slug&&c.slug[l]===v.value.challenges[0].slug[l]))))return json(res,409,{error:'duplicate_slug'});
       v.value.challenges[0].updated_at=new Date().toISOString();list[list.indexOf(entry)] = v.value.challenges[0]; publishStore(st);
       audit(sess.username, 'challenge_update', entry.id, 'ok');
       return json(res, 200, { status: 'updated', id: entry.id });
@@ -307,10 +319,12 @@ async function handle(req, res, url, ip) {
     const listA = stA.collections.articles;
     if (req.method === 'POST' && !artMatch[1]) {
       const body = await readBody(req, 2 * 1024 * 1024);
-      const v = TorAdmin.validateCollections({ articles: [body], challenges: [] });
+      const arOn = isArabicEnabled();
+      const v = TorAdmin.validateCollections({ articles: [body], challenges: [] }, { arabicEnabled: arOn });
       if (!v.ok) return json(res, 400, { error: 'invalid', details: v.errors.slice(0, 5) });
       const entry = v.value.articles[0];entry.updated_at=new Date().toISOString();
-      if (listA.some(a => a.id === entry.id || ['ar','en'].some(l=>entry.slug&&entry.slug[l]&&(a.id===entry.slug[l]||a.slug&&a.slug[l]===entry.slug[l])))) return json(res, 409, { error: 'duplicate_id' });
+      const checkLangs = arOn ? ['ar', 'en'] : ['en'];
+      if (listA.some(a => a.id === entry.id || checkLangs.some(l=>entry.slug&&entry.slug[l]&&(a.id===entry.slug[l]||a.slug&&a.slug[l]===entry.slug[l])))) return json(res, 409, { error: 'duplicate_id' });
       listA.push(entry); publishStore(stA);
       audit(sess.username, 'article_create', entry.id, 'ok');
       return json(res, 200, { status: 'created', id: entry.id });
@@ -321,9 +335,12 @@ async function handle(req, res, url, ip) {
       const body = await readBody(req, 2 * 1024 * 1024);
       if(!body)return json(res,400,{error:'invalid_json'});
       body.id = artMatch[1];
-      const v = TorAdmin.validateCollections({ articles: [body], challenges: [] });
+      const arOn = isArabicEnabled();
+      const payload = arOn ? body : mergeArabic(body, entryA);
+      const v = TorAdmin.validateCollections({ articles: [payload], challenges: [] }, { arabicEnabled: arOn });
       if (!v.ok) return json(res, 400, { error: 'invalid', details: v.errors.slice(0, 5) });
-      if(listA.some(a=>a.id!==entryA.id&&['ar','en'].some(l=>v.value.articles[0].slug[l]&&(a.id===v.value.articles[0].slug[l]||a.slug&&a.slug[l]===v.value.articles[0].slug[l]))))return json(res,409,{error:'duplicate_slug'});
+      const checkLangs = arOn ? ['ar', 'en'] : ['en'];
+      if(listA.some(a=>a.id!==entryA.id&&checkLangs.some(l=>v.value.articles[0].slug[l]&&(a.id===v.value.articles[0].slug[l]||a.slug&&a.slug[l]===v.value.articles[0].slug[l]))))return json(res,409,{error:'duplicate_slug'});
       v.value.articles[0].updated_at=new Date().toISOString();listA[listA.indexOf(entryA)] = v.value.articles[0]; publishStore(stA);
       audit(sess.username, 'article_update', entryA.id, 'ok');
       return json(res, 200, { status: 'updated', id: entryA.id });
@@ -562,7 +579,9 @@ async function handle(req, res, url, ip) {
     if (!it) return json(res, 404, { error: 'not_found' });
     if (req.method === 'PUT') {
       const body = await readBody(req, 1024 * 1024);
-      const item = cleanBySchema(schema, body || {}, gcMatch[2]);
+      const arOn = isArabicEnabled();
+      const payload = arOn ? (body || {}) : mergeArabic(body || {}, it);
+      const item = cleanBySchema(schema, payload, gcMatch[2]);
       if (!item) return json(res, 400, { error: 'invalid' });
       list[list.indexOf(it)] = item; publishStore(st4);
       audit(sess.username, col + '_update', item.id, 'ok');
@@ -812,6 +831,26 @@ function challengeIsOpen(id) {
   return require('./visibility').isPublic(challenge) && challenge.availability === 'open';
 }
 function challengePoints(id){const c=(getStore().collections.challenges||[]).find(c=>c.id===id);return c&&Number.isFinite(Number(c.points))?Number(c.points):0}
+function mergeArabic(incoming, existing) {
+  if (!existing || typeof existing !== 'object') return incoming;
+  if (Array.isArray(incoming) && Array.isArray(existing)) {
+    return incoming.map((item, i) => mergeArabic(item, existing[i]));
+  }
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return incoming;
+  const out = { ...incoming };
+  for (const [k, exVal] of Object.entries(existing)) {
+    const isArKey = k === 'ar' || /_ar$/i.test(k) || /Ar$/.test(k);
+    if (isArKey) {
+      if ((out[k] === undefined || out[k] === '') && exVal !== undefined && exVal !== '') {
+        out[k] = exVal;
+      }
+    } else if (out[k] && typeof out[k] === 'object' && exVal && typeof exVal === 'object') {
+      out[k] = mergeArabic(out[k], exVal);
+    }
+  }
+  return out;
+}
+
 function isArabicEnabled() {
   const s = readJson(path.join(DATA, 'site-settings.json'), {});
   return s.arabic_enabled === true;

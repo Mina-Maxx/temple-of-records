@@ -58,7 +58,7 @@ A.boot().then(function(ok){
   c.innerHTML=
   '<div class="page-head"><h1>'+(isNew?A.t('create'):(A.lang()==='ar'?A.esc(item.title.ar||item.id):A.esc(item.title.en||item.title.ar||item.id)))+'</h1>'+
   '<span class="sub mono">'+A.esc(item.id||'new')+'</span>'+
-  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=challenge&amp;lang='+A.lang()+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(A.lang()==='ar'?' معاينة':' Preview')+'</a>')+
+  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=challenge&amp;lang='+(A.arabicEnabled()?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(A.lang()==='ar'?' معاينة':' Preview')+'</a>')+
   '<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
   '<div class="errlist" id="errs" role="alert"></div>'+
   '<div class="tabs" role="tablist">'+
