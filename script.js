@@ -234,13 +234,20 @@ window.TOR = (function () {
     return false;
   }
 
-  function fillChips(box, chips, isSample) {
+  function fillChips(box, chips, isSample, attack) {
     if (!box) return;
     box.innerHTML = '';
     (chips || []).forEach(function (c) {
       var txt = L(c);
       if (!isSample && /playable demo|fabricated|platform test|تجريبي|مُلفّقة|لاختبار المنصة/i.test(txt)) return;
       box.appendChild(el('span', 'chip' + (c.gold ? ' gold' : ''), txt));
+    });
+    (attack || []).forEach(function (id) {
+      if (!/^T\d{4}(\.\d{3})?$/.test(id)) return;
+      var a = el('a', 'chip gold', 'ATT&CK ' + id);
+      a.href = 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/';
+      a.target = '_blank'; a.rel = 'noopener noreferrer';
+      box.appendChild(a);
     });
   }
   function metaJoin(parts, fallback) {
@@ -476,7 +483,7 @@ window.TOR = (function () {
       var cur = document.getElementById('crumb-cur'); if (cur) cur.textContent = L(item.title);
       var ban = document.querySelector('.pagehead .banner');
       if (ban && TOR.imgOk(item.image)) setImgSrc(ban, item.image);
-      fillChips(document.getElementById('item-labels'), item.chips, !!item.sample);
+      fillChips(document.getElementById('item-labels'), item.chips, !!item.sample, item.attack);
       var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
       var meta = document.getElementById('item-meta');
       if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes],
@@ -506,7 +513,7 @@ window.TOR = (function () {
       var cur2 = document.getElementById('crumb-cur'); if (cur2) cur2.textContent = L(ch.title);
       var ban2 = document.querySelector('.pagehead .banner');
       if (ban2 && TOR.imgOk(ch.image)) setImgSrc(ban2, ch.image);
-      fillChips(document.getElementById('item-labels'), ch.chips, !!ch.sample);
+      fillChips(document.getElementById('item-labels'), ch.chips, !!ch.sample, ch.attack);
       var h1b = document.getElementById('item-title'); if (h1b) h1b.textContent = L(ch.title);
       var meta2 = document.getElementById('item-meta');
       if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty),

@@ -57,6 +57,14 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(!nodes.some(n => n.tag === 'img') && nodes.some(n => n.type === 'text' && n.textContent.includes('<img onerror=1>')), 'inline markdown keeps HTML literal (no XSS)');
     check(!nodes.some(n => n.tag === 'a' && /javascript:/i.test(n.href)), 'inline markdown rejects javascript: links');
 
+    // 6.3 MITRE ATT&CK validation
+    const val = require('../server/validators');
+    const atkRes = val.validateCollections({
+      articles: [{ id: 'atk-1', title: { ar: 'ع', en: 'E' }, excerpt: { ar: '', en: '' }, slug: { ar: 'ع', en: 'e' }, attack: ['T1059.001', 'INVALID', 'T1190'], sections: [] }],
+      challenges: []
+    });
+    check(atkRes.ok && JSON.stringify(atkRes.value.articles[0].attack) === JSON.stringify(['T1059.001', 'T1190']), 'ATT&CK validator keeps valid techniques and drops invalid ones');
+
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {
     child.kill();

@@ -9,7 +9,7 @@ const PUBLIC_KINDS = ['challenges', 'articles', 'investigations'];
 // Investigations are opt-in: they need visibility === 'public' AND must pass
 // isPublic() (not draft/hidden). Only these fields are ever published, so an
 // extra private field added later can never leak by accident.
-const INVESTIGATION_FIELDS = ['id', 'slug', 'title', 'summary', 'status', 'date', 'tags', 'timeline',
+const INVESTIGATION_FIELDS = ['id', 'slug', 'title', 'summary', 'status', 'date', 'tags', 'attack', 'timeline',
   'findings', 'root_cause', 'analysis', 'lessons_learned', 'evidence', 'links', 'seo_title', 'meta_description'];
 
 function isPublic(item) {
