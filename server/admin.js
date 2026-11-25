@@ -815,7 +815,14 @@ function publicContentScript() {
     finalDefaults = stripped.defaults;
     collections = stripped.collections;
   }
-  const fixed = { fields: seedFields(), defaults: finalDefaults };
+  const rawFields = seedFields();
+  const finalFields = arabic ? rawFields : rawFields.map(f => {
+    const nf = { ...f };
+    if (AR_SCRIPT_RE.test(String(nf.label || ''))) nf.label = nf.key;
+    if (AR_SCRIPT_RE.test(String(nf.group || ''))) nf.group = nf.page || 'general';
+    return nf;
+  });
+  const fixed = { fields: finalFields, defaults: finalDefaults };
   const safeJson = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   return 'var SITE_CONFIG = ' + safeJson({ arabic }) + '; if (typeof window !== "undefined") window.SITE_CONFIG = SITE_CONFIG;\n'
     + 'const SITE_SETTINGS = ' + safeJson(settings) + ';\n'
