@@ -520,7 +520,7 @@ window.TOR = (function () {
           var trh = el('tr');
           [lang === 'ar' ? 'الملف' : 'File', lang === 'ar' ? 'النوع' : 'Type',
            lang === 'ar' ? 'الحجم' : 'Size', 'SHA-256', lang === 'ar' ? 'الوصف' : 'Description',
-           lang === 'ar' ? 'التحميل' : 'Download'].forEach(function (h) { trh.appendChild(el('th', null, h)); });
+           lang === 'ar' ? 'التحميل' : 'Download'].forEach(function (h) { var th = el('th', null, h); th.setAttribute('scope', 'col'); trh.appendChild(th); });
           tbl.appendChild(trh);
           arts.forEach(function (a) {
             var tr = el('tr');
