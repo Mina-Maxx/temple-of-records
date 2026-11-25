@@ -63,6 +63,18 @@ node tests/public-boundaries.cjs
 
 ---
 
+## Pre-Launch Checklist
+
+1. Set `base_url` in `/admin/settings.html` (e.g. `https://mina-max.website`).
+2. Replace sample/draft content in `/admin` (never ship demo placeholders).
+3. Verify `default_language` (`en` or `ar`) in `/admin/settings.html`.
+4. Set strong, random `ADMIN_USER` & `ADMIN_PASSWORD` env vars (or run first-run local setup).
+5. Mount persistent storage at `TOR_DATA_DIR` and schedule `node scripts/backup.cjs 7`.
+6. Verify `/sitemap.xml`, `/robots.txt`, `/feed.xml`, and `/health` return `200`.
+7. Run `npm test` and confirm all assertions pass.
+
+---
+
 ## النسخة العربية — معبد السجلات (v9)
 
 منصة ثنائية اللغة (عربي RTL / إنجليزي LTR) للتحقيق الجنائي الرقمي (DFIR) وتحديات الـ CTF، مبنية بالكامل باستخدام Node.js القياسي بدون أي مكتبات خارجية.

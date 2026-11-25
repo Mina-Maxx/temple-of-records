@@ -1,16 +1,27 @@
+# Note: Render Starter plan ($7/mo) + Persistent Disk ($0.25/GB/mo) is required for
+# persistent solves, submissions, and CMS edits. The free plan has an ephemeral disk
+# and sleeps when idle (use free tier for demos only).
 services:
   - type: web
     name: temple-of-records
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: "echo 'No build step required'"
     startCommand: "node server/server.js"
     healthCheckPath: /health
+    disk:
+      name: tor-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: TOR_HTTPS
         value: "1"
+      - key: TOR_DATA_DIR
+        value: /var/data
+      - key: TOR_FLAGS_FILE
+        value: /var/data/flags.json
       - key: ADMIN_USER
         sync: false
       - key: ADMIN_PASSWORD
