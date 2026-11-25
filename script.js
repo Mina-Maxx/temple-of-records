@@ -670,6 +670,54 @@ window.TOR = (function () {
     });
   })();
 
+  // ---------- scoreboard link in nav/footer + scoreboard page ----------
+  (function () {
+    var sbHref = lang === 'ar' ? 'scoreboard-ar.html' : 'scoreboard-en.html';
+    var sbLabel = lang === 'ar' ? 'المتصدرون' : 'Scoreboard';
+    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
+      if (nav.querySelector('a[href="' + sbHref + '"]')) return;
+      var a = document.createElement('a'); a.href = sbHref; a.textContent = sbLabel;
+      var about = nav.querySelector('a[href^="about-"]');
+      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
+    });
+    if (page !== 'scoreboard-ar' && page !== 'scoreboard-en') return;
+    var box = document.getElementById('scoreboard-box');
+    if (!box) return;
+    box.innerHTML = '<p class="notice"><span class="spinner"></span> ' + (lang === 'ar' ? 'جاري تحميل الترتيب...' : 'Loading scoreboard...') + '</p>';
+    fetch(TOR.apiBase() + '/api/scoreboard')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var rows = (d && d.scoreboard) || [];
+        box.innerHTML = '';
+        if (!rows.length) {
+          box.appendChild(el('p', 'notice', lang === 'ar' ? 'لم تُسجّل حلول بعد — كن أول متصدر!' : 'No solves recorded yet — be the first on the board!'));
+          return;
+        }
+        var tbl = el('table', 'artifacts');
+        var trh = el('tr');
+        [lang === 'ar' ? 'الترتيب' : 'Rank', lang === 'ar' ? 'اللاعب' : 'Player', lang === 'ar' ? 'النقاط' : 'Points', lang === 'ar' ? 'المحلول' : 'Solved', 'First Blood', lang === 'ar' ? 'آخر حل' : 'Last solve'].forEach(function (h) {
+          var th = el('th', null, h); th.setAttribute('scope', 'col'); trh.appendChild(th);
+        });
+        tbl.appendChild(trh);
+        rows.forEach(function (r, idx) {
+          var tr = el('tr');
+          tr.appendChild(el('td', 'mono', idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : '#' + (idx + 1)));
+          tr.appendChild(el('td', null, r.name || 'Anonymous'));
+          tr.appendChild(el('td', 'mono', num(r.points)));
+          tr.appendChild(el('td', 'mono', num(r.solved)));
+          tr.appendChild(el('td', 'mono', r.firstBloods ? '🩸 ' + num(r.firstBloods) : '—'));
+          var tf = formatSolveTime(r.lastSolve, lang);
+          tr.appendChild(el('td', 'mono', tf.relative || '—'));
+          tbl.appendChild(tr);
+        });
+        box.appendChild(tbl);
+      })
+      .catch(function () {
+        box.innerHTML = '';
+        box.appendChild(el('p', 'notice', lang === 'ar' ? 'تعذر تحميل لوحة المتصدرين.' : 'Could not load scoreboard.'));
+      });
+  })();
+
   // ---------- listings ----------
   if (page === 'articles-ar' || page === 'articles-en') {
     var box = document.getElementById('listing');
@@ -812,6 +860,7 @@ window.TOR = (function () {
     var form = document.getElementById('flag-form');
     if (!form || !currentChallenge) return;
     var nameIn = document.getElementById('flag-name');
+    var hideIn = document.getElementById('flag-hide-name');
     var input = document.getElementById('flag-input');
     var btn = document.getElementById('flag-submit');
     var status = document.getElementById('flag-status');
@@ -911,7 +960,7 @@ window.TOR = (function () {
       fetch(TOR.apiBase() + '/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity: TOR.identity(), name: nameVal, challenge: chId, flag: val })
+        body: JSON.stringify({ identity: TOR.identity(), name: nameVal, hideName: !!(hideIn && hideIn.checked), challenge: chId, flag: val })
       }).then(function (r) {
         return r.json().then(function (d) { return { code: r.status, d: d }; });
       }).then(function (res) {
@@ -1097,7 +1146,7 @@ window.TOR = (function () {
 // ---------- current page in the main navigation ----------
 (function () {
   var page = (document.body && document.body.getAttribute('data-page')) || '';
-  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^investigation/.test(page) ? 'investigations' : /^about/.test(page) ? 'about' : '';
+  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^investigation/.test(page) ? 'investigations' : /^scoreboard/.test(page) ? 'scoreboard' : /^about/.test(page) ? 'about' : '';
   if (!want) return;
   document.querySelectorAll('header.site nav.main a').forEach(function (a) {
     if (!a.classList.contains('pill-lang') && (a.getAttribute('href') || '').indexOf(want + '-') === 0) a.setAttribute('aria-current', 'page');

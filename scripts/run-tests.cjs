@@ -9,7 +9,8 @@ const TESTS = [
   'tests/no-placeholders.cjs',
   'tests/seo-meta.cjs',
   'tests/cache-compression.cjs',
-  'tests/bugs-consistency.cjs'
+  'tests/bugs-consistency.cjs',
+  'tests/features-phase6.cjs'
 ];
 
 const root = path.resolve(__dirname, '..');

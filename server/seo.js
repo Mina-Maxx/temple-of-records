@@ -139,7 +139,7 @@ function renderSitemap(dataDir) {
 
   const visible = visibility.publicCollections(loadCollections(dataDir));
   const entries = [];
-  const staticBases = ['index', 'challenges', 'articles', 'about'];
+  const staticBases = ['index', 'challenges', 'articles', 'scoreboard', 'about'];
   if ((visible.investigations || []).length) staticBases.push('investigations');
 
   for (const b of staticBases) {

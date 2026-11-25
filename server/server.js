@@ -35,10 +35,21 @@ const PLAYER_NAMES_FILE = path.join(DATA_DIR, 'players_names.json');
 function loadPlayerNames() {
   try { return JSON.parse(fs.readFileSync(PLAYER_NAMES_FILE, 'utf8')); } catch (e) { return {}; }
 }
-function savePlayerName(identity, name) {
-  if (!identity || !name) return;
+function playerDisplayName(rec) {
+  if (!rec) return 'Anonymous';
+  if (typeof rec === 'string') return rec || 'Anonymous';
+  if (rec.hide) return 'Anonymous';
+  return rec.name || 'Anonymous';
+}
+function savePlayerName(identity, name, hide) {
+  if (!identity || (!name && hide === undefined)) return;
   const names = loadPlayerNames();
-  names[identity] = name;
+  const prev = names[identity];
+  const prevName = typeof prev === 'string' ? prev : (prev && prev.name) || '';
+  const prevHide = typeof prev === 'object' && prev ? !!prev.hide : false;
+  const nextName = name || prevName || 'Anonymous';
+  const nextHide = hide !== undefined ? !!hide : prevHide;
+  names[identity] = nextHide ? { name: nextName, hide: true } : nextName;
   const tmp = PLAYER_NAMES_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(names, null, 1));
   fs.renameSync(tmp, PLAYER_NAMES_FILE);
@@ -69,8 +80,10 @@ const RATE_PER_IP_CHALLENGE = 20;
 
 // ---------- solve store ----------
 let solves = {};
+let scoreboardCache = { ts: 0, data: null };
 try { solves = JSON.parse(fs.readFileSync(SOLVES_FILE, 'utf8')); } catch (e) { solves = {}; }
 function saveSolves() {
+  scoreboardCache = { ts: 0, data: null };
   const tmp = SOLVES_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(solves, null, 1));
   fs.renameSync(tmp, SOLVES_FILE);
@@ -124,7 +137,57 @@ function handleApi(req, res, url, ip) {
     if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
     const mine = solves[identity] || {};
     const names = loadPlayerNames();
-    return json(res, 200, { solved: Object.keys(mine).filter(id => admin.challengeIsPublic(id)), name: names[identity] || '' }, true);
+    const rec = names[identity];
+    const rawName = typeof rec === 'string' ? rec : (rec && rec.name) || '';
+    const hideName = typeof rec === 'object' && rec ? !!rec.hide : false;
+    return json(res, 200, { solved: Object.keys(mine).filter(id => admin.challengeIsPublic(id)), name: rawName, hideName }, true);
+  }
+
+  if (url.pathname === '/api/scoreboard' && req.method === 'GET') {
+    if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
+    if (scoreboardCache.data && Date.now() - scoreboardCache.ts < 15000) {
+      return json(res, 200, scoreboardCache.data, true);
+    }
+    const names = loadPlayerNames();
+    const firstByCh = {};
+    Object.keys(solves).forEach(id => {
+      if (isDisabled(id)) return;
+      const pSolves = solves[id] || {};
+      Object.keys(pSolves).forEach(chId => {
+        if (!admin.challengeIsPublic(chId)) return;
+        const ts = pSolves[chId];
+        if (!firstByCh[chId] || new Date(ts) < new Date(firstByCh[chId].ts)) {
+          firstByCh[chId] = { id, ts };
+        }
+      });
+    });
+    const rows = [];
+    Object.keys(solves).forEach(id => {
+      if (isDisabled(id)) return;
+      const pSolves = solves[id] || {};
+      let points = 0, solved = 0, firstBloods = 0, lastSolve = '';
+      Object.keys(pSolves).forEach(chId => {
+        if (!admin.challengeIsPublic(chId)) return;
+        solved++;
+        points += admin.challengePoints(chId);
+        const ts = pSolves[chId];
+        if (!lastSolve || new Date(ts) > new Date(lastSolve)) lastSolve = ts;
+        if (firstByCh[chId] && firstByCh[chId].id === id) firstBloods++;
+      });
+      if (solved > 0) {
+        rows.push({
+          name: playerDisplayName(names[id]),
+          points,
+          solved,
+          firstBloods,
+          lastSolve
+        });
+      }
+    });
+    rows.sort((a, b) => (b.points - a.points) || (new Date(a.lastSolve) - new Date(b.lastSolve)));
+    const payload = { scoreboard: rows.slice(0, 100) };
+    scoreboardCache = { ts: Date.now(), data: payload };
+    return json(res, 200, payload, true);
   }
 
   if (url.pathname === '/api/solvers' && req.method === 'GET') {
@@ -136,7 +199,7 @@ function handleApi(req, res, url, ip) {
       Object.keys(solves).forEach(id => {
         if (solves[id] && solves[id][challenge]) {
           list.push({
-            name: names[id] || 'Anonymous',
+            name: playerDisplayName(names[id]),
             ts: solves[id][challenge]
           });
         }
@@ -151,7 +214,7 @@ function handleApi(req, res, url, ip) {
         if (!admin.challengeIsPublic(chId)) return;
         if (!all[chId]) all[chId] = [];
         all[chId].push({
-          name: names[id] || 'Anonymous',
+          name: playerDisplayName(names[id]),
           ts: pSolves[chId]
         });
       });
@@ -200,7 +263,7 @@ function handleApi(req, res, url, ip) {
       };
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {
-        if (name && name !== 'Anonymous') savePlayerName(identity, name);
+        if (name && name !== 'Anonymous') savePlayerName(identity, name, data.hideName);
         logSub('already');
         return json(res, 200, { status: 'already', name }, true);
       }
@@ -211,7 +274,7 @@ function handleApi(req, res, url, ip) {
       if (expect.length === got.length && crypto.timingSafeEqual(expect, got)) {
         solves[identity][challenge] = new Date().toISOString();
         saveSolves();
-        if (name) savePlayerName(identity, name);
+        if (name) savePlayerName(identity, name, data.hideName);
         logSub('correct');
         return json(res, 200, { status: 'correct', points: admin.challengePoints(challenge), name }, true);
       }
