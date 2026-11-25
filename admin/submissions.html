@@ -17,7 +17,7 @@ A.boot().then(function(ok){
  if(!ok)return;
  A.shell('subs','<b>'+A.t('nSubs')+'</b>',function(c){
   A.api('/admin/api/submissions').then(function(j){
-   var all=(j.submissions||[]).slice().reverse();
+   var all=(j.submissions||[]).slice();
    var ar=A.lang()==='ar';
    var fCh='',fRes='',fPlayer='',fFrom='',fTo='',PAGE=25,page=0;
    function paint(){

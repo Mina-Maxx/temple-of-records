@@ -85,7 +85,6 @@
           "ar": "سهل",
           "en": "Easy"
         },
-        "points": 150,
         "est_time": {
           "ar": "٣٠–٤٥ دقيقة",
           "en": "30–45 min"
@@ -248,23 +247,29 @@
       {
         "id": "first-record",
         "hidden": true,
+        "status": "draft",
         "image": "assets/archive.jpg",
-        "date": "",
-        "minutes": "",
-        "tags": [],
+        "date": "2026-11-20",
+        "minutes": "8 min",
+        "tags": [
+          "DFIR",
+          "Log Analysis",
+          "MITRE ATT&CK",
+          "Incident Response"
+        ],
         "title": {
-          "ar": "عنوان المقال، يُضاف لاحقًا",
-          "en": "Article title, to be added"
+          "ar": "تشريح هجمة Log4Shell: من أول أثر في السجلات حتى الاستجابة للحادثة",
+          "en": "Dissecting the Log4Shell Attack: From Initial Log Trace to Incident Containment"
         },
         "excerpt": {
-          "ar": "ملخص المقال يُضاف هنا. هذا العنصر يوضّح شكل العرض فقط ولا يمثّل مقالًا منشورًا.",
-          "en": "Article summary will be added here. This is a layout placeholder, not a published article."
+          "ar": "نظرة ميدانية في تشريح أسلوب استغلال ثغرة Log4Shell، كيفية رصد حقن JNDI داخل سجلات خوادم الويب، واستخراج مؤشرات الاختراق (IOCs) لبناء خط زمني دقيق للحادثة موثّق وفق إطار MITRE ATT&CK.",
+          "en": "A field investigation into Log4Shell exploitation mechanics: spotting JNDI injection patterns in web server logs, extracting IOCs, and reconstructing an incident timeline mapped to MITRE ATT&CK."
         },
         "chips": [
           {
-            "ar": "عنصر نائب · ليس مقالًا منشورًا",
-            "en": "Placeholder · not a published article",
-            "gold": false
+            "ar": "توثيق ميداني · DFIR",
+            "en": "Field Writeup · DFIR",
+            "gold": true
           }
         ],
         "sections": [
@@ -367,8 +372,6 @@
       }
     ],
     "investigations": [],
-    "kb": [],
-    "projects": [],
     "categories": []
   }
 }

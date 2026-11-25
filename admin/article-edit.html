@@ -26,7 +26,7 @@ var A=window.TORADMIN;
 var id=new URLSearchParams(location.search).get('id');
 var item=null;
 var SEC_TYPES=['heading','paragraph','list','code','callout','quote','image','table','link','inline_code'];
-function blank(){return {id:'',hidden:false,image:'',date:'',minutes:'',tags:[],title:{ar:'',en:''},excerpt:{ar:'',en:''},chips:[],sections:[]}}
+function blank(){return {id:'',hidden:false,status:'published',writeup_type:'concept',related_challenge:'',image:'',date:'',publish_at:'',minutes:'',tags:[],attack:[],title:{ar:'',en:''},slug:{ar:'',en:''},excerpt:{ar:'',en:''},category:{ar:'',en:''},seo_title:{ar:'',en:''},meta_description:{ar:'',en:''},chips:[],sections:[]}}
 A.boot().then(function(ok){
  if(!ok)return;
  function start(){A.shell('articles','<a href="articles.html">'+A.t('nArticles')+'</a> / <b>'+(id?A.esc(id):A.t('create'))+'</b>',render)}
@@ -37,29 +37,34 @@ A.boot().then(function(ok){
    start();
   });
  } else {item=blank();start()}
- function F(label,inner){return '<div class="field"><label>'+label+'</label>'+inner+'</div>'}
+ function F(label,inner,cls){return '<div class="field'+(cls?' '+cls:'')+'"><label>'+label+'</label>'+inner+'</div>'}
  function bi2(name,obj,ta){obj=obj||{ar:'',en:''};return '<div class="mini-grid">'+
-   F('العربية',ta?'<textarea class="input" data-f="'+name+'.ar" rows="4">'+A.esc(obj.ar||'')+'</textarea>':'<input class="input" data-f="'+name+'.ar" value="'+A.esc(obj.ar||'')+'">')+
+   F('العربية',ta?'<textarea class="input" data-f="'+name+'.ar" rows="4">'+A.esc(obj.ar||'')+'</textarea>':'<input class="input" data-f="'+name+'.ar" value="'+A.esc(obj.ar||'')+'">','ar-only')+
    F('English',ta?'<textarea class="input" data-f="'+name+'.en" rows="4" dir="ltr">'+A.esc(obj.en||'')+'</textarea>':'<input class="input" data-f="'+name+'.en" dir="ltr" value="'+A.esc(obj.en||'')+'">')+'</div>'}
  function render(c){
-  var isNew=!id,ar=A.lang()==='ar';
+  var isNew=!id,ar=A.lang()==='ar',arOn=A.arabicEnabled();
   c.innerHTML=
-  '<div class="page-head"><h1>'+(isNew?A.t('create'):(ar?A.esc(item.title.ar||item.id):A.esc(item.title.en||item.title.ar||item.id)))+'</h1>'+
+  '<div class="page-head"><h1>'+(isNew?A.t('create'):((ar&&arOn)?A.esc((item.title&&item.title.ar)||(item.title&&item.title.en)||item.id):A.esc((item.title&&item.title.en)||item.id)))+'</h1>'+
   '<span class="sub mono">'+A.esc(item.id||'new')+'</span>'+
-  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=article&amp;lang='+(A.arabicEnabled()?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(ar?' معاينة':' Preview')+'</a>')+
+  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=article&amp;lang='+(arOn?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(ar?' معاينة':' Preview')+'</a>')+
   '<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
   '<div class="errlist" id="errs" role="alert"></div>'+
   '<div class="tabs" role="tablist"><button class="on" data-tab="basics">'+(ar?'البيانات':'Basics')+'</button><button data-tab="sections">'+(ar?'الأقسام':'Sections')+'</button></div>'+
   '<div class="tabpane on" data-pane="basics"><div class="panel">'+
    (isNew?F('ID (a-z0-9-)','<input class="input mono" id="f-id" dir="ltr" value="">'):'')+
    F(ar?'العنوان':'Title',bi2('title',item.title))+
-   F('Slug (AR / EN)',bi2('slug',item.slug))+
-   F(A.lang()==='ar'?'حالة النشر':'Publication status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:A.lang()==='ar'?'مسودة':'Draft',published:A.lang()==='ar'?'منشور':'Published',archived:A.lang()==='ar'?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
+   F(arOn?'Slug (AR / EN)':'Slug (EN)',bi2('slug',item.slug))+
+   F(ar?'حالة النشر':'Publication status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:ar?'مسودة':'Draft',published:ar?'منشور':'Published',archived:ar?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
 
    F(ar?'الملخص':'Excerpt',bi2('excerpt',item.excerpt,true))+
    '<div class="row2">'+
     F(ar?'نوع الرايتب':'Writeup type','<select class="input" data-f="writeup_type"><option value="concept"'+(item.writeup_type!=='walkthrough'?' selected':'')+'>'+(ar?'شرح تقني / مفهوم':'Technical explanation')+'</option><option value="walkthrough"'+(item.writeup_type==='walkthrough'?' selected':'')+'>'+(ar?'حل تحدٍّ (Writeup)':'Challenge walkthrough / solution')+'</option></select>')+
     F(ar?'معرّف التحدي المرتبط (اختياري)':'Related challenge ID (optional)','<input class="input mono" dir="ltr" data-f="related_challenge" value="'+A.esc(item.related_challenge||'')+'" placeholder="log4shell-lab">')+
+   '</div>'+
+   '<div class="row3">'+
+    F(ar?'تاريخ النشر (YYYY-MM-DD)':'Date (YYYY-MM-DD)','<input class="input mono" dir="ltr" data-f="date" value="'+A.esc(item.date||'')+'" placeholder="2026-11-25">')+
+    F(ar?'تقنيات MITRE ATT&CK (مفصولة بفواصل)':'MITRE ATT&CK IDs (comma-sep)','<input class="input mono" dir="ltr" data-f="attack" value="'+A.esc((item.attack||[]).join(', '))+'" placeholder="T1059.001, T1190">')+
+    F(ar?'موعد النشر المجدول (ISO اختياري)':'Scheduled publish_at (optional ISO)','<input class="input mono" dir="ltr" data-f="publish_at" value="'+A.esc(item.publish_at||'')+'" placeholder="2026-12-01T00:00:00Z">')+
    '</div>'+
    F(ar?'الفئة':'Category',bi2('category',item.category))+F('SEO title',bi2('seo_title',item.seo_title))+F('Meta description',bi2('meta_description',item.meta_description,true))+
    '<div class="row3">'+
@@ -84,7 +89,7 @@ A.boot().then(function(ok){
   el.innerHTML='<div class="head"><span class="num">'+(i+1)+'</span>'+
    '<select class="input" data-s="type">'+SEC_TYPES.map(function(t){return '<option'+(s.type===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'+
    '<span style="flex:1"></span><button class="btn sm ghost" data-up>↑</button><button class="btn sm ghost" data-dn>↓</button><button class="btn sm danger" data-del>×</button></div>'+
-   '<div class="mini-grid"><textarea class="input" data-s="ar" rows="3" placeholder="العربية">'+A.esc(s.ar||'')+'</textarea>'+
+   '<div class="mini-grid"><textarea class="input ar-only" data-s="ar" rows="3" placeholder="العربية">'+A.esc(s.ar||'')+'</textarea>'+
    '<textarea class="input" data-s="en" rows="3" dir="ltr" placeholder="English">'+A.esc(s.en||'')+'</textarea></div>'+
    (s.type==='code'?'<input class="input mono" dir="ltr" style="margin-top:10px" data-s="code" placeholder="code" value="'+A.esc(s.code||'')+'">':'');
   el.querySelector('[data-s=type]').onchange=function(){s.type=this.value;paintSecs()};
@@ -107,7 +112,7 @@ A.boot().then(function(ok){
    var path=inp.dataset.f.split('.');var o=out;
    for(var i=0;i<path.length-1;i++){o[path[i]]=o[path[i]]||{};o=o[path[i]]}
    var v=inp.type==='checkbox'?inp.checked:inp.value;
-   if(path[0]==='tags'){v=inp.value.split(',').map(function(x){return x.trim()}).filter(Boolean)}
+   if(path[0]==='tags'||path[0]==='attack'){v=inp.value.split(',').map(function(x){return x.trim()}).filter(Boolean)}
    o[path[path.length-1]]=v;
   });
   if(!id)out.id=(document.getElementById('f-id')||{}).value||out.id;

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, v9-cleanup ]
+    branches: [ main, v9-cleanup, arabic-toggle ]
   pull_request:
     branches: [ main ]
 

@@ -34,7 +34,7 @@ A.boot().then(function(ok){
     });
     html+='</div>';
    });
-   html+='<div class="panel"><h2>SEO</h2><p class="sub">'+(ar?'وصف ميتا وكلمات مفتاحية لكل لغة — تُحقن في الصفحات العامة الثماني وتظهر في نتائج البحث والمشاركة.':'Meta description and keywords per language — injected into the eight public pages for search results and sharing.')+'</p>'+
+   html+='<div class="panel"><h2>SEO</h2><p class="sub">'+(ar?'وصف ميتا وكلمات مفتاحية لكل لغة — تُحقن في الصفحات العامة وتظهر في نتائج البحث والمشاركة.':'Meta description and keywords per language — injected into the public pages for search results and sharing.')+'</p>'+
    '<div class="frow"><div class="fcol ar-only"><label>'+(ar?'الوصف (عربي)':'Description (Arabic)')+'</label><textarea class="input" id="seo-ar" rows="2" maxlength="300"></textarea></div>'+
    '<div class="fcol"><label>'+(ar?'الوصف (إنجليزي)':'Description (English)')+'</label><textarea class="input" id="seo-en" rows="2" maxlength="300" dir="ltr"></textarea></div></div>'+
    '<div class="frow"><div class="fcol ar-only"><label>'+(ar?'كلمات مفتاحية (عربي، اختياري)':'Keywords (Arabic, optional)')+'</label><input class="input" id="seo-ar-kw" maxlength="300"></div>'+
@@ -56,7 +56,7 @@ A.boot().then(function(ok){
    document.getElementById('cfg-arabic-enabled').onchange=syncArabicUi;
    document.getElementById('cfg-save').onclick=function(){
      var o={};c.querySelectorAll('[data-cfg]').forEach(function(i){o[i.dataset.cfg]=i.type==='checkbox'?!!i.checked:i.value});
-     function doSave(done){A.api('/admin/api/site-settings',{method:'PUT',body:o}).then(function(r){if(done)done();if(r._code===200)wasArabic=o.arabic_enabled;A.toast(r._code===200?A.t('saved'):(r.error||A.t('failed')),r._code===200?'ok':'err')});}
+     function doSave(done){A.api('/admin/api/site-settings',{method:'PUT',body:o}).then(function(r){if(done)done();if(r._code===200){wasArabic=o.arabic_enabled;document.body.classList.toggle('en-only',!wasArabic);A.toast(A.t('saved'),'ok');setTimeout(function(){location.reload()},350)}else A.toast(r.error||A.t('failed'),'err')});}
      if(wasArabic&&!o.arabic_enabled){
        A.modal({title:ar?'تعطيل الموقع العربي؟':'Disable Arabic site?',body:'When OFF, the public site is English only. Arabic pages redirect to English and Arabic content is never sent to visitors. Your Arabic content is kept and returns when you turn this back on.',confirmLabel:A.t('save'),onConfirm:doSave});
      }else doSave();

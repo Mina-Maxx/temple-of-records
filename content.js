@@ -180,27 +180,6 @@ const SITE_CONTENT = {
   {
    "group": "نبذة عني والتواصل",
    "page": "about",
-   "key": "cred1",
-   "label": "حبة الشهادات (اتركها نصا مؤقتا حتى تضيف الحقيقي)",
-   "type": "text"
-  },
-  {
-   "group": "نبذة عني والتواصل",
-   "page": "about",
-   "key": "cred2",
-   "label": "حبة الإنجازات",
-   "type": "text"
-  },
-  {
-   "group": "نبذة عني والتواصل",
-   "page": "about",
-   "key": "photo-ph",
-   "label": "حبة الصورة الشخصية",
-   "type": "text"
-  },
-  {
-   "group": "نبذة عني والتواصل",
-   "page": "about",
    "key": "contact-title",
    "label": "عنوان التواصل",
    "type": "text"
@@ -243,11 +222,17 @@ const SITE_CONTENT = {
   "about-ar:c2-text": "تحقيقات حوادث من البداية للنهاية: الخط الزمني والسبب الجذري وصولاً للـ Use Case و Detection Engineering وقاعدة الكشف.",
   "about-ar:c3-title": "الرايتبس",
   "about-ar:c3-text": "شروحات تقنية وحلول التحديات لتوثيق المنهجية والأدوات والدروس المستفادة من الأدلة الحقيقية.",
+  "about-en:sec1-kick": "Investigate · Engineer · Record",
+  "about-en:sec1-title": "What this site holds",
+  "about-en:contact-title": "Contact",
   "about-en:contact-github": "https://github.com/Mina-Maxx",
   "about-en:contact-linkedin": "https://linkedin.com/in/mina-max",
   "about-en:contact-email": "mina.max.business@gmail.com",
   "about-en:cred-kick": "Field Honors & Standings",
   "about-en:cred-title": "Achievements",
+  "about-ar:sec1-kick": "حقّق · هندِس · وثّق",
+  "about-ar:sec1-title": "ما الذي يقدمه الموقع",
+  "about-ar:contact-title": "التواصل",
   "about-ar:contact-github": "https://github.com/Mina-Maxx",
   "about-ar:contact-linkedin": "https://linkedin.com/in/mina-max",
   "about-ar:contact-email": "mina.max.business@gmail.com",
@@ -255,7 +240,6 @@ const SITE_CONTENT = {
   "about-ar:cred-title": "أبرز الإنجازات والترتيب التنافسي"
  }
 };
-;
 const SITE_COLLECTIONS = {
  "challenges": [
   {
@@ -295,7 +279,6 @@ const SITE_COLLECTIONS = {
     "ar": "سهل",
     "en": "Easy"
    },
-   "points": 150,
    "est_time": {
     "ar": "٣٠–٤٥ دقيقة",
     "en": "30–45 min"
@@ -581,7 +564,5 @@ const SITE_COLLECTIONS = {
   }
  ],
  "investigations": [],
- "kb": [],
- "projects": [],
  "categories": []
 };

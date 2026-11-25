@@ -24,11 +24,13 @@ A.boot().then(function(ok){
     if(it.archived)return A.badge(A.t('stArch'),'dim');
     return it.available?A.badge(A.t('stAvail'),'ok'):A.badge(A.t('stPrep'),'info');
    }
-   var q='',fSt='',fCat='',fDif='',fPerf='',fDate='',PAGE=25,page=0;
+   var q='',fSt='',fCat='',fDif='',fPerf='',fDate='',PAGE=25,page=0,ar=A.lang()==='ar',arOn=A.arabicEnabled();
    function paint(){
    var filtered=items.filter(function(it){
-    if(fCat&&(it.category_en||it.category_ar||'')!==fCat)return false;
-    if(fDif&&(it.difficulty_en||it.difficulty_ar||'')!==fDif)return false;
+    var catVal=arOn?(it.category_en||it.category_ar||''):(it.category_en||'');
+    var difVal=arOn?(it.difficulty_en||it.difficulty_ar||''):(it.difficulty_en||'');
+    if(fCat&&catVal!==fCat)return false;
+    if(fDif&&difVal!==fDif)return false;
     if(fPerf==='solved'&&!it.solves||fPerf==='unsolved'&&it.solves)return false;
     if(fDate&&String(it.updated_at||it.date||'').slice(0,10)<fDate)return false;
     if(fSt==='draft'&&it.status!=='draft')return false;
@@ -36,7 +38,7 @@ A.boot().then(function(ok){
     if(fSt==='arch'&&!it.archived)return false;
     if(fSt==='avail'&&!(it.available&&!it.archived&&!it.sample))return false;
     if(fSt==='prep'&&(it.available||it.archived||it.sample))return false;
-    if(q){var hay=((it.title_ar||'')+' '+(it.title_en||'')+' '+it.id+' '+(it.tags||[]).join(' ')).toLowerCase();if(hay.indexOf(q)===-1)return false}
+    if(q){var hay=((arOn?(it.title_ar||''):'')+' '+(it.title_en||'')+' '+it.id+' '+(it.tags||[]).join(' ')).toLowerCase();if(hay.indexOf(q)===-1)return false}
     return true;
    });
    var pages=Math.max(1,Math.ceil(filtered.length/PAGE));if(page>=pages)page=pages-1;
@@ -45,27 +47,29 @@ A.boot().then(function(ok){
    '<div class="page-head"><h1>'+A.t('nChallenges')+'</h1><span class="sub">'+A.t('sampleData')+'</span>'+
    '<div class="acts"><a class="btn primary" href="challenge-edit.html">'+A.icon('flag',15)+A.t('create')+'</a></div></div>'+
    '<div class="frow" style="margin-bottom:12px"><input class="input searchbar" id="q" placeholder="'+A.t('search')+'" value="'+A.esc(q)+'">'+
-   '<select id="f-st" class="input" style="max-width:200px"><option value="">'+(A.lang()==='ar'?'كل الحالات':'All statuses')+'</option>'+
-   ['avail','prep','arch','demo','draft'].map(function(x){return '<option value="'+x+'"'+(x===fSt?' selected':'')+'>'+(x==='draft'?(A.lang()==='ar'?'مسودة':'Draft'):A.t('st'+(x==='arch'?'Arch':x==='demo'?'Demo':x==='avail'?'Avail':'Prep')))+'</option>'}).join('')+'</select>'+
-   '<select class="input" id="f-cat"><option value="">'+(A.lang()==='ar'?'كل الفئات':'All categories')+'</option>'+[...new Set(items.map(i=>i.category_en||i.category_ar||''))].filter(Boolean).map(v=>'<option'+(v===fCat?' selected':'')+'>'+A.esc(v)+'</option>').join('')+'</select>'+
-   '<select class="input" id="f-dif"><option value="">'+(A.lang()==='ar'?'كل الصعوبات':'All difficulties')+'</option>'+[...new Set(items.map(i=>i.difficulty_en||i.difficulty_ar||''))].filter(Boolean).map(v=>'<option'+(v===fDif?' selected':'')+'>'+A.esc(v)+'</option>').join('')+'</select>'+
-   '<select class="input" id="f-perf"><option value="">'+(A.lang()==='ar'?'كل الأداء':'All performance')+'</option><option value="solved"'+(fPerf==='solved'?' selected':'')+'>'+(A.lang()==='ar'?'له حلول':'Has solves')+'</option><option value="unsolved"'+(fPerf==='unsolved'?' selected':'')+'>'+(A.lang()==='ar'?'بلا حلول':'No solves')+'</option></select>'+
-   '<input class="input" type="date" id="f-date" value="'+A.esc(fDate)+'" title="'+(A.lang()==='ar'?'محدّث منذ':'Updated since')+'">'+
+   '<select id="f-st" class="input" style="max-width:200px"><option value="">'+(ar?'كل الحالات':'All statuses')+'</option>'+
+   ['avail','prep','arch','demo','draft'].map(function(x){return '<option value="'+x+'"'+(x===fSt?' selected':'')+'>'+(x==='draft'?(ar?'مسودة':'Draft'):A.t('st'+(x==='arch'?'Arch':x==='demo'?'Demo':x==='avail'?'Avail':'Prep')))+'</option>'}).join('')+'</select>'+
+   '<select class="input" id="f-cat"><option value="">'+(ar?'كل الفئات':'All categories')+'</option>'+[...new Set(items.map(i=>arOn?(i.category_en||i.category_ar||''):(i.category_en||'')))].filter(Boolean).map(v=>'<option'+(v===fCat?' selected':'')+'>'+A.esc(v)+'</option>').join('')+'</select>'+
+   '<select class="input" id="f-dif"><option value="">'+(ar?'كل الصعوبات':'All difficulties')+'</option>'+[...new Set(items.map(i=>arOn?(i.difficulty_en||i.difficulty_ar||''):(i.difficulty_en||'')))].filter(Boolean).map(v=>'<option'+(v===fDif?' selected':'')+'>'+A.esc(v)+'</option>').join('')+'</select>'+
+   '<select class="input" id="f-perf"><option value="">'+(ar?'كل الأداء':'All performance')+'</option><option value="solved"'+(fPerf==='solved'?' selected':'')+'>'+(ar?'له حلول':'Has solves')+'</option><option value="unsolved"'+(fPerf==='unsolved'?' selected':'')+'>'+(ar?'بلا حلول':'No solves')+'</option></select>'+
+   '<input class="input" type="date" id="f-date" value="'+A.esc(fDate)+'" title="'+(ar?'محدّث منذ':'Updated since')+'">'+
    '<span class="small dim">'+filtered.length+' / '+items.length+'</span></div>'+
    '<div class="panel" style="padding:0;overflow:hidden">'+
    (view.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr>'+
-    '<th>'+A.t('thTitle')+'</th><th>'+A.t('thStatus')+'</th><th>'+A.t('thCat')+'</th><th>'+A.t('thDiff')+'</th><th>'+A.t('thSolves')+'</th><th>'+(A.lang()==='ar'?'ملفات الأدلة':'Evidence files')+'</th><th>'+(A.lang()==='ar'?'آخر تعديل':'Updated')+'</th><th>'+A.t('actions')+'</th></tr></thead><tbody>'+
+    '<th>'+A.t('thTitle')+'</th><th>'+A.t('thStatus')+'</th><th>'+A.t('thCat')+'</th><th>'+A.t('thDiff')+'</th><th>'+A.t('thSolves')+'</th><th>'+(ar?'ملفات الأدلة':'Evidence files')+'</th><th>'+(ar?'آخر تعديل':'Updated')+'</th><th>'+A.t('actions')+'</th></tr></thead><tbody>'+
     view.map(function(it){
-     var title=A.lang()==='ar'?(it.title_ar||it.title_en):(it.title_en||it.title_ar);
-     var sub=A.lang()==='ar'?it.title_en:it.title_ar;
+     var title=(ar&&arOn)?(it.title_ar||it.title_en||it.id):(it.title_en||(arOn&&it.title_ar)||it.id);
+     var sub=arOn?(ar?it.title_en:it.title_ar):'';
+     var catTxt=(ar&&arOn)?(it.category_ar||it.category_en||''):(it.category_en||(arOn&&it.category_ar)||'');
+     var difTxt=(ar&&arOn)?(it.difficulty_ar||it.difficulty_en||''):(it.difficulty_en||(arOn&&it.difficulty_ar)||'');
      return '<tr><td><div class="t-main">'+A.esc(title)+'</div><div class="t-sub mono">'+A.esc(it.id)+(sub?' · '+A.esc(sub):'')+'</div></td>'+
      '<td>'+stBadge(it)+'</td>'+
-     '<td class="small">'+(A.lang()==='ar'?A.esc(it.category_ar||''):A.esc(it.category_en||it.category_ar||''))+'</td>'+
-     '<td class="small dim">'+A.esc((A.lang()==='ar'?it.difficulty_ar:(it.difficulty_en||it.difficulty_ar))||'—')+'</td>'+
+     '<td class="small">'+A.esc(catTxt)+'</td>'+
+     '<td class="small dim">'+A.esc(difTxt||'—')+'</td>'+
      '<td class="mono">'+(it.solves||0)+'</td><td class="mono">'+(it.artifacts||[]).length+'</td><td class="mono small">'+A.esc((it.updated_at||it.date||'').slice(0,10)||'—')+'</td>'+
      '<td style="white-space:nowrap">'+
       '<a class="btn sm ghost" href="challenge-edit.html?id='+encodeURIComponent(it.id)+'">'+A.t('edit')+'</a> '+
-      '<a class="btn sm ghost" href="../challenge-'+A.lang()+'.html?id='+encodeURIComponent(it.id)+'" target="_blank" rel="noopener" aria-label="preview">'+A.icon('eye',13)+'</a> '+
+      '<a class="btn sm ghost" href="../challenge-'+(arOn?A.lang():'en')+'.html?id='+encodeURIComponent(it.id)+'" target="_blank" rel="noopener" aria-label="preview">'+A.icon('eye',13)+'</a> '+
       '<button class="btn sm ghost" data-dup="'+A.esc(it.id)+'" title="'+(A.lang()==='ar'?'تكرار':'Duplicate')+'">⧉</button> '+
       '<button class="btn sm danger" data-arch="'+A.esc(it.id)+'">'+(it.archived?'↺':(A.lang()==='ar'?'أرشفة':'Archive'))+'</button> '+
       '<button class="btn sm danger" data-del="'+A.esc(it.id)+'" title="'+(A.lang()==='ar'?'حذف نهائي':'Delete permanently')+'">×</button></td></tr>';

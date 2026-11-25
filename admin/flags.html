@@ -31,7 +31,8 @@ A.boot().then(function(ok){
     '<div class="panel" style="padding:0;overflow:hidden"><div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'الحالة':'State')+'</th><th>SHA-256</th><th>'+(ar?'استبدال':'Replace')+'</th></tr></thead><tbody>'+
     items.map(function(it,i){
      var f=flags[i];
-     return '<tr><td><div class="t-main">'+A.esc(ar?it.title_ar:(it.title_en||it.title_ar))+'</div><div class="t-sub mono">'+A.esc(it.id)+'</div></td>'+
+     var ttl=(ar&&A.arabicEnabled())?(it.title_ar||it.title_en||it.id):(it.title_en||(A.arabicEnabled()&&it.title_ar)||it.id);
+     return '<tr><td><div class="t-main">'+A.esc(ttl)+'</div><div class="t-sub mono">'+A.esc(it.id)+'</div></td>'+
      '<td>'+(f.configured?A.badge('configured','ok'):A.badge('not set','warn'))+'</td>'+
      '<td><span class="hash-pill">'+A.esc((f.sha256||'—').slice(0,24))+(f.sha256?'…':'')+'</span></td>'+
      '<td><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="input mono" dir="ltr" style="max-width:220px;padding:7px 12px;font-size:.82rem" placeholder="TOR{…}" data-fl="'+A.esc(it.id)+'"><button class="btn sm danger" data-set="'+A.esc(it.id)+'">'+(ar?'استبدال':'Replace')+'</button></div></td></tr>';

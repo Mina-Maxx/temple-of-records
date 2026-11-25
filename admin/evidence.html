@@ -27,7 +27,8 @@ A.boot().then(function(ok){
    (shown.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+(ar?'الملف':'File')+'</th><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'النوع':'Type')+'</th><th>'+(ar?'الحجم':'Size')+'</th><th>SHA-256</th><th>'+(ar?'الرابط':'Link')+'</th></tr></thead><tbody>'+
     shown.map(function(r){
      var a=r.art,url=a.url||'';
-     return '<tr><td class="mono">'+A.esc(a.name||'')+'</td><td class="small">'+'<a href="challenge-edit.html?id='+encodeURIComponent(r.ch.id)+'">'+A.esc((r.ch.title||{})[ar?'ar':'en']||r.ch.title_ar||r.ch.id)+'</a>'+'</td><td><span class="tag mono">'+A.esc(a.type||'')+'</span></td><td class="mono small">'+A.esc(a.size||'—')+'</td><td class="mono small dim" title="'+A.esc(a.sha256||'')+'">'+A.esc((a.sha256||'').slice(0,12))+'…</td><td>'+(url?('<a class="mono small" href="'+A.esc(url)+'" target="_blank" rel="noopener noreferrer">'+A.esc(url.slice(0,38))+'…</a>'):A.badge(ar?'يُضاف لاحقًا':'to be added','dim'))+'</td></tr>';
+     var chTitle=(r.ch.title&&((ar&&A.arabicEnabled())?(r.ch.title.ar||r.ch.title.en):(r.ch.title.en||(A.arabicEnabled()&&r.ch.title.ar))))||r.ch.title_en||r.ch.id;
+     return '<tr><td class="mono">'+A.esc(a.name||'')+'</td><td class="small">'+'<a href="challenge-edit.html?id='+encodeURIComponent(r.ch.id)+'">'+A.esc(chTitle)+'</a>'+'</td><td><span class="tag mono">'+A.esc(a.type||'')+'</span></td><td class="mono small">'+A.esc(a.size||'—')+'</td><td class="mono small dim" title="'+A.esc(a.sha256||'')+'">'+A.esc((a.sha256||'').slice(0,12))+'…</td><td>'+(url?('<a class="mono small" href="'+A.esc(url)+'" target="_blank" rel="noopener noreferrer">'+A.esc(url.slice(0,38))+'…</a>'):A.badge(ar?'يُضاف لاحقًا':'to be added','dim'))+'</td></tr>';
     }).join('')+
    '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('box',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+
    '</div>'+

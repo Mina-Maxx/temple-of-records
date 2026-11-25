@@ -208,22 +208,20 @@ function fmtTs(s){if(!s)return '—';var d=new Date(s);return d.toLocaleDateStri
 var ACT={
  ar:{admin_setup:'إعداد المدير',login:'تسجيل دخول',logout:'تسجيل خروج',
  challenge_create:'إنشاء تحدٍّ',challenge_update:'تعديل تحدٍّ',challenge_archive:'أرشفة/استعادة تحدٍّ',challenge_duplicate:'تكرار تحدٍّ',challenge_delete:'حذف تحدٍّ',
- article_create:'إنشاء مقال',article_update:'تعديل مقال',article_archive:'أرشفة/استعادة مقال',
- kb_create:'إنشاء عنصر معرفة',kb_update:'تعديل عنصر معرفة',kb_archive:'أرشفة عنصر معرفة',
+ article_create:'إنشاء رايتب',article_update:'تعديل رايتب',article_archive:'أرشفة/استعادة رايتب',
  investigations_create:'إنشاء تحقيق',investigations_update:'تعديل تحقيق',investigations_archive:'أرشفة تحقيق',
- projects_create:'إنشاء مشروع',projects_update:'تعديل مشروع',projects_archive:'أرشفة مشروع',
  categories_create:'إنشاء فئة',categories_update:'تعديل فئة',categories_archive:'أرشفة فئة',
- fixed_update:'تحديث نصوص ثابتة',flag_set:'ضبط فلاج',flag_replace:'استبدال فلاج',flag_policy:'قواعد صيغة الفلاج',
+ tags_create:'إنشاء وسم',tags_update:'تعديل وسم',tags_archive:'أرشفة وسم',
+ site_settings:'تحديث إعدادات الموقع',fixed_update:'تحديث نصوص ثابتة',flag_set:'ضبط فلاج',flag_replace:'استبدال فلاج',flag_policy:'قواعد صيغة الفلاج',
  media_upload:'رفع وسائط',media_replace:'استبدال وسائط',media_delete:'حذف وسائط',
  seo_update:'تحديث SEO',tag_rename:'إعادة تسمية وسم',player_disable:'تعطيل لاعب',player_enable:'تفعيل لاعب'},
  en:{admin_setup:'Admin setup',login:'Sign-in',logout:'Sign-out',
  challenge_create:'Challenge created',challenge_update:'Challenge updated',challenge_archive:'Challenge archived/restored',challenge_duplicate:'Challenge duplicated',challenge_delete:'Challenge deleted',
- article_create:'Article created',article_update:'Article updated',article_archive:'Article archived/restored',
- kb_create:'KB item created',kb_update:'KB item updated',kb_archive:'KB item archived',
+ article_create:'Writeup created',article_update:'Writeup updated',article_archive:'Writeup archived/restored',
  investigations_create:'Investigation created',investigations_update:'Investigation updated',investigations_archive:'Investigation archived',
- projects_create:'Project created',projects_update:'Project updated',projects_archive:'Project archived',
  categories_create:'Category created',categories_update:'Category updated',categories_archive:'Category archived',
- fixed_update:'Fixed texts updated',flag_set:'Flag set',flag_replace:'Flag replaced',flag_policy:'Flag format rules',
+ tags_create:'Tag created',tags_update:'Tag updated',tags_archive:'Tag archived',
+ site_settings:'Site settings updated',fixed_update:'Fixed texts updated',flag_set:'Flag set',flag_replace:'Flag replaced',flag_policy:'Flag format rules',
  media_upload:'Media uploaded',media_replace:'Media replaced',media_delete:'Media deleted',
  seo_update:'SEO updated',tag_rename:'Tag renamed',player_disable:'Player disabled',player_enable:'Player enabled'}
 };
@@ -236,17 +234,17 @@ function sectionFields(el,s){
  var publication=document.createElement('label');publication.className='small dim';publication.style.display='block';publication.style.marginTop='10px';var cb=document.createElement('input');cb.type='checkbox';cb.checked=s.published!==false;cb.onchange=function(){s.published=cb.checked};publication.appendChild(cb);publication.appendChild(document.createTextNode(lang()==='ar'?' قسم منشور':' Published section'));el.appendChild(publication);
 
  var ar=lang()==='ar',w=document.createElement('div');w.className='section-fields';w.style.marginTop='12px';
- function input(key,label,val,area){var d=document.createElement('div');d.className='field';var l=document.createElement('label');l.textContent=label;d.appendChild(l);var i=document.createElement(area?'textarea':'input');i.className='input';if(area)i.rows=4;i.value=val==null?'':val;if(/src|url|code|json/i.test(key))i.dir='ltr';d.appendChild(i);w.appendChild(d);return i}
- function bind(k,label){var i=input(k,label,s[k]);i.oninput=function(){s[k]=i.value}}
+ function input(key,label,val,area,arOnly){var d=document.createElement('div');d.className='field'+(arOnly?' ar-only':'');var l=document.createElement('label');l.textContent=label;d.appendChild(l);var i=document.createElement(area?'textarea':'input');i.className='input';if(area)i.rows=4;i.value=val==null?'':val;if(/src|url|code|json/i.test(key))i.dir='ltr';d.appendChild(i);w.appendChild(d);return i}
+ function bind(k,label,arOnly){var i=input(k,label,s[k],false,arOnly);i.oninput=function(){s[k]=i.value}}
  if(s.type==='link')bind('url',ar?'الرابط (https)':'Link (https)');
  if(s.type==='image'){
-  bind('src',ar?'مسار الصورة assets/…':'Image path assets/…');bind('alt_ar','Alt AR');bind('alt_en','Alt EN');bind('caption_ar',ar?'التعليق (عربي)':'Caption AR');bind('caption_en','Caption EN');
+  bind('src',ar?'مسار الصورة assets/…':'Image path assets/…');bind('alt_ar','Alt AR',true);bind('alt_en','Alt EN');bind('caption_ar',ar?'التعليق (عربي)':'Caption AR',true);bind('caption_en','Caption EN');
  }
- if(s.type==='code'){bind('label_ar',ar?'عنوان الكود (عربي)':'Code label AR');bind('label_en','Code label EN')}
- if(s.type==='callout'){bind('title_ar',ar?'عنوان التنبيه (عربي)':'Callout title AR');bind('title_en','Callout title EN')}
+ if(s.type==='code'){bind('label_ar',ar?'عنوان الكود (عربي)':'Code label AR',true);bind('label_en','Code label EN')}
+ if(s.type==='callout'){bind('title_ar',ar?'عنوان التنبيه (عربي)':'Callout title AR',true);bind('title_en','Callout title EN')}
  if(s.type==='list'){
   var ord=input('ordered',ar?'نوع القائمة (1 مرقمة، 0 غير مرقمة)':'List (1 ordered, 0 unordered)',s.ordered?'1':'0');ord.oninput=function(){s.ordered=ord.value==='1'};
-  ['ar','en'].forEach(function(lang){var i=input('items_'+lang,lang==='ar'?'عناصر القائمة، عنصر في كل سطر (عربي)':'List items, one per line (English)',(s.items||[]).map(x=>x[lang]||'').join('\n'),true);i.oninput=function(){var lines=i.value.split('\n');var old=s.items||[];s.items=Array.from({length:Math.max(lines.length,old.length)},(_,n)=>Object.assign({},old[n]||{ar:'',en:''},{[lang]:lines[n]||''})).filter(x=>x.ar||x.en)}});
+  ['ar','en'].forEach(function(lng){var i=input('items_'+lng,lng==='ar'?'عناصر القائمة، عنصر في كل سطر (عربي)':'List items, one per line (English)',(s.items||[]).map(x=>x[lng]||'').join('\n'),true,lng==='ar');i.oninput=function(){var lines=i.value.split('\n');var old=s.items||[];s.items=Array.from({length:Math.max(lines.length,old.length)},(_,n)=>Object.assign({},old[n]||{ar:'',en:''},{[lng]:lines[n]||''})).filter(x=>x.ar||x.en)}});
  }
  if(s.type==='table'){
   var help=document.createElement('p');help.className='small dim';help.textContent=ar?'JSON: عناوين headers وصفوف rows، كل خلية {ar,en}.':'JSON: headers and rows; each cell is {ar,en}.';w.appendChild(help);
