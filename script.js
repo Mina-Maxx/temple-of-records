@@ -1085,7 +1085,7 @@ window.TOR = (function () {
 // ---------- current page in the main navigation ----------
 (function () {
   var page = (document.body && document.body.getAttribute('data-page')) || '';
-  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^about/.test(page) ? 'about' : '';
+  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^investigation/.test(page) ? 'investigations' : /^about/.test(page) ? 'about' : '';
   if (!want) return;
   document.querySelectorAll('header.site nav.main a').forEach(function (a) {
     if (!a.classList.contains('pill-lang') && (a.getAttribute('href') || '').indexOf(want + '-') === 0) a.setAttribute('aria-current', 'page');
