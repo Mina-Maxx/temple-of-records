@@ -17,6 +17,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const admin = require('./admin');
 const seo = require('./seo');
 
@@ -237,13 +238,65 @@ const MIME = {
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
   '.pcap': 'application/vnd.tcpdump.pcap'
 };
+const COMPRESSIBLE_EXTS = new Set(['.html', '.css', '.js', '.json', '.svg', '.xml', '.txt']);
+const compressCache = new Map();
+function getCompressed(cacheKey, buf, enc) {
+  const k = enc + ':' + cacheKey;
+  if (compressCache.has(k)) return compressCache.get(k);
+  const out = enc === 'br' ? zlib.brotliCompressSync(buf) : zlib.gzipSync(buf);
+  if (compressCache.size > 120) compressCache.delete(compressCache.keys().next().value);
+  compressCache.set(k, out);
+  return out;
+}
+function bodyEtag(buf) {
+  return 'W/"' + crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16) + '"';
+}
+function sendResponse(req, res, opts) {
+  const { buf, contentType, cacheControl, etag, cacheKey, isText, status = 200 } = opts;
+  const headers = {
+    'Content-Type': contentType,
+    'Cache-Control': cacheControl
+  };
+  if (etag) {
+    headers['ETag'] = etag;
+    const inm = req.headers['if-none-match'];
+    if (inm && inm === etag && status === 200) {
+      res.writeHead(304, headers);
+      return res.end();
+    }
+  }
+  let payload = buf;
+  if (isText && buf.length >= 256) {
+    const ae = String(req.headers['accept-encoding'] || '').toLowerCase();
+    headers['Vary'] = 'Accept-Encoding';
+    if (ae.includes('br')) {
+      payload = getCompressed(cacheKey || etag || '', buf, 'br');
+      headers['Content-Encoding'] = 'br';
+    } else if (ae.includes('gzip')) {
+      payload = getCompressed(cacheKey || etag || '', buf, 'gzip');
+      headers['Content-Encoding'] = 'gzip';
+    }
+  }
+  headers['Content-Length'] = payload.length;
+  res.writeHead(status, headers);
+  return res.end(payload);
+}
+
 function serveStatic(req, res, url) {
   let p;
   try { p = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); return res.end('bad path'); }
   if (p === '/admin' || p === '/admin/') { res.writeHead(302, { Location: '/admin/index.html' }); return res.end(); }
   if (p === '/content.js') {
-    res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end(admin.publicContentScript());
+    const buf = Buffer.from(admin.publicContentScript(), 'utf8');
+    const etag = bodyEtag(buf);
+    return sendResponse(req, res, {
+      buf,
+      contentType: 'text/javascript; charset=utf-8',
+      cacheControl: 'public, max-age=0, must-revalidate',
+      etag,
+      cacheKey: 'content.js:' + etag,
+      isText: true
+    });
   }
   // Explicit static surface: no server files, backups, dotfiles or test fixtures.
   const allowed = /^\/(?!admin\.html$)[a-z0-9][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?)$/.test(p);
@@ -284,23 +337,53 @@ function serveStatic(req, res, url) {
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
-    if (path.extname(file).toLowerCase() === '.html') {
+    const ext = path.extname(file).toLowerCase();
+    const ct = MIME[ext] || 'application/octet-stream';
+    const isAdminRoute = p.startsWith('/admin/');
+    const isAsset = p.startsWith('/assets/');
+    const isText = COMPRESSIBLE_EXTS.has(ext);
+    const statEtag = 'W/"' + st.size + '-' + Math.floor(st.mtimeMs) + '"';
+
+    if (ext === '.html') {
       const rawHtml = fs.readFileSync(file, 'utf8');
       const resMeta = /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)
         ? seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR)
         : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR) };
       const buf = Buffer.from(resMeta.html, 'utf8');
-      res.writeHead(resMeta.status, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Content-Length': buf.length,
-        'Cache-Control': 'no-store'
+      const etag = (isAdminRoute || resMeta.status !== 200) ? null : bodyEtag(buf);
+      return sendResponse(req, res, {
+        buf,
+        status: resMeta.status,
+        contentType: 'text/html; charset=utf-8',
+        cacheControl: (isAdminRoute || resMeta.status !== 200) ? 'no-store' : 'public, max-age=0, must-revalidate',
+        etag,
+        cacheKey: p + ':' + (etag || 'ns'),
+        isText: true
       });
-      return res.end(buf);
+    }
+
+    const cc = isAdminRoute ? 'no-store' : (isAsset ? 'public, max-age=2592000' : 'public, max-age=0, must-revalidate');
+    const etag = isAdminRoute ? null : statEtag;
+    if (etag && req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { 'Cache-Control': cc, 'ETag': etag });
+      return res.end();
+    }
+    if (isText) {
+      const buf = fs.readFileSync(file);
+      return sendResponse(req, res, {
+        buf,
+        contentType: ct,
+        cacheControl: cc,
+        etag,
+        cacheKey: p + ':' + st.size + '-' + Math.floor(st.mtimeMs),
+        isText: true
+      });
     }
     res.writeHead(200, {
-      'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'Content-Type': ct,
       'Content-Length': st.size,
-      'Cache-Control': 'no-store'
+      'Cache-Control': cc,
+      ...(etag ? { 'ETag': etag } : {})
     });
     fs.createReadStream(file).pipe(res);
   });
