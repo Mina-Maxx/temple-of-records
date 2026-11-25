@@ -389,7 +389,7 @@ window.TOR = (function () {
     var href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
     if (TOR.imgOk(c.image)) {
       var a0 = el('a', 'scene-link'); a0.href = href;
-      var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.width = 1376; im.height = 768;
+      var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
       a0.appendChild(im); card.appendChild(a0);
     }
     var body = el('div', 'body');
