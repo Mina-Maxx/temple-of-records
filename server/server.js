@@ -316,13 +316,18 @@ const server = http.createServer((req, res) => {
   if (HTTPS_MODE) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   const ip = clientIp(req);
   if(url.pathname==='/sitemap.xml'){
-    let cfg={};try{cfg=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'site-settings.json'),'utf8'))}catch{}
-    if(!cfg.base_url){res.writeHead(404,{'Content-Type':'text/plain'});return res.end('Configure a real HTTPS site origin in admin settings first.');}
-    const esc=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    const pages=['index','challenges','articles','about'].flatMap(p=>['ar','en'].map(l=>p+'-'+l+'.html'));
-    let collections={};try{collections=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'store.json'),'utf8')).collections||{}}catch{}
-    const visible=require('./visibility').publicCollections(collections);if((visible.investigations||[]).length)['ar','en'].forEach(l=>pages.push('investigations-'+l+'.html'));for(const [key,page] of [['articles','article'],['challenges','challenge'],['investigations','investigation']])for(const item of visible[key]||[])for(const l of ['ar','en'])pages.push(page+'-'+l+'.html?id='+encodeURIComponent(item.slug&&item.slug[l]||item.id));
-    res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'});return res.end('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+pages.map(p=>'<url><loc>'+esc(cfg.base_url+'/'+p)+'</loc></url>').join('')+'</urlset>');
+    const xml = seo.renderSitemap(DATA_DIR);
+    if (!xml) { res.writeHead(404,{'Content-Type':'text/plain'}); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
+    res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'}); return res.end(xml);
+  }
+  if (url.pathname === '/feed.xml' || url.pathname === '/feed-ar.xml') {
+    const xml = seo.renderFeed(url.pathname === '/feed-ar.xml' ? 'ar' : 'en', DATA_DIR);
+    if (!xml) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
+    res.writeHead(200, { 'Content-Type': 'application/atom+xml; charset=utf-8' }); return res.end(xml);
+  }
+  if (url.pathname === '/robots.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end(seo.renderRobots(DATA_DIR));
   }
   if (url.pathname === '/health' || url.pathname.startsWith('/api/')) return handleApi(req, res, url, ip);
   if (url.pathname.startsWith('/admin/api/')) {

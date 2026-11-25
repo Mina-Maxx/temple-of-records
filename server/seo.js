@@ -132,4 +132,88 @@ function injectStaticMeta(html, dataDir) {
     .replace(/<meta\s+(?:property|name)=["'](?:og:url|og:image|twitter:image)["'][^>]*>\s*/gi, '');
 }
 
-module.exports = { escHtml, safeJsonLd, render404, injectDetailMeta, injectStaticMeta, loadSettings, loadCollections };
+function renderSitemap(dataDir) {
+  const cfg = loadSettings(dataDir);
+  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  if (!baseUrl) return null;
+
+  const visible = visibility.publicCollections(loadCollections(dataDir));
+  const entries = [];
+  const staticBases = ['index', 'challenges', 'articles', 'about'];
+  if ((visible.investigations || []).length) staticBases.push('investigations');
+
+  for (const b of staticBases) {
+    for (const l of ['ar', 'en']) {
+      entries.push({
+        loc: `${baseUrl}/${b}-${l}.html`,
+        ar: `${baseUrl}/${b}-ar.html`,
+        en: `${baseUrl}/${b}-en.html`,
+        lastmod: ''
+      });
+    }
+  }
+  for (const [key, page] of [['articles', 'article'], ['challenges', 'challenge'], ['investigations', 'investigation']]) {
+    for (const item of visible[key] || []) {
+      const slugAr = (item.slug && item.slug.ar) || item.id;
+      const slugEn = (item.slug && item.slug.en) || item.id;
+      const uAr = `${baseUrl}/${page}-ar.html?id=${encodeURIComponent(slugAr)}`;
+      const uEn = `${baseUrl}/${page}-en.html?id=${encodeURIComponent(slugEn)}`;
+      const lm = item.date && /^\d{4}-\d{2}-\d{2}/.test(item.date) ? item.date.slice(0, 10) : '';
+      entries.push({ loc: uAr, ar: uAr, en: uEn, lastmod: lm });
+      entries.push({ loc: uEn, ar: uAr, en: uEn, lastmod: lm });
+    }
+  }
+
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n' +
+    entries.map(e =>
+      '<url><loc>' + escHtml(e.loc) + '</loc>' +
+      (e.lastmod ? '<lastmod>' + escHtml(e.lastmod) + '</lastmod>' : '') +
+      '<xhtml:link rel="alternate" hreflang="ar" href="' + escHtml(e.ar) + '"/>' +
+      '<xhtml:link rel="alternate" hreflang="en" href="' + escHtml(e.en) + '"/>' +
+      '<xhtml:link rel="alternate" hreflang="x-default" href="' + escHtml(e.en) + '"/>' +
+      '</url>'
+    ).join('\n') +
+    '\n</urlset>';
+}
+
+function renderFeed(lang, dataDir) {
+  const cfg = loadSettings(dataDir);
+  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  if (!baseUrl) return null;
+
+  const visible = visibility.publicCollections(loadCollections(dataDir));
+  const articles = visible.articles || [];
+  const isAr = lang === 'ar';
+  const siteName = isAr ? (cfg.name_ar || 'مينا مكس') : (cfg.name_en || 'Mina Max');
+  const feedUrl = `${baseUrl}/${isAr ? 'feed-ar.xml' : 'feed.xml'}`;
+  const updated = (articles.map(a => a.date).filter(Boolean).sort().pop() || '2026-01-01') + 'T00:00:00Z';
+
+  const itemsXml = articles.map(a => {
+    const slug = (a.slug && a.slug[lang]) || a.id;
+    const link = `${baseUrl}/article-${lang}.html?id=${encodeURIComponent(slug)}`;
+    const title = loc(a.title, lang) || a.id;
+    const summary = plainText(loc(a.excerpt, lang) || '', 300);
+    const upd = (a.date && /^\d{4}-\d{2}-\d{2}/.test(a.date) ? a.date.slice(0, 10) : '2026-01-01') + 'T00:00:00Z';
+    return `<entry><title>${escHtml(title)}</title><link href="${escHtml(link)}"/><id>${escHtml(link)}</id><updated>${escHtml(upd)}</updated><summary>${escHtml(summary)}</summary></entry>`;
+  }).join('\n');
+
+  return '<?xml version="1.0" encoding="utf-8"?>\n' +
+    '<feed xmlns="http://www.w3.org/2005/Atom">\n' +
+    `<title>${escHtml(siteName)}</title>\n` +
+    `<link href="${escHtml(feedUrl)}" rel="self"/>\n` +
+    `<link href="${escHtml(baseUrl + '/articles-' + lang + '.html')}"/>\n` +
+    `<id>${escHtml(feedUrl)}</id>\n` +
+    `<updated>${escHtml(updated)}</updated>\n` +
+    itemsXml + '\n</feed>';
+}
+
+function renderRobots(dataDir) {
+  const cfg = loadSettings(dataDir);
+  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  const lines = ['User-agent: *', 'Allow: /', 'Disallow: /admin/', 'Disallow: /api/'];
+  if (baseUrl) lines.push('Sitemap: ' + baseUrl + '/sitemap.xml');
+  return lines.join('\n') + '\n';
+}
+
+module.exports = { escHtml, safeJsonLd, render404, injectDetailMeta, injectStaticMeta, renderSitemap, renderFeed, renderRobots, loadSettings, loadCollections };

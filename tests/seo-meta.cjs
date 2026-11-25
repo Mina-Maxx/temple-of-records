@@ -78,6 +78,20 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const h6 = await r6.text();
     check(h6.includes('https://custom.example/challenges-en.html') && h6.includes('hreflang="x-default"') && !h6.includes('mina-max.website'), 'static page substitutes base_url and has x-default');
 
+    // 6. Sitemap, Atom feeds, robots.txt
+    const sm = await (await fetch(base + '/sitemap.xml')).text();
+    check(sm.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"') && sm.includes('<lastmod>2026-11-20</lastmod>'), 'sitemap includes xhtml:link alternates and lastmod');
+    const fd = await fetch(base + '/feed.xml');
+    const fdText = await fd.text();
+    check(fd.status === 200 && fdText.includes('<feed xmlns="http://www.w3.org/2005/Atom">') && fdText.includes('seo-xss-en'), 'feed.xml returns Atom feed with public article');
+    const rb1 = await (await fetch(base + '/robots.txt')).text();
+    check(rb1.includes('Disallow: /admin/') && rb1.includes('Sitemap: https://custom.example/sitemap.xml'), 'robots.txt includes Sitemap when base_url is set');
+
+    fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en' }));
+    check((await fetch(base + '/feed.xml')).status === 404, 'feed.xml returns 404 without base_url');
+    const rb2 = await (await fetch(base + '/robots.txt')).text();
+    check(!rb2.includes('Sitemap:'), 'robots.txt omits Sitemap when base_url is absent');
+
     console.log('TOTAL ' + count + ' seo-meta assertions passed');
   } finally {
     child.kill();
