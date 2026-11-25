@@ -3,6 +3,7 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const TESTS = [
+  'tests/unit-validators.cjs',
   'tests/public-boundaries.cjs',
   'tests/admin-regression.cjs',
   'tests/visibility-collections.cjs',
@@ -11,7 +12,8 @@ const TESTS = [
   'tests/cache-compression.cjs',
   'tests/bugs-consistency.cjs',
   'tests/features-phase6.cjs',
-  'tests/arabic-toggle.cjs'
+  'tests/arabic-toggle.cjs',
+  'tests/hardening-regression.cjs'
 ];
 
 const root = path.resolve(__dirname, '..');

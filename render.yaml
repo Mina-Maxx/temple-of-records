@@ -18,6 +18,8 @@ services:
         value: production
       - key: TOR_HTTPS
         value: "1"
+      - key: TOR_TRUST_PROXY
+        value: "1"
       - key: TOR_DATA_DIR
         value: /var/data
       - key: TOR_FLAGS_FILE

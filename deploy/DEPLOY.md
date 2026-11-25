@@ -12,10 +12,8 @@ sudo mkdir -p /opt/temple-of-records
 
 ## 2) رفع الكود
 ```bash
-# من جهازك:
-scp temple-of-records-v7.zip user@SERVER:/tmp/
 # على السيرفر:
-sudo unzip /tmp/temple-of-records-v7.zip -d /opt/temple-of-records
+sudo git clone https://github.com/Mina-Maxx/temple-of-records.git /opt/temple-of-records
 sudo chown -R temple:temple /opt/temple-of-records
 ```
 

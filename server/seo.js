@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const visibility = require('./visibility');
+const { publicImgOk, baseUrlOk } = require('./validators');
+const { readJsonCached } = require('./json-cache');
 
 function escHtml(s) {
   return String(s == null ? '' : s)
@@ -14,10 +16,6 @@ function escHtml(s) {
 
 function safeJsonLd(obj) {
   return JSON.stringify(obj).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-}
-
-function imgOk(src) {
-  return typeof src === 'string' && /^assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|webp|gif|svg)$/i.test(src);
 }
 
 function plainText(s, max) {
@@ -32,11 +30,20 @@ function loc(v, lang, arabicEnabled = true) {
 }
 
 function loadSettings(dataDir) {
-  try { return JSON.parse(fs.readFileSync(path.join(dataDir, 'site-settings.json'), 'utf8')); } catch { return {}; }
+  return readJsonCached(path.join(dataDir, 'site-settings.json'), {});
 }
 
 function loadCollections(dataDir) {
-  try { return JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8')).collections || {}; } catch { return {}; }
+  const store = readJsonCached(path.join(dataDir, 'store.json'), {});
+  return (store && store.collections) || {};
+}
+
+function loadSeo(dataDir) {
+  return readJsonCached(path.join(dataDir, 'seo.json'), {});
+}
+
+function validBaseUrl(cfg) {
+  return (cfg && baseUrlOk(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
 }
 
 function render404(root, arabicEnabled = true) {
@@ -82,7 +89,7 @@ function injectDetailMeta(html, pathname, url, root, dataDir, arabicEnabled = tr
   }
 
   const cfg = loadSettings(dataDir);
-  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  const baseUrl = validBaseUrl(cfg);
   const siteName = lang === 'ar' ? (cfg.name_ar || 'مينا مكس') : (cfg.name_en || 'Mina Max');
   const rawTitle = loc(item.seo_title, lang, arabicEnabled) || loc(item.title, lang, arabicEnabled) || item.id;
   const fullTitle = rawTitle + ' · ' + siteName;
@@ -101,7 +108,7 @@ function injectDetailMeta(html, pathname, url, root, dataDir, arabicEnabled = tr
     const urlAr = baseUrl + '/' + pageType + '-ar.html?id=' + encodeURIComponent(slugAr);
     const urlEn = baseUrl + '/' + pageType + '-en.html?id=' + encodeURIComponent(slugEn);
     const curUrl = lang === 'ar' ? urlAr : urlEn;
-    const imgPath = imgOk(item.image) ? item.image : 'assets/hero.jpg';
+    const imgPath = publicImgOk(item.image) ? item.image : 'assets/hero.jpg';
     const imgUrl = baseUrl + '/' + imgPath;
     const ogType = pageType === 'article' ? 'article' : 'website';
 
@@ -138,22 +145,38 @@ function injectDetailMeta(html, pathname, url, root, dataDir, arabicEnabled = tr
   return { status: 200, html: out };
 }
 
-function injectStaticMeta(html, dataDir, arabicEnabled = true) {
+function injectStaticMeta(html, dataDir, arabicEnabled = true, pathname = '') {
   const cfg = loadSettings(dataDir);
-  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  const baseUrl = validBaseUrl(cfg);
   let out = baseUrl
     ? html.replace(/https:\/\/mina-max\.website/g, baseUrl)
     : html
       .replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '')
       .replace(/<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi, '')
       .replace(/<meta\s+(?:property|name)=["'](?:og:url|og:image|twitter:image)["'][^>]*>\s*/gi, '');
+  out = out.replace(/\n?<!-- seo:start -->[\s\S]*?<!-- seo:end -->/g, '');
+  const seoCfg = loadSeo(dataDir);
+  const lang = (arabicEnabled && /-ar\.html$/.test(pathname)) ? 'ar' : 'en';
+  const d = (seoCfg && seoCfg[lang]) || {};
+  if (d.description) {
+    const escDesc = escHtml(String(d.description).replace(/\n/g, ' '));
+    out = out
+      .replace(/<meta\s+name=["']description["'][^>]*>\s*/gi, '')
+      .replace(/<meta\s+property=["']og:description["'][^>]*>\s*/gi, '')
+      .replace(/(<meta[^>]*name=["']viewport["'][^>]*\/?>)/i, '$1\n<meta name="description" content="' + escDesc + '"/>\n<meta property="og:description" content="' + escDesc + '"/>');
+  }
+  if (d.keywords) {
+    const escKw = escHtml(String(d.keywords).replace(/\n/g, ' '));
+    out = out
+      .replace(/<meta\s+name=["']keywords["'][^>]*>\s*/gi, '')
+      .replace(/(<meta[^>]*name=["']viewport["'][^>]*\/?>)/i, '$1\n<meta name="keywords" content="' + escKw + '"/>');
+  }
   if (!arabicEnabled) out = stripArabicFromHtml(out);
   return out;
 }
 
 function renderSitemap(dataDir, arabicEnabled = true) {
-  const cfg = loadSettings(dataDir);
-  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  const baseUrl = validBaseUrl(loadSettings(dataDir));
   if (!baseUrl) return null;
 
   const visible = visibility.publicCollections(loadCollections(dataDir));
@@ -198,7 +221,7 @@ function renderSitemap(dataDir, arabicEnabled = true) {
 
 function renderFeed(lang, dataDir, arabicEnabled = true) {
   const cfg = loadSettings(dataDir);
-  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  const baseUrl = validBaseUrl(cfg);
   if (!baseUrl) return null;
 
   const visible = visibility.publicCollections(loadCollections(dataDir));
@@ -228,8 +251,7 @@ function renderFeed(lang, dataDir, arabicEnabled = true) {
 }
 
 function renderRobots(dataDir) {
-  const cfg = loadSettings(dataDir);
-  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  const baseUrl = validBaseUrl(loadSettings(dataDir));
   const lines = ['User-agent: *', 'Allow: /', 'Disallow: /admin/', 'Disallow: /api/'];
   if (baseUrl) lines.push('Sitemap: ' + baseUrl + '/sitemap.xml');
   return lines.join('\n') + '\n';

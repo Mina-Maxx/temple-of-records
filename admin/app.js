@@ -25,7 +25,7 @@ var dict={
   forgot:'نسيت كلمة المرور؟ لا يوجد استرداد بالبريد في وضع العرض المحلي — استعن بوصول مباشر للخادم.',
   wrongCred:'بيانات الدخول غير صحيحة.',setupDone:'تم إنشاء الحساب — سجّل الدخول.',
   minPw:'١٠ أحرف على الأقل',
-  thTitle:'العنوان',thStatus:'الحالة',thCat:'الفئة',thDiff:'الصعوبة',thPts:'النقاط',thSolves:'الحلول',thUpdated:'آخر تحديث',
+  thTitle:'العنوان',thStatus:'الحالة',thCat:'الفئة',thDiff:'الصعوبة',thSolves:'الحلول',thUpdated:'آخر تحديث',
   stAvail:'متاح',stPrep:'قيد التحضير',stArch:'مؤرشف',stDemo:'تجريبي',
   auditTs:'الوقت',auditActor:'الفاعل',auditAction:'الإجراء',auditEntity:'العنصر',auditRes:'النتيجة'
  },
@@ -51,7 +51,7 @@ var dict={
   forgot:'Forgot the password? There is no email recovery in local demo mode — direct server access is required.',
   wrongCred:'Invalid credentials.',setupDone:'Account created — sign in.',
   minPw:'At least 10 characters',
-  thTitle:'Title',thStatus:'Status',thCat:'Category',thDiff:'Difficulty',thPts:'Points',thSolves:'Solves',thUpdated:'Updated',
+  thTitle:'Title',thStatus:'Status',thCat:'Category',thDiff:'Difficulty',thSolves:'Solves',thUpdated:'Updated',
   stAvail:'Available',stPrep:'In preparation',stArch:'Archived',stDemo:'Demo',
   auditTs:'Time',auditActor:'Actor',auditAction:'Action',auditEntity:'Entity',auditRes:'Result'
  }};

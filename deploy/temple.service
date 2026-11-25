@@ -15,8 +15,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-# the CMS writes content.js, flags.json, assets/ and server/data/
-ReadWritePaths=/opt/temple-of-records
+# Code root stays read-only; runtime data, media uploads, SEO, and flags live in data dir / flags.json
+ReadWritePaths=/opt/temple-of-records/server/data /opt/temple-of-records/server/flags.json
 
 [Install]
 WantedBy=multi-user.target

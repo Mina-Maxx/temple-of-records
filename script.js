@@ -69,10 +69,19 @@ window.TOR = (function () {
     var s = localSolves();
     if (s.indexOf(id) === -1) { s.push(id); try { localStorage.setItem('tor-solves', JSON.stringify(s)); } catch (e) {} }
   }
+  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
+  function isPlaceholder(str) {
+    if (typeof str !== 'string' || !str.trim()) return false;
+    var low = str.toLowerCase();
+    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) {
+      if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
+    }
+    return false;
+  }
   return { esc: esc, fieldOverrides: fieldOverrides, getCollections: getCollections,
            find: find, visible: visible, imgOk: imgOk, urlOk: urlOk, param: param,
            identity: identity, apiBase: apiBase, localSolves: localSolves, markLocalSolve: markLocalSolve,
-           setImgSrc: setImgSrc };
+           setImgSrc: setImgSrc, isPlaceholder: isPlaceholder };
 })();
 
 // ---------- collection renderers ----------
@@ -230,15 +239,7 @@ window.TOR = (function () {
     if (meta) container.appendChild(meta);
   }
 
-  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
-  function isPlaceholder(str) {
-    if (typeof str !== 'string' || !str.trim()) return false;
-    var low = str.toLowerCase();
-    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) {
-      if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
-    }
-    return false;
-  }
+  var isPlaceholder = TOR.isPlaceholder;
 
   function fillChips(box, chips, isSample, attack) {
     if (!box) return;
@@ -799,7 +800,9 @@ window.TOR = (function () {
     if (!solEl) return;
     var emptyPh = solEl.querySelector('[data-empty-sol]');
     if (solEl.children.length && !emptyPh) return;
-    fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId) + '&identity=' + TOR.identity())
+    fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId), {
+      headers: { 'X-TOR-Identity': TOR.identity() }
+    })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (d && Array.isArray(d.sections) && d.sections.length) {
@@ -873,7 +876,10 @@ window.TOR = (function () {
     paint(TOR.localSolves(), [], null, '');
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, 2500);
-    fetch(TOR.apiBase() + '/api/state?identity=' + TOR.identity(), { signal: ctrl.signal })
+    fetch(TOR.apiBase() + '/api/state', {
+      signal: ctrl.signal,
+      headers: { 'X-TOR-Identity': TOR.identity() }
+    })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (d) {
         clearTimeout(timer);
@@ -1187,13 +1193,7 @@ window.TOR = (function () {
     return v;
   }
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
-  function isPh(s) {
-    if (typeof s !== 'string' || !s.trim()) return false;
-    var low = s.toLowerCase();
-    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
-    return false;
-  }
+  var isPh = TOR.isPlaceholder;
   document.querySelectorAll('[data-ckey-from]').forEach(function (el) { // text owned by the About page (home teaser)
     var k = el.getAttribute('data-ckey-from'), ap = 'about-' + lang;
     var v = ov[ap + ':' + k]; if (v == null || v === '') v = defs[ap + ':' + k];

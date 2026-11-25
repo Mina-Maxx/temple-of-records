@@ -41,7 +41,7 @@ A.boot().then(function(ok){
    '<div class="mgrid">'+(rows.length?rows.map(function(m){
     return '<div class="mcard"><div class="pv">'+(m.kind==='image'?'<img src="../assets/'+A.esc(m.name)+'" alt="'+A.esc(m.name)+'" loading="lazy">':A.icon('doc',26))+'</div>'+
     '<div class="meta"><div class="nm">'+A.esc(m.name)+'</div><div class="dt">'+fmtB(m.bytes)+' · '+A.fmtTs(m.mtime)+'</div>'+
-    '<div class="acts"><button class="btn sm ghost" data-cp="'+A.esc(m.name)+'">'+(ar?'نسخ المسار':'Copy path')+'</button>'+(m.builtin?'<span class="small dim" style="flex-basis:100%">'+(ar?'مدمجة: استبدال فقط':'Built-in: replace only')+'</span>':'<button class="btn sm danger" data-del="'+A.esc(m.name)+'">'+(m.overridden?(ar?'استعادة الأصل':'Restore original'):A.t('del'))+'</button>')+'</div></div></div>';
+    '<div class="acts"><button class="btn sm ghost" data-cp="'+A.esc(m.name)+'">'+(ar?'نسخ المسار':'Copy path')+'</button>'+(m.builtin&&!m.overridden?'<span class="small dim" style="flex-basis:100%">'+(ar?'مدمجة: استبدال فقط':'Built-in: replace only')+'</span>':'<button class="btn sm danger" data-del="'+A.esc(m.name)+'">'+(m.overridden?(ar?'استعادة الأصل':'Restore original'):A.t('del'))+'</button>')+'</div></div></div>';
    }).join(''):'<div class="empty" style="grid-column:1/-1"><div class="ic">'+A.icon('img',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>';
    document.getElementById('q').oninput=function(){q=this.value.toLowerCase();paint();var el=document.getElementById('q');el.focus();el.setSelectionRange(el.value.length,el.value.length)};
    var f=document.getElementById('f');
@@ -59,7 +59,7 @@ A.boot().then(function(ok){
      var b64=String(rd.result).split(',')[1];
      var zone=document.getElementById('up');
      var orig=zone.innerHTML;
-     function prog(pct){zone.innerHTML='<div style="width:100%"><div class="small dim" style="margin-bottom:6px">'+(ar?'رفع':'Uploading')+' '+file.name+' — '+pct+'%</div><div style="height:6px;background:#1a1e22;border-radius:3px"><div style="height:6px;width:'+pct+'%;background:#c9a45c;border-radius:3px;transition:width .15s"></div></div></div>'}
+     function prog(pct){zone.innerHTML='<div style="width:100%"><div class="small dim" style="margin-bottom:6px">'+(ar?'رفع':'Uploading')+' '+A.esc(file.name)+' — '+pct+'%</div><div style="height:6px;background:#1a1e22;border-radius:3px"><div style="height:6px;width:'+pct+'%;background:#c9a45c;border-radius:3px;transition:width .15s"></div></div></div>'}
      function done2(){zone.innerHTML=orig;zone.onclick=function(){f.click()};zone.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();f.click()}}}
      function xhrUpload(replaceFlag,cb){
       var x=new XMLHttpRequest();

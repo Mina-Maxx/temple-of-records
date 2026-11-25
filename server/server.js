@@ -4,10 +4,10 @@
 // Runs the static site AND the flag API with one command:
 //     node server/server.js      ->  http://127.0.0.1:8000
 //
-// Honest limits (also in README.txt):
+// Honest limits (also in README.md):
 // - Local demo server bound to 127.0.0.1, no TLS, in-memory rate limits.
 //   It is NOT production hosting and NOT hardened for the public internet.
-// - Flags live only here (salted SHA-256 in flags.json). Clients never receive them.
+// - Flags live only here (salted scrypt in flags.json, with legacy SHA-256 support). Clients never receive them.
 // - Solve records persist in server/data/solves.json keyed by an anonymous
 //   browser-generated identity token. Same-browser progress also works fully
 //   offline; cross-device continuity needs real accounts later.
@@ -18,31 +18,26 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
+const { readJsonCached, writeJsonAtomic } = require('./json-cache');
+const { publicCollections } = require('./visibility');
 const admin = require('./admin');
 const seo = require('./seo');
 
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = process.env.TOR_DATA_DIR ? path.resolve(process.env.TOR_DATA_DIR) : path.join(__dirname, 'data');
+const MEDIA_DIR = path.join(DATA_DIR, 'assets');
+const SITE_SETTINGS_FILE = path.join(DATA_DIR, 'site-settings.json');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const SOLVES_FILE = path.join(DATA_DIR, 'solves.json');
 const FLAGS_FILE_PATH = process.env.TOR_FLAGS_FILE ? path.resolve(process.env.TOR_FLAGS_FILE) : path.join(__dirname, 'flags.json');
-// Re-read per request: flag set/replace and policy changes in the admin panel apply live, no restart.
-function loadFlags() {
-  try { return JSON.parse(fs.readFileSync(FLAGS_FILE_PATH, 'utf8')); } catch (e) { return {}; }
-}
+// Re-read via stat-invalidated cache: flag set/replace and policy changes apply live, no restart.
+function loadFlags() { return readJsonCached(FLAGS_FILE_PATH, {}); }
 const PLAYERS_STATE_FILE = path.join(DATA_DIR, 'players_state.json');
 const PLAYER_NAMES_FILE = path.join(DATA_DIR, 'players_names.json');
 const VERIFIED_FILE = path.join(DATA_DIR, 'verified.json');
-let verified = {};
-try { verified = JSON.parse(fs.readFileSync(VERIFIED_FILE, 'utf8')); } catch (e) { verified = {}; }
-function saveVerified() {
-  const tmp = VERIFIED_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(verified, null, 1));
-  fs.renameSync(tmp, VERIFIED_FILE);
-}
-function loadPlayerNames() {
-  try { return JSON.parse(fs.readFileSync(PLAYER_NAMES_FILE, 'utf8')); } catch (e) { return {}; }
-}
+let verified = readJsonCached(VERIFIED_FILE, {});
+function saveVerified() { writeJsonAtomic(VERIFIED_FILE, verified); }
+function loadPlayerNames() { return readJsonCached(PLAYER_NAMES_FILE, {}); }
 function playerDisplayName(rec) {
   if (!rec) return 'Anonymous';
   if (typeof rec === 'string') return rec || 'Anonymous';
@@ -51,26 +46,24 @@ function playerDisplayName(rec) {
 }
 function savePlayerName(identity, name) {
   if (!identity || !name) return;
-  const names = loadPlayerNames();
+  const names = structuredClone(loadPlayerNames());
   names[identity] = name;
-  const tmp = PLAYER_NAMES_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(names, null, 1));
-  fs.renameSync(tmp, PLAYER_NAMES_FILE);
+  writeJsonAtomic(PLAYER_NAMES_FILE, names);
 }
 function isDisabled(identity) {
-  try { const st = JSON.parse(fs.readFileSync(PLAYERS_STATE_FILE, 'utf8')); return (st.disabled || []).includes(identity); } catch (e) { return false; }
+  const st = readJsonCached(PLAYERS_STATE_FILE, {});
+  return Array.isArray(st.disabled) && st.disabled.includes(identity);
 }
 
 const HOST = process.env.TOR_HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
 // Deployment switches:
-//   PORT               cloud providers (Render, Koyeb) inject PORT; binds to 0.0.0.0 automatically
-//   TOR_HTTPS=1        site is served over HTTPS by a proxy: Secure cookie + HSTS
-//   TOR_TRUST_PROXY=1  proxy sets X-Real-IP; use it for rate limits
-//   TOR_DEV_CORS=1     allow cross-origin API calls (only for the file:// preview)
+//   PORT                 cloud providers (Render, Koyeb) inject PORT; binds to 0.0.0.0 automatically
+//   TOR_HTTPS=1          site is served over HTTPS by a proxy: Secure cookie + HSTS
+//   TOR_TRUST_PROXY=1/0  override proxy header trust (auto-enabled with PORT unless explicitly 0)
+//   TOR_DEV_CORS=1       allow cross-origin API calls (only for the file:// preview)
 const HTTPS_MODE = process.env.TOR_HTTPS === '1' || process.env.NODE_ENV === 'production';
-const TRUST_PROXY = process.env.TOR_TRUST_PROXY === '1' || !!process.env.PORT;
+const TRUST_PROXY = process.env.TOR_TRUST_PROXY === '1' || (process.env.TOR_TRUST_PROXY !== '0' && !!process.env.PORT);
 const DEV_CORS = process.env.TOR_DEV_CORS === '1';
-const LOOPBACK = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
 const { clientIp: resolveClientIp } = require('./client-ip');
 function clientIp(req) { return resolveClientIp(req, TRUST_PROXY); }
 const PORT = Number(process.env.PORT || process.env.TOR_PORT || 8000);
@@ -82,13 +75,8 @@ const RATE_PER_IP = 60;
 const RATE_PER_IP_CHALLENGE = 20;
 
 // ---------- solve store ----------
-let solves = {};
-try { solves = JSON.parse(fs.readFileSync(SOLVES_FILE, 'utf8')); } catch (e) { solves = {}; }
-function saveSolves() {
-  const tmp = SOLVES_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(solves, null, 1));
-  fs.renameSync(tmp, SOLVES_FILE);
-}
+let solves = readJsonCached(SOLVES_FILE, {});
+function saveSolves() { writeJsonAtomic(SOLVES_FILE, solves); }
 
 // ---------- rate limiting (in-memory sliding windows) ----------
 const hits = new Map(); // key -> [timestamps]
@@ -113,8 +101,25 @@ function json(res, code, obj, cors) {
   });
   res.end(body);
 }
-function hashFlag(salt, flag) {
+function hashFlagSha256(salt, flag) {
   return crypto.createHash('sha256').update(salt + flag, 'utf8').digest();
+}
+function verifyFlagRecord(rec, cand) {
+  if (!rec || typeof rec.salt !== 'string') return false;
+  if (typeof rec.scrypt === 'string' && rec.scrypt) {
+    const expect = Buffer.from(rec.scrypt, 'hex');
+    const got = crypto.scryptSync(cand, rec.salt, 32);
+    return expect.length === got.length && crypto.timingSafeEqual(expect, got);
+  }
+  if (typeof rec.sha256 === 'string' && rec.sha256) {
+    const expect = Buffer.from(rec.sha256, 'hex');
+    const got = hashFlagSha256(rec.salt, cand);
+    return expect.length === got.length && crypto.timingSafeEqual(expect, got);
+  }
+  return false;
+}
+function getRequestIdentity(req, url) {
+  return String(req.headers['x-tor-identity'] || url.searchParams.get('identity') || '');
 }
 const ID_RE = /^[a-f0-9]{32}$/;
 
@@ -154,7 +159,7 @@ function handleApi(req, res, url, ip) {
     res.writeHead(204, DEV_CORS ? {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-TOR-Identity',
       'Access-Control-Max-Age': '600'
     } : {});
     return res.end();
@@ -165,15 +170,17 @@ function handleApi(req, res, url, ip) {
   }
 
   if (url.pathname === '/api/state' && req.method === 'GET') {
-    const identity = url.searchParams.get('identity') || '';
+    const identity = getRequestIdentity(req, url);
     if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
     const mine = solves[identity] || {};
     const myVer = verified[identity] || {};
     const names = loadPlayerNames();
     const rec = names[identity];
     const rawName = typeof rec === 'string' ? rec : (rec && !rec.hide && rec.name) || '';
-    const pending = Object.keys(myVer).filter(id => !mine[id] && admin.challengeIsOpen(id));
-    const solved = Object.keys(mine).filter(id => admin.challengeIsPublic(id));
+    const publicSet = admin.getPublicChallengeIds();
+    const openSet = admin.getOpenChallengeIds();
+    const pending = Object.keys(myVer).filter(id => !mine[id] && openSet.has(id));
+    const solved = Object.keys(mine).filter(id => publicSet.has(id));
     const solveTimes = {};
     solved.forEach(id => { solveTimes[id] = mine[id]; });
     return json(res, 200, { solved, solveTimes, pending, name: rawName }, true);
@@ -182,8 +189,9 @@ function handleApi(req, res, url, ip) {
   if (url.pathname === '/api/solvers' && req.method === 'GET') {
     const challenge = url.searchParams.get('challenge');
     const names = loadPlayerNames();
+    const publicSet = admin.getPublicChallengeIds();
     if (challenge) {
-      if (!admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+      if (!publicSet.has(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
       const list = [];
       Object.keys(solves).forEach(id => {
         if (solves[id] && solves[id][challenge]) {
@@ -200,7 +208,7 @@ function handleApi(req, res, url, ip) {
     Object.keys(solves).forEach(id => {
       const pSolves = solves[id] || {};
       Object.keys(pSolves).forEach(chId => {
-        if (!admin.challengeIsPublic(chId)) return;
+        if (!publicSet.has(chId)) return;
         if (!all[chId]) all[chId] = [];
         all[chId].push({
           name: playerDisplayName(names[id]),
@@ -216,7 +224,7 @@ function handleApi(req, res, url, ip) {
 
   if (url.pathname === '/api/solution' && req.method === 'GET') {
     const challenge = url.searchParams.get('challenge') || '';
-    const identity = url.searchParams.get('identity') || '';
+    const identity = getRequestIdentity(req, url);
     if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
     if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
     if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
@@ -306,11 +314,9 @@ function handleApi(req, res, url, ip) {
         logSub('already', hasName ? name : curName);
         return json(res, 200, { status: 'already', ts: solves[identity][challenge], name: hasName ? name : curName }, true);
       }
-      const expect = Buffer.from(rec.sha256, 'hex');
       const policy = flagsNow._policy || {};
       const cand = policy.case_sensitive === false ? flag.toLowerCase() : flag;
-      const got = hashFlag(rec.salt, cand);
-      if (expect.length === got.length && crypto.timingSafeEqual(expect, got)) {
+      if (verifyFlagRecord(rec, cand)) {
         const ts = new Date().toISOString();
         if (hasName) {
           solves[identity][challenge] = ts;
@@ -420,7 +426,7 @@ function serveStatic(req, res, url) {
     if (dm) {
       const idParam = url.searchParams.get('id') || url.searchParams.get('c') || url.searchParams.get('a') || '';
       if (idParam) {
-        const pubCols = require('./visibility').publicCollections(seo.loadCollections(DATA_DIR));
+        const pubCols = publicCollections(seo.loadCollections(DATA_DIR));
         const item = (pubCols[dm[1] + 's'] || []).find(x => x.id === idParam || (x.slug && (x.slug.ar === idParam || x.slug.en === idParam)));
         if (!item || (!(item.title && item.title.en) && !(item.slug && item.slug.en))) {
           return sendResponse(req, res, {
@@ -454,18 +460,9 @@ function serveStatic(req, res, url) {
     }
     res.writeHead(404); return res.end('not found');
   }
-  if (p.startsWith('/artifacts/')) { res.writeHead(403); return res.end('forbidden'); } // internal test fixture, not hosted evidence
   // admin HTML pages (except login) require a session; assets stay public
   if (/^\/admin\/(?!login\.html$|recovery\.html$).+\.html$/.test(p)) {
-    const m = /(?:^|;\s*)tor_admin=([a-f0-9]{48})/.exec(req.headers.cookie || '');
-    let ok = false;
-    if (m) {
-      try {
-        const sessions = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sessions.json'), 'utf8'));
-        ok = !!(sessions[m[1]] && sessions[m[1]].exp > Date.now());
-      } catch (e) { ok = false; }
-    }
-    if (!ok) {
+    if (!admin.getSession(req)) {
       res.writeHead(302, { Location: '/admin/login.html' });
       return res.end();
     }
@@ -481,15 +478,36 @@ function serveStatic(req, res, url) {
     html=html.replace('<body','<body data-admin-preview="true"');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);
   }
   if (p === '/' || p === '/index.html') {
-    if (!arabicEnabled) { p = '/index-en.html'; }
-    else { let cfg={};try{cfg=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'site-settings.json'),'utf8'))}catch{}p=cfg.default_language==='ar'?'/index-ar.html':'/index-en.html'; }
+    if (!arabicEnabled) {
+      p = '/index-en.html';
+    } else {
+      const cfg = readJsonCached(SITE_SETTINGS_FILE, {});
+      p = cfg.default_language === 'ar' ? '/index-ar.html' : '/index-en.html';
+    }
   }
   if (!arabicEnabled && p === '/404.html') {
     p = '/404-en.html';
   }
-  const file = path.resolve(ROOT, '.' + p);
-  if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
-  if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+  let file;
+  let isCustomMedia = false;
+  if (p.startsWith('/assets/')) {
+    const assetName = p.slice('/assets/'.length);
+    const customAsset = path.resolve(MEDIA_DIR, assetName);
+    if (customAsset.startsWith(MEDIA_DIR + path.sep) && fs.existsSync(customAsset)) {
+      file = customAsset;
+      isCustomMedia = true;
+    } else {
+      file = path.resolve(ROOT, '.' + p);
+    }
+  } else {
+    file = path.resolve(ROOT, '.' + p);
+  }
+  if (isCustomMedia) {
+    if (!file.startsWith(MEDIA_DIR + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+  } else {
+    if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+    if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+  }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) {
       if (req.headers.accept && req.headers.accept.includes('text/html')) {
@@ -514,7 +532,7 @@ function serveStatic(req, res, url) {
       const rawHtml = fs.readFileSync(file, 'utf8');
       const resMeta = /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)
         ? seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR, arabicEnabled)
-        : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR, arabicEnabled) };
+        : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR, arabicEnabled, p) };
       const buf = Buffer.from(resMeta.html, 'utf8');
       const etag = (isAdminRoute || resMeta.status !== 200) ? null : bodyEtag(Buffer.concat([buf, Buffer.from(':ar=' + (arabicEnabled ? '1' : '0'))]));
       return sendResponse(req, res, {
@@ -567,7 +585,12 @@ function handleRequest(req, res) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
+  const isAdminReq = url.pathname === '/admin' || url.pathname.startsWith('/admin/');
+  const scriptSrc = isAdminReq ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'";
+  res.setHeader(
+    'Content-Security-Policy',
+    `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`
+  );
   if (HTTPS_MODE) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   const ip = clientIp(req);
   if(url.pathname==='/sitemap.xml'){

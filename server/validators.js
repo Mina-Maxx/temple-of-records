@@ -18,6 +18,14 @@ function imgOk(src) {
     (/^assets\/[A-Za-z0-9._-]+$/.test(src) || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src));
 }
 
+function publicImgOk(src) {
+  return typeof src === 'string' && /^assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|webp|gif|svg)$/i.test(src);
+}
+
+function baseUrlOk(u) {
+  return typeof u === 'string' && /^https:\/\/[^/\s]+$/.test(u);
+}
+
 function urlOk(u) {
   return u === '' || (typeof u === 'string' && /^https:\/\/.+\..+/.test(u) && u.length < 2000);
 }
@@ -104,6 +112,7 @@ function validateEntry(e, kind, idx, opts) {
     if (out.slug[l] && !/^[\p{L}\p{N}-]+$/u.test(out.slug[l])) errors.push(p + '.slug.' + l + ': حروف وأرقام وشرطات فقط');
   });
   out.status = ['draft', 'published', 'archived'].indexOf(e.status) > -1 ? e.status : (e.hidden ? 'archived' : 'published');
+  if (typeof e.order === 'number' && Number.isFinite(e.order)) out.order = e.order;
   out.title = lang('title', 300);
   if (!arEnabled && (!out.title.en || !out.title.en.trim())) errors.push(p + '.title.en: English title required');
   out.excerpt = lang('excerpt', 2000);
@@ -204,4 +213,4 @@ function validateCollections(obj, opts) {
   return { ok: errors.length === 0, value: out, errors };
 }
 
-module.exports = { cleanStr, isLangObj, imgOk, urlOk, validateSection, validateEntry, validateCollections };
+module.exports = { cleanStr, isLangObj, imgOk, publicImgOk, baseUrlOk, urlOk, validateSection, validateEntry, validateCollections };
