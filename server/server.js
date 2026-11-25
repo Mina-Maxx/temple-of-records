@@ -320,7 +320,7 @@ function handleApi(req, res, url, ip) {
           flag_masked: flag.slice(0, 3) + '\u2026(' + flag.length + ')',
           ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
         };
-        fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n');
+        try { fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
       };
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {
@@ -555,8 +555,9 @@ function serveStatic(req, res, url) {
   });
 }
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
+function handleRequest(req, res) {
+  let url;
+  try { url = new URL(req.url, 'http://localhost'); } catch (e) { res.writeHead(400); return res.end('bad request'); }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -590,7 +591,16 @@ const server = http.createServer((req, res) => {
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   return serveStatic(req, res, url);
+}
+
+const server = http.createServer((req, res) => {
+  try { handleRequest(req, res); } catch (e) {
+    console.error('request error:', e && e.message);
+    try { if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('internal error'); } catch (e2) {}
+  }
 });
+process.on('uncaughtException', e => console.error('uncaughtException:', e && e.stack || e));
+process.on('unhandledRejection', e => console.error('unhandledRejection:', e && e.stack || e));
 
 server.listen(PORT, HOST, () => {
   console.log(`Temple of Records demo server: http://${HOST}:${PORT}`);

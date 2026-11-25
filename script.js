@@ -71,7 +71,8 @@ window.TOR = (function () {
   }
   return { esc: esc, fieldOverrides: fieldOverrides, getCollections: getCollections,
            find: find, visible: visible, imgOk: imgOk, urlOk: urlOk, param: param,
-           identity: identity, apiBase: apiBase, localSolves: localSolves, markLocalSolve: markLocalSolve };
+           identity: identity, apiBase: apiBase, localSolves: localSolves, markLocalSolve: markLocalSolve,
+           setImgSrc: setImgSrc };
 })();
 
 // ---------- collection renderers ----------
@@ -409,7 +410,7 @@ window.TOR = (function () {
     if (L(c.excerpt)) body.appendChild(el('p', 'rec-ex', L(c.excerpt)));
     addMeta(body, 'rec-meta', [L(c.category), L(c.difficulty), c.points ? num(c.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(c.est_time),
       (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : ''],
-      ''));
+      '');
 
     var solversBox = el('div', 'rec-solvers');
     solversBox.setAttribute('data-solvers-challenge', c.id);
@@ -488,7 +489,7 @@ window.TOR = (function () {
       var md=L(item.meta_description||{});if(md){var mm=document.querySelector('meta[name=description]')||document.createElement('meta');mm.name='description';mm.content=md;document.head.appendChild(mm)}
       var cur = document.getElementById('crumb-cur'); if (cur) cur.textContent = L(item.title);
       var ban = document.querySelector('.pagehead .banner');
-      if (ban && TOR.imgOk(item.image)) setImgSrc(ban, item.image);
+      if (ban && TOR.imgOk(item.image)) TOR.setImgSrc(ban, item.image);
       fillChips(document.getElementById('item-labels'), item.chips, !!item.sample, item.attack);
       var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
       var meta = document.getElementById('item-meta');
@@ -518,7 +519,7 @@ window.TOR = (function () {
       document.title = L(ch.title) + (lang === 'ar' ? ' · مينا مكس' : ' · Mina Max');
       var cur2 = document.getElementById('crumb-cur'); if (cur2) cur2.textContent = L(ch.title);
       var ban2 = document.querySelector('.pagehead .banner');
-      if (ban2 && TOR.imgOk(ch.image)) setImgSrc(ban2, ch.image);
+      if (ban2 && TOR.imgOk(ch.image)) TOR.setImgSrc(ban2, ch.image);
       fillChips(document.getElementById('item-labels'), ch.chips, !!ch.sample, ch.attack);
       var h1b = document.getElementById('item-title'); if (h1b) h1b.textContent = L(ch.title);
       var meta2 = document.getElementById('item-meta');
@@ -891,7 +892,7 @@ window.TOR = (function () {
       if (!fc) { tab.style.display = 'none'; }
       else {
         var im = tab.querySelector('img.scene');
-        if (im && TOR.imgOk(fc.image)) setImgSrc(im, fc.image);
+        if (im && TOR.imgOk(fc.image)) TOR.setImgSrc(im, fc.image);
         var a0 = tab.querySelector('a.scene-link');
         if (a0) a0.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(fc.id);
         fillChips(tab.querySelector('.labels'), fc.chips, !!fc.sample);
