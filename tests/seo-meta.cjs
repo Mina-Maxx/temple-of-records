@@ -69,6 +69,15 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const h4 = await r4.text();
     check(r4.status === 200 && !h4.includes('rel="canonical"') && !h4.includes('property="og:url"') && h4.includes('Alert &lt;script&gt;'), 'without base_url: title injected, no canonical/og:url');
 
+    // 5. Static page meta: stripped when no base_url, substituted when base_url is set
+    const r5 = await fetch(base + '/challenges-en.html');
+    const h5 = await r5.text();
+    check(!h5.includes('mina-max.website') && !h5.includes('rel="canonical"') && h5.includes('property="og:title"'), 'static page strips canonical/og:url when base_url empty');
+    fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en', base_url: 'https://custom.example' }));
+    const r6 = await fetch(base + '/challenges-en.html');
+    const h6 = await r6.text();
+    check(h6.includes('https://custom.example/challenges-en.html') && h6.includes('hreflang="x-default"') && !h6.includes('mina-max.website'), 'static page substitutes base_url and has x-default');
+
     console.log('TOTAL ' + count + ' seo-meta assertions passed');
   } finally {
     child.kill();

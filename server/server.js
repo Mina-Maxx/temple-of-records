@@ -284,9 +284,11 @@ function serveStatic(req, res, url) {
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
-    if (path.extname(file).toLowerCase() === '.html' && /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)) {
+    if (path.extname(file).toLowerCase() === '.html') {
       const rawHtml = fs.readFileSync(file, 'utf8');
-      const resMeta = seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR);
+      const resMeta = /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)
+        ? seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR)
+        : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR) };
       const buf = Buffer.from(resMeta.html, 'utf8');
       res.writeHead(resMeta.status, {
         'Content-Type': 'text/html; charset=utf-8',

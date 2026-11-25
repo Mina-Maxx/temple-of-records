@@ -120,4 +120,16 @@ function injectDetailMeta(html, pathname, url, root, dataDir) {
   return { status: 200, html: out };
 }
 
-module.exports = { escHtml, safeJsonLd, render404, injectDetailMeta, loadSettings, loadCollections };
+function injectStaticMeta(html, dataDir) {
+  const cfg = loadSettings(dataDir);
+  const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
+  if (baseUrl) {
+    return html.replace(/https:\/\/mina-max\.website/g, baseUrl);
+  }
+  return html
+    .replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '')
+    .replace(/<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi, '')
+    .replace(/<meta\s+(?:property|name)=["'](?:og:url|og:image|twitter:image)["'][^>]*>\s*/gi, '');
+}
+
+module.exports = { escHtml, safeJsonLd, render404, injectDetailMeta, injectStaticMeta, loadSettings, loadCollections };
