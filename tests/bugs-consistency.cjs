@@ -41,6 +41,12 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(cssText.includes('prefers-reduced-motion: reduce'), 'style.css includes prefers-reduced-motion');
     check(sjs.includes("setAttribute('scope', 'col')"), 'artifacts table headers include scope="col"');
 
+    const validators = require('../server/validators');
+    const vBad = validators.validateCollections({ articles: [{ id: 'BAD ID!' }], challenges: [] });
+    check(!vBad.ok && vBad.errors.length > 0, 'validators.js rejects invalid id without vm');
+    const vOk = validators.validateCollections({ articles: [{ id: 'valid-1', title: { ar: 'ع', en: 'E' }, excerpt: { ar: '', en: '' }, slug: { ar: 'ع', en: 'e' }, sections: [] }], challenges: [] });
+    check(vOk.ok && vOk.value.articles[0].id === 'valid-1', 'validators.js accepts valid article');
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();
