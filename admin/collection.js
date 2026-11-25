@@ -37,7 +37,8 @@ function listPage(CFG){
    (items.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+l('title')+'</th><th>'+l('status')+'</th><th>'+l('tags')+'</th><th>'+l('date')+'</th><th>'+A.t('actions')+'</th></tr></thead><tbody>'+
     items.map(function(it){
      var title=ar?(it.title&&it.title_ar)||(it.title&&it.title.ar):(it.title&&(it.title_en||it.title.en))||it.id;
-     var st=it.hidden?A.badge(l('archived'),'dim'):(it.status?A.badge(l(it.status),it.status==='open'||it.status==='active'?'ok':it.status==='wip'||it.status==='draft'?'info':'dim'):A.badge(l('active'),'ok'));
+     var isSched=it.publish_at&&Date.parse(it.publish_at)>Date.now();
+     var st=it.hidden?A.badge(l('archived'),'dim'):(isSched?A.badge(ar?'مجدول':'Scheduled','info'):(it.status?A.badge(l(it.status),it.status==='open'||it.status==='active'?'ok':it.status==='wip'||it.status==='draft'?'info':'dim'):A.badge(l('active'),'ok')));
      return '<tr><td><div class="t-main">'+A.esc(title)+'</div><div class="t-sub mono">'+A.esc(it.id)+'</div></td><td>'+st+'</td>'+
      '<td>'+((it.tags||[]).map(function(t){return '<span class="tag">'+A.esc(t)+'</span>'}).join('')||'<span class="dim small">—</span>')+'</td>'+
      '<td class="small dim">'+A.esc(it.date||'—')+'</td>'+

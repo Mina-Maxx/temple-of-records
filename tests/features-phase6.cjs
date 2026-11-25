@@ -65,6 +65,15 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     });
     check(atkRes.ok && JSON.stringify(atkRes.value.articles[0].attack) === JSON.stringify(['T1059.001', 'T1190']), 'ATT&CK validator keeps valid techniques and drops invalid ones');
 
+    // 6.4 Scheduled publication with mocked clock
+    const vis = require('../server/visibility');
+    const schedCols = {
+      articles: [{ id: 'sched-1', status: 'published', publish_at: '2030-01-01T00:00:00Z', title: { en: 'Future' } }],
+      challenges: [], investigations: []
+    };
+    check(vis.publicCollections(schedCols, Date.parse('2029-12-31T23:59:59Z')).articles.length === 0, 'scheduled item hidden before publish_at');
+    check(vis.publicCollections(schedCols, Date.parse('2030-01-01T00:00:01Z')).articles.length === 1, 'scheduled item visible after publish_at');
+
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {
     child.kill();
