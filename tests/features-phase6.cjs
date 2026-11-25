@@ -36,6 +36,27 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(!JSON.stringify(sb).includes(id1) && !JSON.stringify(sb).includes('SecretBob'), 'scoreboard never leaks identity tokens or opted-out names');
     check((await fetch(base + '/scoreboard-en.html')).status === 200, 'scoreboard-en.html served');
 
+    // 6.2 Inline Markdown parser safety (DOM-only, no innerHTML, literal <img onerror>)
+    const vm = require('node:vm');
+    const sjs = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
+    const fnMatch = sjs.match(/function renderInlineMd\(parent, text\) \{[\s\S]*?\n  \}/);
+    assert.ok(fnMatch, 'renderInlineMd exists in script.js');
+    const nodes = [];
+    const mockDoc = {
+      createTextNode: t => ({ type: 'text', textContent: t }),
+      createElement: tag => ({ tag, className: '', textContent: '', href: '', target: '', rel: '' })
+    };
+    const ctx = { document: mockDoc, TOR: { urlOk: u => /^https:\/\/.+\..+/.test(u) } };
+    vm.runInNewContext(fnMatch[0], ctx);
+    const parent = { appendChild: n => nodes.push(n) };
+    ctx.renderInlineMd(parent, 'Hi **bold** *em* `cmd` [ok](https://ex.com) [bad](javascript:alert(1)) <img onerror=1>');
+    check(nodes.some(n => n.tag === 'strong' && n.textContent === 'bold'), 'inline markdown renders <strong>');
+    check(nodes.some(n => n.tag === 'em' && n.textContent === 'em'), 'inline markdown renders <em>');
+    check(nodes.some(n => n.tag === 'code' && n.textContent === 'cmd'), 'inline markdown renders <code>');
+    check(nodes.some(n => n.tag === 'a' && n.href === 'https://ex.com' && n.rel === 'noopener noreferrer'), 'inline markdown renders safe https link');
+    check(!nodes.some(n => n.tag === 'img') && nodes.some(n => n.type === 'text' && n.textContent.includes('<img onerror=1>')), 'inline markdown keeps HTML literal (no XSS)');
+    check(!nodes.some(n => n.tag === 'a' && /javascript:/i.test(n.href)), 'inline markdown rejects javascript: links');
+
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {
     child.kill();

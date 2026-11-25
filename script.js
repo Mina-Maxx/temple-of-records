@@ -109,6 +109,35 @@ window.TOR = (function () {
   function toArDigits(s) { return String(s).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[+d]; }); }
   function num(s) { return lang === 'ar' ? toArDigits(s) : String(s); }
 
+  function renderInlineMd(parent, text) {
+    var s = String(text == null ? '' : text);
+    var re = /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\[[^\]]+\]\(https:\/\/[^)\s]+\))/g;
+    var last = 0, m;
+    while ((m = re.exec(s)) !== null) {
+      if (m.index > last) parent.appendChild(document.createTextNode(s.slice(last, m.index)));
+      var tok = m[0];
+      if (tok.slice(0, 2) === '**') {
+        var b = document.createElement('strong'); b.textContent = tok.slice(2, -2); parent.appendChild(b);
+      } else if (tok.charAt(0) === '*') {
+        var em = document.createElement('em'); em.textContent = tok.slice(1, -1); parent.appendChild(em);
+      } else if (tok.charAt(0) === '`') {
+        var cd = document.createElement('code'); cd.className = 'inline-code'; cd.textContent = tok.slice(1, -1); parent.appendChild(cd);
+      } else if (tok.charAt(0) === '[') {
+        var mid = tok.indexOf('](');
+        var label = tok.slice(1, mid), href = tok.slice(mid + 2, -1);
+        if (TOR.urlOk(href)) {
+          var a = document.createElement('a'); a.textContent = label; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          parent.appendChild(a);
+        } else {
+          parent.appendChild(document.createTextNode(tok));
+        }
+      }
+      last = re.lastIndex;
+    }
+    if (last < s.length) parent.appendChild(document.createTextNode(s.slice(last)));
+    return parent;
+  }
+
   function renderSection(sec, idx, counter) {
     var t = sec.type, node;
     if (t === 'heading') {
@@ -117,10 +146,10 @@ window.TOR = (function () {
       counter.headings.push({ id: node.id, text: L(sec) });
       return node;
     }
-    if (t === 'paragraph') return el('p', null, L(sec));
+    if (t === 'paragraph') return renderInlineMd(el('p'), L(sec));
     if(t==='inline_code')return el('code', 'inline-code', L(sec));
     if(t==='link'){if(!TOR.urlOk(sec.url))return null;node=el('p');var a=el('a',null,L(sec)||sec.url);a.href=sec.url;a.target='_blank';a.rel='noopener noreferrer';node.appendChild(a);return node;}
-    if (t === 'quote') return el('blockquote', null, L(sec));
+    if (t === 'quote') return renderInlineMd(el('blockquote'), L(sec));
     if (t === 'table') {
       node=el('div','artifacts-wrap'); var tab=el('table','artifacts');
       var hr=el('tr');(sec.headers||[]).forEach(function(x){hr.appendChild(el('th',null,L(x)))});tab.appendChild(hr);
@@ -130,7 +159,7 @@ window.TOR = (function () {
     if (t === 'callout') {
       node = el('div', 'callout');
       node.appendChild(el('span', 'callout-title', lang === 'ar' ? sec.title_ar : sec.title_en));
-      node.appendChild(document.createTextNode(L(sec)));
+      renderInlineMd(node, L(sec));
       return node;
     }
     if (t === 'code') {
@@ -150,7 +179,7 @@ window.TOR = (function () {
     }
     if (t === 'list') {
       node = el(sec.ordered ? 'ol' : 'ul');
-      (sec.items || []).forEach(function (it) { node.appendChild(el('li', null, L(it))); });
+      (sec.items || []).forEach(function (it) { node.appendChild(renderInlineMd(el('li'), L(it))); });
       return node;
     }
     if (t === 'timeline') {
