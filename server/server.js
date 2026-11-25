@@ -32,17 +32,13 @@ function loadFlags() {
 }
 const PLAYERS_STATE_FILE = path.join(DATA_DIR, 'players_state.json');
 const PLAYER_NAMES_FILE = path.join(DATA_DIR, 'players_names.json');
-const HINTS_USED_FILE = path.join(DATA_DIR, 'hints_used.json');
-function loadHintsUsed() { try { return JSON.parse(fs.readFileSync(HINTS_USED_FILE, 'utf8')); } catch (e) { return {}; } }
-function saveHintsUsed(obj) {
-  scoreboardCache = { ts: 0, data: null };
-  const tmp = HINTS_USED_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(obj, null, 1));
-  fs.renameSync(tmp, HINTS_USED_FILE);
-}
-function hintPenalty(identity, chId) {
-  const rec = (loadHintsUsed()[identity] || {})[chId] || {};
-  return Object.values(rec).reduce((sum, c) => sum + (Number(c) || 0), 0);
+const VERIFIED_FILE = path.join(DATA_DIR, 'verified.json');
+let verified = {};
+try { verified = JSON.parse(fs.readFileSync(VERIFIED_FILE, 'utf8')); } catch (e) { verified = {}; }
+function saveVerified() {
+  const tmp = VERIFIED_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(verified, null, 1));
+  fs.renameSync(tmp, VERIFIED_FILE);
 }
 function loadPlayerNames() {
   try { return JSON.parse(fs.readFileSync(PLAYER_NAMES_FILE, 'utf8')); } catch (e) { return {}; }
@@ -53,15 +49,10 @@ function playerDisplayName(rec) {
   if (rec.hide) return 'Anonymous';
   return rec.name || 'Anonymous';
 }
-function savePlayerName(identity, name, hide) {
-  if (!identity || (!name && hide === undefined)) return;
+function savePlayerName(identity, name) {
+  if (!identity || !name) return;
   const names = loadPlayerNames();
-  const prev = names[identity];
-  const prevName = typeof prev === 'string' ? prev : (prev && prev.name) || '';
-  const prevHide = typeof prev === 'object' && prev ? !!prev.hide : false;
-  const nextName = name || prevName || 'Anonymous';
-  const nextHide = hide !== undefined ? !!hide : prevHide;
-  names[identity] = nextHide ? { name: nextName, hide: true } : nextName;
+  names[identity] = name;
   const tmp = PLAYER_NAMES_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(names, null, 1));
   fs.renameSync(tmp, PLAYER_NAMES_FILE);
@@ -92,10 +83,8 @@ const RATE_PER_IP_CHALLENGE = 20;
 
 // ---------- solve store ----------
 let solves = {};
-let scoreboardCache = { ts: 0, data: null };
 try { solves = JSON.parse(fs.readFileSync(SOLVES_FILE, 'utf8')); } catch (e) { solves = {}; }
 function saveSolves() {
-  scoreboardCache = { ts: 0, data: null };
   const tmp = SOLVES_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(solves, null, 1));
   fs.renameSync(tmp, SOLVES_FILE);
@@ -148,58 +137,15 @@ function handleApi(req, res, url, ip) {
     const identity = url.searchParams.get('identity') || '';
     if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
     const mine = solves[identity] || {};
+    const myVer = verified[identity] || {};
     const names = loadPlayerNames();
     const rec = names[identity];
-    const rawName = typeof rec === 'string' ? rec : (rec && rec.name) || '';
-    const hideName = typeof rec === 'object' && rec ? !!rec.hide : false;
-    return json(res, 200, { solved: Object.keys(mine).filter(id => admin.challengeIsPublic(id)), name: rawName, hideName }, true);
-  }
-
-  if (url.pathname === '/api/scoreboard' && req.method === 'GET') {
-    if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
-    if (scoreboardCache.data && Date.now() - scoreboardCache.ts < 15000) {
-      return json(res, 200, scoreboardCache.data, true);
-    }
-    const names = loadPlayerNames();
-    const firstByCh = {};
-    Object.keys(solves).forEach(id => {
-      if (isDisabled(id)) return;
-      const pSolves = solves[id] || {};
-      Object.keys(pSolves).forEach(chId => {
-        if (!admin.challengeIsPublic(chId)) return;
-        const ts = pSolves[chId];
-        if (!firstByCh[chId] || new Date(ts) < new Date(firstByCh[chId].ts)) {
-          firstByCh[chId] = { id, ts };
-        }
-      });
-    });
-    const rows = [];
-    Object.keys(solves).forEach(id => {
-      if (isDisabled(id)) return;
-      const pSolves = solves[id] || {};
-      let points = 0, solved = 0, firstBloods = 0, lastSolve = '';
-      Object.keys(pSolves).forEach(chId => {
-        if (!admin.challengeIsPublic(chId)) return;
-        solved++;
-        points += Math.max(0, admin.challengePoints(chId) - hintPenalty(id, chId));
-        const ts = pSolves[chId];
-        if (!lastSolve || new Date(ts) > new Date(lastSolve)) lastSolve = ts;
-        if (firstByCh[chId] && firstByCh[chId].id === id) firstBloods++;
-      });
-      if (solved > 0) {
-        rows.push({
-          name: playerDisplayName(names[id]),
-          points,
-          solved,
-          firstBloods,
-          lastSolve
-        });
-      }
-    });
-    rows.sort((a, b) => (b.points - a.points) || (new Date(a.lastSolve) - new Date(b.lastSolve)));
-    const payload = { scoreboard: rows.slice(0, 100) };
-    scoreboardCache = { ts: Date.now(), data: payload };
-    return json(res, 200, payload, true);
+    const rawName = typeof rec === 'string' ? rec : (rec && !rec.hide && rec.name) || '';
+    const pending = Object.keys(myVer).filter(id => !mine[id] && admin.challengeIsOpen(id));
+    const solved = Object.keys(mine).filter(id => admin.challengeIsPublic(id));
+    const solveTimes = {};
+    solved.forEach(id => { solveTimes[id] = mine[id]; });
+    return json(res, 200, { solved, solveTimes, pending, name: rawName }, true);
   }
 
   if (url.pathname === '/api/solvers' && req.method === 'GET') {
@@ -246,7 +192,7 @@ function handleApi(req, res, url, ip) {
     const cols = seo.loadCollections(DATA_DIR);
     const ch = (cols.challenges || []).find(c => c.id === challenge);
     if (!ch) return json(res, 404, { error: 'unknown_challenge' }, true);
-    const solved = !!(solves[identity] && solves[identity][challenge]);
+    const solved = !!(solves[identity] && solves[identity][challenge]) || !!(verified[identity] && verified[identity][challenge]);
     if (!solved && ch.solution_public !== true && process.env.TOR_GATE_SOLUTIONS === '1') {
       return json(res, 403, { error: 'solve_required' }, true);
     }
@@ -254,7 +200,7 @@ function handleApi(req, res, url, ip) {
     return json(res, 200, { challenge, sections: sol }, true);
   }
 
-  if (url.pathname === '/api/hint' && req.method === 'POST') {
+  if (url.pathname === '/api/claim' && req.method === 'POST') {
     if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
     let body = '';
     req.on('data', c => { body += c; if (body.length > MAX_BODY) { req.destroy(); } });
@@ -262,26 +208,32 @@ function handleApi(req, res, url, ip) {
       let data;
       try { data = JSON.parse(body); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
       const identity = String(data.identity || '');
+      const name = String(data.name || '').trim().slice(0, 50);
       const challenge = String(data.challenge || '');
-      const index = parseInt(data.index, 10);
       if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
       if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
-      if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
-      const cols = seo.loadCollections(DATA_DIR);
-      const ch = (cols.challenges || []).find(c => c.id === challenge);
-      const hint = ch && Array.isArray(ch.hints) && Number.isInteger(index) && index >= 0 ? ch.hints[index] : null;
-      if (!hint || hint.published === false) return json(res, 404, { error: 'unknown_hint' }, true);
-      const cost = Math.max(0, parseInt(hint.cost, 10) || 0);
-      if (cost > 0) {
-        const used = loadHintsUsed();
-        used[identity] = used[identity] || {};
-        used[identity][challenge] = used[identity][challenge] || {};
-        if (used[identity][challenge][index] === undefined) {
-          used[identity][challenge][index] = cost;
-          saveHintsUsed(used);
-        }
+      if (!challenge || !admin.challengeIsOpen(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+      if (!name) return json(res, 400, { error: 'name_required' }, true);
+      solves[identity] = solves[identity] || {};
+      if (solves[identity][challenge]) {
+        const curName = playerDisplayName(loadPlayerNames()[identity]);
+        return json(res, 200, { status: 'already', ts: solves[identity][challenge], name: curName }, true);
       }
-      return json(res, 200, { status: 'ok', cost, penalty: hintPenalty(identity, challenge) }, true);
+      const verTs = verified[identity] && verified[identity][challenge];
+      if (!verTs) return json(res, 403, { error: 'flag_not_verified' }, true);
+      const ts = verTs;
+      solves[identity][challenge] = ts;
+      saveSolves();
+      if (verified[identity]) { delete verified[identity][challenge]; saveVerified(); }
+      savePlayerName(identity, name);
+      const rec2 = {
+        id: crypto.randomBytes(8).toString('hex'), ts,
+        identity, name, challenge, result: 'correct',
+        flag_masked: '(claimed)',
+        ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
+      };
+      try { fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
+      return json(res, 200, { status: 'correct', ts, name }, true);
     });
     return;
   }
@@ -297,7 +249,8 @@ function handleApi(req, res, url, ip) {
       let data;
       try { data = JSON.parse(body); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
       const identity = String(data.identity || '');
-      const name = String(data.name || '').trim().slice(0, 50) || 'Anonymous';
+      const hasName = typeof data.name === 'string' && data.name.trim().length > 0;
+      const name = hasName ? data.name.trim().slice(0, 50) : '';
       const challenge = String(data.challenge || '');
       const flag = String(data.flag || '').trim();
       if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
@@ -313,10 +266,10 @@ function handleApi(req, res, url, ip) {
       if (!rateOk('subip:' + ip + ':' + challenge, RATE_PER_IP_CHALLENGE)) {
         return json(res, 429, { error: 'rate_limited' }, true);
       }
-      const logSub = (result) => {
+      const logSub = (result, who) => {
         const rec2 = {
           id: crypto.randomBytes(8).toString('hex'), ts: new Date().toISOString(),
-          identity, name, challenge, result,
+          identity, name: who || 'Pending name', challenge, result,
           flag_masked: flag.slice(0, 3) + '\u2026(' + flag.length + ')',
           ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
         };
@@ -324,22 +277,30 @@ function handleApi(req, res, url, ip) {
       };
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {
-        if (name && name !== 'Anonymous') savePlayerName(identity, name, data.hideName);
-        logSub('already');
-        return json(res, 200, { status: 'already', name }, true);
+        const curName = playerDisplayName(loadPlayerNames()[identity]);
+        if (hasName) savePlayerName(identity, name);
+        logSub('already', hasName ? name : curName);
+        return json(res, 200, { status: 'already', ts: solves[identity][challenge], name: hasName ? name : curName }, true);
       }
       const expect = Buffer.from(rec.sha256, 'hex');
       const policy = flagsNow._policy || {};
       const cand = policy.case_sensitive === false ? flag.toLowerCase() : flag;
       const got = hashFlag(rec.salt, cand);
       if (expect.length === got.length && crypto.timingSafeEqual(expect, got)) {
-        solves[identity][challenge] = new Date().toISOString();
-        saveSolves();
-        if (name) savePlayerName(identity, name, data.hideName);
-        logSub('correct');
-        return json(res, 200, { status: 'correct', points: admin.challengePoints(challenge), name }, true);
+        const ts = new Date().toISOString();
+        if (hasName) {
+          solves[identity][challenge] = ts;
+          saveSolves();
+          savePlayerName(identity, name);
+          logSub('correct', name);
+          return json(res, 200, { status: 'correct', ts, name }, true);
+        }
+        verified[identity] = verified[identity] || {};
+        verified[identity][challenge] = verified[identity][challenge] || ts;
+        saveVerified();
+        return json(res, 200, { status: 'verified', ts: verified[identity][challenge] }, true);
       }
-      logSub('wrong');
+      logSub('wrong', name || 'Anonymous');
       return json(res, 200, { status: 'wrong' }, true);
     });
     return;
@@ -354,7 +315,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
-  '.pcap': 'application/vnd.tcpdump.pcap'
+  '.pcap': 'application/vnd.tcpdump.pcap', '.pdf': 'application/pdf'
 };
 const COMPRESSIBLE_EXTS = new Set(['.html', '.css', '.js', '.json', '.svg', '.xml', '.txt']);
 const compressCache = new Map();
@@ -418,7 +379,18 @@ function serveStatic(req, res, url) {
     });
   }
   const arabicEnabled = admin.isArabicEnabled();
-  if (!arabicEnabled && /-ar\.html$/.test(p)) {
+  if (!arabicEnabled && /^\/[a-z0-9][a-z0-9-]*-ar\.html$/.test(p)) {
+    const enTarget = p.replace(/-ar\.html$/, '-en.html');
+    const enFile = path.resolve(ROOT, '.' + enTarget);
+    if (!enFile.startsWith(ROOT + path.sep) || !fs.existsSync(enFile)) {
+      return sendResponse(req, res, {
+        buf: Buffer.from(seo.render404(ROOT, false), 'utf8'),
+        status: 404,
+        contentType: 'text/html; charset=utf-8',
+        cacheControl: 'no-store',
+        isText: true
+      });
+    }
     const dm = /^\/(article|challenge|investigation)-ar\.html$/.exec(p);
     if (dm) {
       const idParam = url.searchParams.get('id') || url.searchParams.get('c') || url.searchParams.get('a') || '';
@@ -440,11 +412,11 @@ function serveStatic(req, res, url) {
         return res.end();
       }
     }
-    res.writeHead(302, { Location: p.replace(/-ar\.html$/, '-en.html') + (url.search || ''), 'Cache-Control': 'no-store' });
+    res.writeHead(302, { Location: enTarget + (url.search || ''), 'Cache-Control': 'no-store' });
     return res.end();
   }
   // Explicit static surface: no server files, backups, dotfiles or test fixtures.
-  const allowed = /^\/(?!admin\.html$)[a-z0-9][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?)$/.test(p);
+  const allowed = /^\/(?!admin\.html$)[a-z0-9][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?|pdf)$/.test(p);
   if (!allowed) {
     if (req.headers.accept && req.headers.accept.includes('text/html')) {
       return sendResponse(req, res, {

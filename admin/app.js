@@ -6,16 +6,16 @@ var dict={
  ar:{
   brand:'إدارة المعبد',brandSub:'The Temple of Records',
   gMain:'الرئيسية',gContent:'المحتوى',gPlatform:'المنصة',gSystem:'النظام',
-  nDash:'لوحة التحكم',nChallenges:'التحديات',nArticles:'المقالات',nEvidence:'مستودع الأدلة',
-  nFlags:'إعداد الفلاجات',nSubs:'المحاولات',nPlayers:'اللاعبون',
-  nKB:'قاعدة المعرفة',nInv:'التحقيقات',nProj:'المشاريع',nCats:'التصنيفات والوسوم',nMedia:'مكتبة الوسائط',
+  nDash:'لوحة التحكم',nChallenges:'التحديات',nArticles:'الرايتبس والحلول',nEvidence:'مستودع الأدلة',
+  nFlags:'إعداد الفلاجات',nSubs:'المحاولات والحلول',nPlayers:'الأسماء المسجّلة',
+  nInv:'التحقيقات',nCats:'التصنيفات والوسوم',nMedia:'مكتبة الوسائط',
   nSettings:'الإعدادات',nAudit:'سجل التدقيق',
-  logout:'خروج',viewSite:'عرض الموقع',gSearch:'بحث شامل…',noRes:'لا نتائج',qCreate:'إنشاء سريع',qChal:'تحدٍّ جديد',qArt:'مقال جديد',qMedia:'رفع وسائط',qSubs:'مراجعة المحاولات',notifT:'آخر الأنشطة',collapse:'طي القائمة',logoutQ:'تسجيل الخروج؟',logoutB:'ستنتهي جلستك الحالية على هذا الجهاز.',sessEnd:'انتهت الجلسة',sessEndB:'سجّل الدخول مرة أخرى للمتابعة. لم يُحفظ أي تعديل غير محفوظ.',sessWarn:'ستنتهي جلستك قريبًا',sessWarnB:'أي نشاط في اللوحة يجدّد الجلسة. احفظ عملك الآن.',unsavedWarn:'لديك تعديلات غير محفوظة.',
+  logout:'خروج',viewSite:'عرض الموقع',gSearch:'بحث شامل…',noRes:'لا نتائج',qCreate:'إنشاء سريع',qChal:'تحدٍّ جديد',qArt:'رايتب جديد',qMedia:'رفع وسائط',qSubs:'مراجعة المحاولات',notifT:'آخر الأنشطة',collapse:'طي القائمة',logoutQ:'تسجيل الخروج؟',logoutB:'ستنتهي جلستك الحالية على هذا الجهاز.',sessEnd:'انتهت الجلسة',sessEndB:'سجّل الدخول مرة أخرى للمتابعة. لم يُحفظ أي تعديل غير محفوظ.',sessWarn:'ستنتهي جلستك قريبًا',sessWarnB:'أي نشاط في اللوحة يجدّد الجلسة. احفظ عملك الآن.',unsavedWarn:'لديك تعديلات غير محفوظة.',
   lang:'العربية',
   loading:'جارٍ التحميل…',errNet:'تعذّر الاتصال بالخادم المحلي. شغّل: node server/server.js',
   demoNote:'وضع العرض التجريبي — بيانات نموذجية',soon:'قريبًا',save:'حفظ',cancel:'إلغاء',edit:'تحرير',create:'إنشاء',
   del:'حذف',search:'بحث…',actions:'إجراءات',empty:'لا عناصر بعد',emptySub:'ابدأ بإنشاء أول عنصر.',
-  sChal:'التحديات',sArt:'المقالات',sSolves:'حلول ناجحة',sSubs:'محاولات مسجّلة',sPlayers:'لاعبون نشطون',sAvail:'متاح الآن',
+  sChal:'التحديات',sArt:'الرايتبس',sInv:'التحقيقات',sSolves:'حلول مسجّلة',sSubs:'محاولات مسجّلة',sPlayers:'أسماء مسجّلة',sAvail:'متاح الآن',
   dashWelcome:'نظرة عامة على منصة التحديات والمحتوى.',recentAct:'آخر نشاط',health:'صحة المنصة',
   sampleData:'البيانات الحالية نموذجية وموسومة حتى يدخل محتوى حقيقي.',
   confirm:'تأكيد',confirmDel:'هذا الإجراء لا يمكن التراجع عنه. متابعة؟',
@@ -32,16 +32,16 @@ var dict={
  en:{
   brand:'Temple Admin',brandSub:'The Temple of Records',
   gMain:'Main',gContent:'Content',gPlatform:'Platform',gSystem:'System',
-  nDash:'Dashboard',nChallenges:'Challenges',nArticles:'Articles',nEvidence:'Evidence Repository',
-  nFlags:'Flag Configuration',nSubs:'Submissions',nPlayers:'Players',
-  nKB:'Knowledge Base',nInv:'Investigations',nProj:'Projects',nCats:'Categories & Tags',nMedia:'Media Library',
+  nDash:'Dashboard',nChallenges:'Challenges',nArticles:'Writeups',nEvidence:'Evidence Repository',
+  nFlags:'Flag Configuration',nSubs:'Submissions & Solves',nPlayers:'Recorded Solvers',
+  nInv:'Investigations',nCats:'Categories & Tags',nMedia:'Media Library',
   nSettings:'Settings',nAudit:'Audit Log',
-  logout:'Log out',viewSite:'View site',gSearch:'Search everything…',noRes:'No results',qCreate:'Quick create',qChal:'New challenge',qArt:'New article',qMedia:'Upload media',qSubs:'Review submissions',notifT:'Recent activity',collapse:'Collapse sidebar',logoutQ:'Log out?',logoutB:'Your session on this device will end.',sessEnd:'Session expired',sessEndB:'Sign in again to continue. Unsaved edits were not saved.',sessWarn:'Your session is about to expire',sessWarnB:'Any activity in the panel renews it. Save your work now.',unsavedWarn:'You have unsaved changes.',
+  logout:'Log out',viewSite:'View site',gSearch:'Search everything…',noRes:'No results',qCreate:'Quick create',qChal:'New challenge',qArt:'New writeup',qMedia:'Upload media',qSubs:'Review submissions',notifT:'Recent activity',collapse:'Collapse sidebar',logoutQ:'Log out?',logoutB:'Your session on this device will end.',sessEnd:'Session expired',sessEndB:'Sign in again to continue. Unsaved edits were not saved.',sessWarn:'Your session is about to expire',sessWarnB:'Any activity in the panel renews it. Save your work now.',unsavedWarn:'You have unsaved changes.',
   lang:'English',
   loading:'Loading…',errNet:'Cannot reach the local server. Run: node server/server.js',
   demoNote:'Demo mode — sample data',soon:'Soon',save:'Save',cancel:'Cancel',edit:'Edit',create:'Create',
   del:'Delete',search:'Search…',actions:'Actions',empty:'Nothing here yet',emptySub:'Create the first item to get started.',
-  sChal:'Challenges',sArt:'Articles',sSolves:'Successful solves',sSubs:'Submissions',sPlayers:'Active players',sAvail:'Available now',
+  sChal:'Challenges',sArt:'Writeups',sInv:'Investigations',sSolves:'Recorded solves',sSubs:'Submissions',sPlayers:'Recorded solvers',sAvail:'Available now',
   dashWelcome:'Overview of the challenge platform and content.',recentAct:'Recent activity',health:'Platform health',
   sampleData:'Current data is labeled sample content until real material lands.',
   confirm:'Confirm',confirmDel:'This cannot be undone. Continue?',
@@ -122,11 +122,9 @@ var NAV=[
  {grp:'gMain',items:[{id:'dashboard',href:'index.html',icon:'dash',t:'nDash'}]},
  {grp:'gContent',items:[
   {id:'challenges',href:'challenges.html',icon:'flag',t:'nChallenges'},
+  {id:'inv',href:'investigations.html',icon:'search',t:'nInv'},
   {id:'articles',href:'articles.html',icon:'doc',t:'nArticles'},
   {id:'evidence',href:'evidence.html',icon:'box',t:'nEvidence'},
-  {id:'kb',href:'kb.html',icon:'book',t:'nKB'},
-  {id:'inv',href:'investigations.html',icon:'search',t:'nInv'},
-  {id:'proj',href:'projects.html',icon:'grid',t:'nProj'},
   {id:'cats',href:'categories.html',icon:'tags',t:'nCats'},
   {id:'media',href:'media.html',icon:'img',t:'nMedia'}]},
  {grp:'gPlatform',items:[
@@ -181,7 +179,7 @@ function shell(active,crumb,cb){
  document.addEventListener('click',function(){document.querySelectorAll('.dd-menu').forEach(function(x){x.hidden=true})});
  // global search over content collections (client side, from the admin content API)
  var gs=document.getElementById('gs'),gsr=document.getElementById('gsr'),cache=null;
- var PAGES={challenges:'challenge-edit.html?id=',articles:'article-edit.html?id=',kb:'kb.html?id=',investigations:'investigations.html?id=',projects:'projects.html?id=',categories:'categories.html?id='};
+ var PAGES={challenges:'challenge-edit.html?id=',articles:'article-edit.html?id=',investigations:'investigations.html?id=',categories:'categories.html?id='};
  gs.addEventListener('input',function(){
   var q=gs.value.trim().toLowerCase();if(!q){gsr.hidden=true;return}
   function show(){var arOn=!(ME&&ME.arabic_enabled===false);var out=[];Object.keys(cache).forEach(function(col){(cache[col]||[]).forEach(function(it){
@@ -196,8 +194,8 @@ function shell(active,crumb,cb){
  // unsaved-changes guard: any edit inside an editor page until its save button is pressed
  var dirty=false,cont=document.getElementById('content'),dirtyScopes=new Set();
  function editScope(el){if(location.pathname.includes('settings'))return el.closest('#site-config')?'site-settings':el.matches('[id^=seo-]')?'seo':el.matches('[id^=pw-]')?'password':'fixed';return 'content'}
- ['input','change'].forEach(function(kind){cont.addEventListener(kind,function(e){if(e.target.closest('[data-pane],#secs,#hints,#arts,.panel')&&/article-edit|challenge-edit|settings|kb|investigations|projects/.test(location.pathname)&&!e.target.matches('#q,[type=search]')){dirtyScopes.add(editScope(e.target));dirty=true}})});
- cont.addEventListener('click',function(e){if(e.target.closest('[data-del],[data-up],[data-dn],[data-hup],[data-hdn],#hints button,#arts button,#add-sec,#add-hint,#add-art,[data-add-entry],[data-add-link]')&&/article-edit|challenge-edit|kb|investigations|projects/.test(location.pathname)){dirtyScopes.add('content');dirty=true}});
+ ['input','change'].forEach(function(kind){cont.addEventListener(kind,function(e){if(e.target.closest('[data-pane],#secs,#hints,#arts,.panel')&&/article-edit|challenge-edit|settings|investigations/.test(location.pathname)&&!e.target.matches('#q,[type=search]')){dirtyScopes.add(editScope(e.target));dirty=true}})});
+ cont.addEventListener('click',function(e){if(e.target.closest('[data-del],[data-up],[data-dn],[data-hup],[data-hdn],#hints button,#arts button,#add-sec,#add-hint,#add-art,[data-add-entry],[data-add-link]')&&/article-edit|challenge-edit|investigations/.test(location.pathname)){dirtyScopes.add('content');dirty=true}});
  window.addEventListener('tor:saved',function(e){var p=e.detail;if(location.pathname.includes('settings')){if(p.includes('/site-settings'))dirtyScopes.delete('site-settings');else if(p.includes('/content/fixed'))dirtyScopes.delete('fixed');else if(p.includes('/seo'))dirtyScopes.delete('seo');else if(p.includes('/password'))dirtyScopes.delete('password')}else if(/\/admin\/api\/(articles|challenges|collection)/.test(p))dirtyScopes.clear();dirty=dirtyScopes.size>0});
  window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue=t('unsavedWarn');return t('unsavedWarn')}});
  var side=document.getElementById('side'),scrim=document.getElementById('scrim');

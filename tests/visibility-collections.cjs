@@ -15,7 +15,14 @@ const inv = (id, extra) => Object.assign({ id, title: { ar: 'ع', en: 'T-' + id 
 const cols = {
   challenges: [], articles: [],
   investigations: [
-    inv('pub', { visibility: 'public', private_notes: 'SECRET_NOTES', internal: 'x' }),
+    inv('pub', {
+      visibility: 'public',
+      use_case: { ar: '', en: 'Detect encoded PowerShell' },
+      detection_engineering: { ar: '', en: 'Sysmon Event ID 1 telemetry' },
+      detection_rule_lang: 'Sigma',
+      detection_rule: 'title: Encoded PowerShell',
+      private_notes: 'SECRET_NOTES', internal: 'x'
+    }),
     inv('nodefault'),                                   // no visibility field -> private
     inv('priv', { visibility: 'private' }),
     inv('draft', { visibility: 'public', status: 'draft' }),
@@ -29,6 +36,8 @@ const cols = {
 const out = publicCollections(cols);
 check(JSON.stringify(Object.keys(out).sort()) === JSON.stringify(['articles', 'challenges', 'investigations']), 'only challenges/articles/investigations are serialized');
 check(JSON.stringify(out.investigations.map(x => x.id).sort()) === JSON.stringify(['open', 'pub']), 'only explicit public, non-draft, non-hidden investigations pass');
+const pubInvOut = out.investigations.find(x => x.id === 'pub');
+check(pubInvOut.use_case && pubInvOut.detection_engineering && pubInvOut.detection_rule === 'title: Encoded PowerShell' && pubInvOut.detection_rule_lang === 'Sigma', 'public investigation retains use_case, detection_engineering, and detection_rule');
 check(out.investigations.every(x => x.private_notes === undefined && x.internal === undefined && x.visibility === undefined), 'unknown/private investigation fields are stripped');
 check(JSON.stringify(publicCollections(undefined)) === JSON.stringify({ challenges: [], articles: [], investigations: [] }), 'missing collections yield empty arrays');
 

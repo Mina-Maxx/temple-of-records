@@ -17,26 +17,47 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
   try {
     for (let i = 0; i < 50; i++) { try { if ((await fetch(base + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
 
-    // 6.1 Scoreboard + opt-out
+    // 6.1 Removed bloat: scoreboard & search return 404
+    for (const dead of ['/api/scoreboard', '/scoreboard-en.html', '/scoreboard-ar.html', '/search-en.html', '/search-ar.html']) {
+      const dr = await fetch(base + dead, { redirect: 'manual' });
+      check(dr.status === 404, `removed ${dead} returns 404`);
+    }
+
+    // 6.2 Two-step flag verification -> write name -> recorded with timestamp (no points)
     const id1 = '11111111111111111111111111111111';
     const id2 = '22222222222222222222222222222222';
     const flag1 = 'TOR{198.51.100.44}';
-    await fetch(base + '/api/submit', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ identity: id1, name: 'Alice', challenge: 'log4shell-lab', flag: flag1 })
-    });
-    await fetch(base + '/api/submit', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ identity: id2, name: 'SecretBob', hideName: true, challenge: 'log4shell-lab', flag: flag1 })
-    });
-    const sb = await (await fetch(base + '/api/scoreboard')).json();
-    check(Array.isArray(sb.scoreboard) && sb.scoreboard.length === 2, 'scoreboard aggregates public solves');
-    check(sb.scoreboard[0].name === 'Alice' && sb.scoreboard[0].firstBloods === 1 && sb.scoreboard[0].points === 150, 'scoreboard ranks Alice first with First Blood & 150 pts');
-    check(sb.scoreboard[1].name === 'Anonymous', 'hideName opt-out masks player name as Anonymous');
-    check(!JSON.stringify(sb).includes(id1) && !JSON.stringify(sb).includes('SecretBob'), 'scoreboard never leaks identity tokens or opted-out names');
-    check((await fetch(base + '/scoreboard-en.html')).status === 200, 'scoreboard-en.html served');
 
-    // 6.2 Inline Markdown parser safety (DOM-only, no innerHTML, literal <img onerror>)
+    const claimBefore = await fetch(base + '/api/claim', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ identity: id1, name: 'Cheater', challenge: 'log4shell-lab' })
+    });
+    check(claimBefore.status === 403, 'cannot claim solve name without verifying flag first');
+
+    const step1 = await (await fetch(base + '/api/submit', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ identity: id1, challenge: 'log4shell-lab', flag: flag1 })
+    })).json();
+    check(step1.status === 'verified' && !!step1.ts, 'step 1 verifies flag and issues pending timestamp');
+
+    const stPending = await (await fetch(base + '/api/state?identity=' + id1)).json();
+    check(Array.isArray(stPending.pending) && stPending.pending.includes('log4shell-lab') && !stPending.solved.includes('log4shell-lab'), '/api/state reflects pending name claim');
+
+    const step2 = await (await fetch(base + '/api/claim', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ identity: id1, name: 'Alice', challenge: 'log4shell-lab' })
+    })).json();
+    check(step2.status === 'correct' && step2.name === 'Alice' && !!step2.ts && step2.points === undefined, 'step 2 records solver name + timestamp with no points');
+
+    await fetch(base + '/api/submit', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ identity: id2, name: 'Bob', challenge: 'log4shell-lab', flag: flag1 })
+    });
+    const sv = await (await fetch(base + '/api/solvers?challenge=log4shell-lab')).json();
+    check(Array.isArray(sv.solvers) && sv.solvers.length === 2 && sv.solvers[0].name === 'Alice' && !!sv.solvers[0].ts && sv.solvers[1].name === 'Bob', '/api/solvers returns solvers with timestamps in chronological order');
+    check(!JSON.stringify(sv).includes(id1) && !JSON.stringify(sv).includes(id2), 'solvers API never leaks identity tokens');
+
+    // 6.3 Inline Markdown parser safety (DOM-only, no innerHTML, literal <img onerror>)
     const vm = require('node:vm');
     const sjs = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
     const fnMatch = sjs.match(/function renderInlineMd\(parent, text\) \{[\s\S]*?\n  \}/);
@@ -57,15 +78,16 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(!nodes.some(n => n.tag === 'img') && nodes.some(n => n.type === 'text' && n.textContent.includes('<img onerror=1>')), 'inline markdown keeps HTML literal (no XSS)');
     check(!nodes.some(n => n.tag === 'a' && /javascript:/i.test(n.href)), 'inline markdown rejects javascript: links');
 
-    // 6.3 MITRE ATT&CK validation
+    // 6.4 MITRE ATT&CK + Writeup type validation
     const val = require('../server/validators');
     const atkRes = val.validateCollections({
-      articles: [{ id: 'atk-1', title: { ar: 'ع', en: 'E' }, excerpt: { ar: '', en: '' }, slug: { ar: 'ع', en: 'e' }, attack: ['T1059.001', 'INVALID', 'T1190'], sections: [] }],
+      articles: [{ id: 'atk-1', writeup_type: 'walkthrough', related_challenge: 'log4shell-lab', title: { ar: 'ع', en: 'E' }, excerpt: { ar: '', en: '' }, slug: { ar: 'ع', en: 'e' }, attack: ['T1059.001', 'INVALID', 'T1190'], sections: [] }],
       challenges: []
     });
     check(atkRes.ok && JSON.stringify(atkRes.value.articles[0].attack) === JSON.stringify(['T1059.001', 'T1190']), 'ATT&CK validator keeps valid techniques and drops invalid ones');
+    check(atkRes.value.articles[0].writeup_type === 'walkthrough' && atkRes.value.articles[0].related_challenge === 'log4shell-lab', 'writeup type & related challenge persist cleanly');
 
-    // 6.4 Scheduled publication with mocked clock
+    // 6.5 Scheduled publication with mocked clock
     const vis = require('../server/visibility');
     const schedCols = {
       articles: [{ id: 'sched-1', status: 'published', publish_at: '2030-01-01T00:00:00Z', title: { en: 'Future' } }],
@@ -74,31 +96,33 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(vis.publicCollections(schedCols, Date.parse('2029-12-31T23:59:59Z')).articles.length === 0, 'scheduled item hidden before publish_at');
     check(vis.publicCollections(schedCols, Date.parse('2030-01-01T00:00:01Z')).articles.length === 1, 'scheduled item visible after publish_at');
 
-    // 6.5 Hint penalty + idempotency + hidden hint blocked
-    const stFile = path.join(root, 'server/data/store.json');
-    const stObj = JSON.parse(fs.readFileSync(stFile, 'utf8'));
-    stObj.collections.challenges[0].hints = [
-      { ar: 'مدفوع', en: 'Paid hint', published: true, cost: 25 },
-      { ar: 'مخفي', en: 'Hidden hint', published: false, cost: 10 }
-    ];
-    fs.writeFileSync(stFile, JSON.stringify(stObj));
-    const h1 = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 0, identity: id1 }) });
-    const h1j = await h1.json();
-    const h2 = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 0, identity: id1 }) });
-    const h2j = await h2.json();
-    check(h1.status === 200 && h1j.penalty === 25 && h2j.penalty === 25, 'paid hint deducts once (idempotent)');
-    const sbAfter = await (await fetch(base + '/api/scoreboard')).json();
-    check(sbAfter.scoreboard.find(x => x.name === 'Alice').points === 125, 'scoreboard deducts paid hint cost (150 - 25 = 125)');
-    const hHidden = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 1, identity: id1 }) });
-    check(hHidden.status === 404, 'hidden/unpublished hint cannot be revealed');
-
-    // 6.6 Search pages + Arabic normalization
-    check((await fetch(base + '/search-en.html')).status === 200 && (await fetch(base + '/search-ar.html')).status === 200, 'search-{en,ar}.html served');
-    const sjs6 = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
-    const normMatch = sjs6.match(/function normSearch\(s\) \{[\s\S]*?\n  \}/);
-    const ctx6 = {};
-    vm.runInNewContext(normMatch[0], ctx6);
-    check(ctx6.normSearch('إِختِبَارْ مَدْرَسَةٌ') === 'اختبار مدرسه', 'Arabic search normalization strips tashkeel and unifies alef/ta marbuta');
+    // 6.6 End-to-end Investigation (Use Case, Detection Engineering, Detection Rule) via Admin API -> public content
+    await fetch(base + '/admin/api/setup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'qa-admin', password: 'qa-local-pass-1234' }) });
+    const lRes = await fetch(base + '/admin/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'qa-admin', password: 'qa-local-pass-1234' }) });
+    const cookie = lRes.headers.get('set-cookie').split(';')[0];
+    const csrf = (await lRes.json()).csrf;
+    const invCreate = await fetch(base + '/admin/api/collection/investigations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie, 'x-csrf-token': csrf },
+      body: JSON.stringify({
+        id: 'case-rule-1',
+        title: { ar: 'تحقيق اختباري', en: 'Test Investigation' },
+        summary: { ar: 'ملخص', en: 'Summary' },
+        status: 'closed',
+        visibility: 'public',
+        use_case: { ar: 'حالة الاستخدام', en: 'Detect suspicious LSASS access' },
+        detection_engineering: { ar: 'هندسة الكشف', en: 'Monitor Sysmon Event ID 10 with GrantedAccess 0x1010' },
+        detection_rule_lang: 'Sigma',
+        detection_rule: 'title: LSASS Memory Read\nstatus: experimental\ndetection:\n  selection:\n    EventID: 10'
+      })
+    });
+    check(invCreate.status === 200, 'admin creates investigation with Use Case, Detection Engineering, and Detection Rule');
+    for (const deadAdm of ['/admin/kb.html', '/admin/projects.html', '/admin/api/collection/kb', '/admin/api/collection/projects']) {
+      const ar = await fetch(base + deadAdm, { headers: { cookie }, redirect: 'manual' });
+      check(ar.status === 404, `removed ${deadAdm} returns 404`);
+    }
+    const cjsInv = await (await fetch(base + '/content.js')).text();
+    check(cjsInv.includes('Detect suspicious LSASS access') && cjsInv.includes('Monitor Sysmon Event ID 10') && cjsInv.includes('LSASS Memory Read') && cjsInv.includes('"detection_rule_lang":"Sigma"'), '/content.js exposes Use Case, Detection Engineering, and Detection Rule for public investigations');
 
     // 6.7 Gated solutions (TOR_GATE_SOLUTIONS=1)
     const portGate = 19452;
@@ -117,6 +141,10 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     } finally {
       childGate.kill();
     }
+
+    // 6.8 About & CV checks
+    const aboutEn = await (await fetch(base + '/about-en.html')).text();
+    check(aboutEn.includes('assets/Mina-Maximous-CV.pdf') && aboutEn.includes('Technical Skills') && aboutEn.includes('Experience') && aboutEn.includes('Education'), 'about-en.html includes full CV sections and PDF link');
 
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {

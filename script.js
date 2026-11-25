@@ -92,10 +92,9 @@ window.TOR = (function () {
   var copiedLabel = lang === 'ar' ? 'اتنسخ ✓' : 'Copied ✓';
   var T = {
     challenge: lang === 'ar' ? 'تحدي' : 'Challenge',
-    article: lang === 'ar' ? 'مقال' : 'Article',
+    article: lang === 'ar' ? 'رايتب' : 'Writeup',
     category: lang === 'ar' ? 'التصنيف' : 'Category',
     difficulty: lang === 'ar' ? 'الصعوبة' : 'Difficulty',
-    points: lang === 'ar' ? 'النقاط' : 'Points',
     time: lang === 'ar' ? 'الوقت المقدّر' : 'Est. time',
     availability: lang === 'ar' ? 'الحالة' : 'Status',
     open: lang === 'ar' ? 'متاح' : 'Available',
@@ -278,40 +277,21 @@ window.TOR = (function () {
     if (!ts) return { relative: '', full: '', date: '', time: '' };
     var d = new Date(ts);
     if (isNaN(d.getTime())) return { relative: '', full: '', date: '', time: '' };
-    var now = new Date();
-    var diffMs = now - d;
-    var diffSec = Math.floor(diffMs / 1000);
-    var diffMin = Math.floor(diffSec / 60);
-    var diffHours = Math.floor(diffMin / 60);
-    var diffDays = Math.floor(diffHours / 24);
-
     var isAr = lang === 'ar';
     var timeStr = d.toLocaleTimeString(isAr ? 'ar-EG-u-nu-latn' : 'en-US', {
       hour: '2-digit', minute: '2-digit', hour12: true
     });
-    var dateStr = d.toLocaleDateString(isAr ? 'ar-EG-u-nu-latn' : 'en-GB', {
-      day: 'numeric', month: 'short'
-    });
-
-    var relStr = '';
-    if (diffSec < 60) {
-      relStr = isAr ? 'الآن' : 'just now';
-    } else if (diffMin < 60) {
-      relStr = isAr ? ('منذ ' + diffMin + ' دقيقة') : (diffMin + 'm ago');
-    } else if (diffHours < 24 && d.getDate() === now.getDate()) {
-      relStr = isAr ? ('اليوم · ' + timeStr) : ('Today · ' + timeStr);
-    } else if (diffDays === 1) {
-      relStr = isAr ? ('أمس · ' + timeStr) : ('Yesterday · ' + timeStr);
-    } else {
-      relStr = dateStr + ' · ' + timeStr;
-    }
-
+    var now = new Date();
+    var sameYear = d.getFullYear() === now.getFullYear();
+    var dateStr = d.toLocaleDateString(isAr ? 'ar-EG-u-nu-latn' : 'en-GB',
+      sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+    var exactStr = dateStr + ' · ' + timeStr;
     var fullStr = d.toLocaleDateString(isAr ? 'ar-EG-u-nu-latn' : 'en-GB', {
       year: 'numeric', month: 'long', day: 'numeric'
     }) + ' ' + timeStr;
 
     return {
-      relative: relStr,
+      relative: exactStr,
       full: fullStr,
       date: dateStr,
       time: timeStr
@@ -325,25 +305,24 @@ window.TOR = (function () {
     var href = (isAr ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(cid);
 
     if (!list || !list.length) {
-      box.innerHTML = '<div class="rec-solvers-empty"><span class="no-solvers-icon">⚔️</span><span>' +
-        (isAr ? 'لم يحلّه أحد بعد — كن صاحب أول حل (First Blood)! 🩸' : 'No solvers yet — claim First Blood! 🩸') +
+      box.innerHTML = '<div class="rec-solvers-empty"><span>' +
+        (isAr ? 'لم يسجّل أحد حلّه بعد.' : 'No solves recorded yet.') +
         '</span></div>';
       return;
     }
 
     var hdr = el('div', 'rec-solvers-header');
-    hdr.appendChild(el('span', 'solver-trophy', '🏆'));
-    var lbl = el('span', 'rec-solvers-label', (isAr ? 'أبطال الحل (' : 'Solvers (') + list.length + '):');
+    var lbl = el('span', 'rec-solvers-label', (isAr ? 'تم الحل بواسطة (' : 'Solved by (') + list.length + '):');
     hdr.appendChild(lbl);
     box.appendChild(hdr);
 
     var pillsBox = el('div', 'rec-solvers-list');
-    var maxShow = 5;
+    var maxShow = 6;
     var showList = list.slice(0, maxShow);
-    showList.forEach(function (s, idx) {
-      var pill = el('span', 'solver-pill' + (idx === 0 ? ' first-blood' : ''));
-      var rank = el('span', 'rank', idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : '#' + (idx + 1))));
-      pill.appendChild(rank);
+    showList.forEach(function (s) {
+      var pill = el('span', 'solver-pill');
+      var mark = el('span', 'rank', '✓');
+      pill.appendChild(mark);
       var name = el('b', 'solver-name', s.name || (isAr ? 'مجهول' : 'Anonymous'));
       pill.appendChild(name);
       if (s.ts) {
@@ -379,7 +358,6 @@ window.TOR = (function () {
     function row(k, v) { if (v == null || v === '') return; meta.appendChild(el('span', null, k + ': ' + v)); }
     row(T.category, L(c.category));
     row(T.difficulty, L(c.difficulty));
-    row(T.points, c.points ? num(c.points) : '');
     row(T.time, L(c.est_time));
     row(T.availability, c.availability === 'open' ? T.open : T.soon);
     row(T.evidence, (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : '');
@@ -408,7 +386,7 @@ window.TOR = (function () {
     var h3 = el('h3'); var link = el('a', null, L(c.title)); link.href = href;
     h3.appendChild(link); body.appendChild(h3);
     if (L(c.excerpt)) body.appendChild(el('p', 'rec-ex', L(c.excerpt)));
-    addMeta(body, 'rec-meta', [L(c.category), L(c.difficulty), c.points ? num(c.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(c.est_time),
+    addMeta(body, 'rec-meta', [L(c.category), L(c.difficulty), L(c.est_time),
       (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : ''],
       '');
 
@@ -416,11 +394,11 @@ window.TOR = (function () {
     solversBox.setAttribute('data-solvers-challenge', c.id);
     solversBox.setAttribute('data-solvers-avail', c.availability);
     if (c.availability === 'open') {
-      solversBox.innerHTML = '<div class="rec-solvers-header"><span class="solver-trophy">🏆</span><span class="rec-solvers-label">' +
-        (lang === 'ar' ? 'أبطال الحل:' : 'Solvers:') +
+      solversBox.innerHTML = '<div class="rec-solvers-header"><span class="rec-solvers-label">' +
+        (lang === 'ar' ? 'تم الحل بواسطة:' : 'Solved by:') +
         '</span></div><div class="rec-solvers-list"><span class="solver-pill skeleton-pulse" style="width:110px;height:24px;">&nbsp;</span><span class="solver-pill skeleton-pulse" style="width:80px;height:24px;">&nbsp;</span></div>';
     } else {
-      solversBox.innerHTML = '<div class="rec-solvers-empty soon"><span>' + (lang === 'ar' ? 'قيد التجهيز ⏳' : 'In preparation ⏳') + '</span></div>';
+      solversBox.innerHTML = '<div class="rec-solvers-empty soon"><span>' + (lang === 'ar' ? 'قيد التجهيز' : 'In preparation') + '</span></div>';
     }
     body.appendChild(solversBox);
 
@@ -432,8 +410,8 @@ window.TOR = (function () {
   function listChrome(box, kind, items) {
     var ar = lang === 'ar';
     var intro = el('p', 'list-intro', kind === 'challenges'
-      ? (ar ? 'كل تحقيق يبدأ بأثر. تحديات مبنية على الملاحظة والأدلة والفهم.' : 'Every investigation begins with a trace. Challenges built for observation, evidence, and understanding.')
-      : (ar ? 'مساحة للمقالات والملاحظات الميدانية.' : 'A home for articles and field notes.'));
+      ? (ar ? 'تحديات DFIR تفاعلية مبنية على تحليل الأدلة. اكتب الفلاج وبعدين سجّل اسمك بالتوقيت.' : 'Hands-on DFIR challenges built around real evidence. Submit the flag, then record your name and timestamp.')
+      : (ar ? 'رايتبس — شروحات تقنية وحلول التحديات.' : 'Writeups — technical explanations and challenge walkthroughs.'));
     var bar = el('div', 'filter-bar');
     var mode = 'all';
     function btn(key, label) {
@@ -441,7 +419,11 @@ window.TOR = (function () {
       b.addEventListener('click', function () {
         mode = key;
         bar.querySelectorAll('.f-btn').forEach(function (x) { x.classList.toggle('on', x === b); });
-        box.querySelectorAll('.rec-row').forEach(function (r) { r.hidden = !(mode === 'all' || r.getAttribute('data-avail') === mode); });
+        if (kind === 'challenges') {
+          box.querySelectorAll('.rec-row').forEach(function (r) { r.hidden = !(mode === 'all' || r.getAttribute('data-avail') === mode); });
+        } else {
+          box.querySelectorAll('.papyrus').forEach(function (r) { r.hidden = !(mode === 'all' || r.getAttribute('data-wtype') === mode); });
+        }
       });
       bar.appendChild(b);
     }
@@ -451,23 +433,27 @@ window.TOR = (function () {
       btn('soon', ar ? 'قيد التحضير' : 'In preparation');
       bar.appendChild(el('span', 'f-note', ar ? 'التصنيف: التحليل الجنائي الرقمي' : 'Category: digital forensics'));
     } else {
-      btn('all', ar ? 'كل المقالات' : 'All articles');
-      bar.appendChild(el('span', 'f-note', (items && items.length) ? num(items.length) + ' ' + (ar ? 'مقال' : 'article(s)') : ''));
+      btn('all', ar ? 'كل الرايتبس' : 'All writeups');
+      btn('concept', ar ? 'شروحات تقنية' : 'Explanations');
+      btn('walkthrough', ar ? 'حلول التحديات' : 'Challenge solutions');
+      bar.appendChild(el('span', 'f-note', (items && items.length) ? num(items.length) + ' ' + (ar ? 'رايتب' : 'writeup(s)') : ''));
     }
     box.parentNode.insertBefore(intro, box);
     box.parentNode.insertBefore(bar, box);
     var end = el('div', 'list-end');
     end.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><ellipse cx="12" cy="13" rx="5" ry="6"/><path d="M12 7V4M9 4h6M7 10 3 8M7 14l-4 1M17 10l4-2M17 14l4 1M12 8v10"/></svg>';
     end.appendChild(el('p', null, kind === 'challenges'
-      ? (ar ? 'ستجد سجلات أخرى مكانها هنا.' : 'More records will find their place here.')
-      : (ar ? 'الأرشيف ينتظر سجله التالي.' : 'The archive awaits its next record.')));
+      ? (ar ? 'ستجد تحديات أخرى مكانها هنا.' : 'More challenges will find their place here.')
+      : (ar ? 'الأرشيف ينتظر السجل التالي.' : 'The archive awaits its next writeup.')));
     box.parentNode.appendChild(end);
   }
 
   function articleCard(a) {
     var card = el('article', 'papyrus');
+    var wtype = a.writeup_type === 'walkthrough' ? 'walkthrough' : 'concept';
+    card.setAttribute('data-wtype', wtype);
     var ph = el('div', 'ph');
-    ph.appendChild(el('span', null, T.article));
+    ph.appendChild(el('span', null, wtype === 'walkthrough' ? (lang === 'ar' ? 'حل تحدٍّ' : 'Challenge Writeup') : T.article));
     card.appendChild(ph);
     var h3 = el('h3');
     var link = el('a', null, L(a.title));
@@ -483,18 +469,29 @@ window.TOR = (function () {
     var item = (TOR.param('a') || TOR.param('id')) ? TOR.find('articles', TOR.param('a') || TOR.param('id')) : TOR.visible('articles')[0];
     var reader = document.getElementById('reader');
     if (!item) {
-      if (reader) reader.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد مقالات بعد.' : 'No articles yet.'));
+      if (reader) reader.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد كتابات بعد.' : 'No writeups yet.'));
     } else {
       document.title = (L(item.seo_title||{})||L(item.title)) + (lang === 'ar' ? ' · مينا مكس' : ' · Mina Max');
       var md=L(item.meta_description||{});if(md){var mm=document.querySelector('meta[name=description]')||document.createElement('meta');mm.name='description';mm.content=md;document.head.appendChild(mm)}
       var cur = document.getElementById('crumb-cur'); if (cur) cur.textContent = L(item.title);
       var ban = document.querySelector('.pagehead .banner');
       if (ban && TOR.imgOk(item.image)) TOR.setImgSrc(ban, item.image);
-      fillChips(document.getElementById('item-labels'), item.chips, !!item.sample, item.attack);
+      var artChips = (item.chips || []).slice();
+      if (item.writeup_type === 'walkthrough') {
+        artChips.unshift({ ar: 'حل تحدٍّ', en: 'Challenge Writeup', gold: true });
+      }
+      fillChips(document.getElementById('item-labels'), artChips, !!item.sample, item.attack);
       var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
       var meta = document.getElementById('item-meta');
-      if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes],
-        '');
+      if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes], '');
+      if (item.related_challenge && /^[a-z0-9-]+$/.test(item.related_challenge)) {
+        var relBar = el('p', 'muted-note');
+        relBar.appendChild(document.createTextNode(lang === 'ar' ? 'التحدي المرتبط: ' : 'Related challenge: '));
+        var ra = el('a', null, item.related_challenge);
+        ra.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(item.related_challenge);
+        relBar.appendChild(ra);
+        reader.appendChild(relBar);
+      }
       var counter = { headings: [] };
       (item.sections || []).forEach(function (sec, i) {
         var node = renderSection(sec, i, counter);
@@ -523,9 +520,7 @@ window.TOR = (function () {
       fillChips(document.getElementById('item-labels'), ch.chips, !!ch.sample, ch.attack);
       var h1b = document.getElementById('item-title'); if (h1b) h1b.textContent = L(ch.title);
       var meta2 = document.getElementById('item-meta');
-      if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty),
-        ch.points ? num(ch.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(ch.est_time), ch.date],
-        '');
+      if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty), L(ch.est_time), ch.date], '');
       var counter2 = { headings: [] };
       var main = document.getElementById('zone-main');
       [['scenario','السيناريو','Scenario'],['objectives','أهداف التحقيق','Investigation objectives'],['required_skills','المهارات المطلوبة','Required skills'],['tools','الأدوات المطلوبة','Tools required'],['instructions','التعليمات','Instructions']].forEach(function(x){var text=L(ch[x[0]]||{});if(text&&main){var h=el('h2',null,lang==='ar'?x[1]:x[2]);h.id='brief-'+x[0];main.appendChild(h);main.appendChild(el('p',null,text));counter2.headings.push({id:h.id,text:h.textContent})}});
@@ -608,22 +603,8 @@ window.TOR = (function () {
         } else {
           hints.forEach(function (h, i) {
             var d = el('details', 'hint');
-            var costTxt = (h.cost && Number(h.cost) > 0) ? ' (-' + num(h.cost) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') + ')' : '';
-            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1) + costTxt));
+            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1)));
             d.appendChild(el('p', null, L(h)));
-            if (h.cost && Number(h.cost) > 0) {
-              var recorded = false;
-              d.addEventListener('toggle', function () {
-                if (d.open && !recorded) {
-                  recorded = true;
-                  fetch(TOR.apiBase() + '/api/hint', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ challenge: ch.id, index: i, identity: TOR.identity() })
-                  }).catch(function () {});
-                }
-              });
-            }
             hintBox.appendChild(d);
           });
         }
@@ -682,14 +663,30 @@ window.TOR = (function () {
       var invCur = document.getElementById('crumb-cur'); if (invCur) invCur.textContent = L(inv.title);
       var invH1 = document.getElementById('item-title'); if (invH1) invH1.textContent = L(inv.title);
       var invLabels = document.getElementById('item-labels');
-      if (invLabels && invStatus(inv.status)) invLabels.appendChild(el('span', 'chip' + (inv.status === 'open' ? ' gold' : ''), invStatus(inv.status)));
+      if (invLabels) {
+        var invChips = [];
+        if (invStatus(inv.status)) invChips.push({ ar: invStatus(inv.status), en: invStatus(inv.status), gold: inv.status === 'open' });
+        fillChips(invLabels, invChips, false, inv.attack);
+      }
       var invMetaLine = document.getElementById('item-meta');
       if (invMetaLine) invMetaLine.textContent = metaJoin([inv.date, (inv.tags || []).join(' · ')], '');
       var secs = [];
       function invText(arTitle, enTitle, val) {
         var t = L(val); if (!t || !t.trim()) return;
         secs.push({ type: 'heading', ar: arTitle, en: enTitle });
-        t.split(/\n{2,}/).forEach(function (p) { p = p.trim(); if (p) secs.push({ type: 'paragraph', ar: p, en: p }); });
+        t.split(/\n{2,}/).forEach(function (blk) {
+          blk = blk.trim(); if (!blk) return;
+          var lines = blk.split(/\n/);
+          if (lines.length > 0 && lines.every(function (ln) { return /^[-*]\s+/.test(ln.trim()); })) {
+            secs.push({
+              type: 'list',
+              ordered: false,
+              items: lines.map(function (ln) { var s = ln.trim().replace(/^[-*]\s+/, ''); return { ar: s, en: s }; })
+            });
+          } else {
+            secs.push({ type: 'paragraph', ar: blk, en: blk });
+          }
+        });
       }
       function invLinks(arTitle, enTitle, list) {
         var ok = (list || []).filter(function (x) { return x && TOR.urlOk(x.url); });
@@ -698,149 +695,34 @@ window.TOR = (function () {
         ok.forEach(function (x) { secs.push({ type: 'link', ar: x.label || x.url, en: x.label || x.url, url: x.url }); });
       }
       invText('الملخص', 'Summary', inv.summary);
+      invLinks('روابط الأدلة', 'Evidence links', inv.evidence);
       var invRows = (inv.timeline || []).filter(function (e) { return e && (L(e) || e.ts); });
       if (invRows.length) {
         secs.push({ type: 'heading', ar: 'الخط الزمني', en: 'Timeline' });
         secs.push({ type: 'timeline', rows: invRows.map(function (e) { return { t: e.ts || '', ar: e.ar, en: e.en }; }) });
       }
+      invText('التحليل', 'Investigation & analysis', inv.analysis);
       invText('النتائج', 'Findings', inv.findings);
       invText('السبب الجذري', 'Root cause', inv.root_cause);
-      invText('التحليل', 'Analysis', inv.analysis);
-      invText('الدروس المستفادة', 'Lessons learned', inv.lessons_learned);
-      invLinks('روابط الأدلة', 'Evidence links', inv.evidence);
+      invText('حالة الاستخدام (Use Case)', 'Use Case', inv.use_case);
+      invText('هندسة الكشف (Detection Engineering)', 'Detection Engineering', inv.detection_engineering);
+      if (inv.detection_rule && String(inv.detection_rule).trim()) {
+        var ruleLang = String(inv.detection_rule_lang || '').trim();
+        secs.push({ type: 'heading', ar: 'قاعدة الكشف (Detection Rule)', en: 'Detection Rule' });
+        secs.push({
+          type: 'code',
+          label_ar: ruleLang || 'قاعدة الكشف',
+          label_en: ruleLang || 'Detection Rule',
+          code: String(inv.detection_rule)
+        });
+      }
+      invText('الدروس المستفادة', 'Lessons learned & remediation', inv.lessons_learned);
       invLinks('روابط ذات صلة', 'Related links', inv.links);
       var invCounter = { headings: [] };
       secs.forEach(function (sec, i) { var n = renderSection(sec, i, invCounter); if (n && invReader) invReader.appendChild(n); });
       buildToc(document.getElementById('toc'), invCounter.headings);
     }
   }
-  // nav link appears only when at least one case file is public (never a dead/empty link)
-  (function () {
-    if (!TOR.visible('investigations').length) return;
-    var href = lang === 'ar' ? 'investigations-ar.html' : 'investigations-en.html';
-    var label = lang === 'ar' ? 'التحقيقات' : 'Investigations';
-    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
-      if (nav.querySelector('a[href="' + href + '"]')) return;
-      var a = document.createElement('a'); a.href = href; a.textContent = label;
-      var about = nav.querySelector('a[href^="about-"]');
-      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
-    });
-  })();
-
-  // ---------- global search (client-side, Arabic-aware normalization) ----------
-  function normSearch(s) {
-    return String(s == null ? '' : s)
-      .toLowerCase()
-      .replace(/[\u064B-\u065F\u0670]/g, '')
-      .replace(/[أإآ]/g, 'ا')
-      .replace(/ى/g, 'ي')
-      .replace(/ة/g, 'ه');
-  }
-  (function () {
-    var srHref = lang === 'ar' ? 'search-ar.html' : 'search-en.html';
-    var srLabel = lang === 'ar' ? 'بحث' : 'Search';
-    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
-      if (nav.querySelector('a[href="' + srHref + '"]')) return;
-      var a = document.createElement('a'); a.href = srHref; a.textContent = srLabel;
-      var about = nav.querySelector('a[href^="about-"]');
-      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
-    });
-    if (page !== 'search-ar' && page !== 'search-en') return;
-    var form = document.getElementById('search-form');
-    var inp = document.getElementById('search-q');
-    var out = document.getElementById('search-results');
-    if (!form || !inp || !out) return;
-    function runSearch(q) {
-      out.innerHTML = '';
-      var nq = normSearch(q).trim();
-      var groups = [
-        { key: 'challenges', label: lang === 'ar' ? 'التحديات' : 'Challenges', page: lang === 'ar' ? 'challenge-ar.html?c=' : 'challenge-en.html?c=' },
-        { key: 'articles', label: lang === 'ar' ? 'المقالات' : 'Articles', page: lang === 'ar' ? 'article-ar.html?a=' : 'article-en.html?a=' },
-        { key: 'investigations', label: lang === 'ar' ? 'التحقيقات' : 'Investigations', page: lang === 'ar' ? 'investigation-ar.html?id=' : 'investigation-en.html?id=' }
-      ];
-      var total = 0;
-      groups.forEach(function (g) {
-        var items = TOR.visible(g.key).filter(function (it) {
-          if (!nq) return true;
-          var hay = normSearch([L(it.title), L(it.excerpt || it.summary), (it.tags || []).join(' '), (it.attack || []).join(' ')].join(' '));
-          return hay.indexOf(nq) !== -1;
-        });
-        if (!items.length) return;
-        total += items.length;
-        var h2 = el('h2', null, g.label + ' (' + num(items.length) + ')');
-        h2.style.margin = '18px 0 10px';
-        out.appendChild(h2);
-        var ul = el('div', 'rec-list');
-        items.forEach(function (it) {
-          var card = el('article', 'tablet rec-row');
-          var body = el('div', 'body');
-          var h3 = el('h3');
-          var a = el('a', null, L(it.title) || it.id);
-          a.href = g.page + encodeURIComponent(it.id);
-          h3.appendChild(a); body.appendChild(h3);
-          var ex = L(it.excerpt || it.summary);
-          if (ex) body.appendChild(el('p', 'rec-ex', ex));
-          card.appendChild(body);
-          ul.appendChild(card);
-        });
-        out.appendChild(ul);
-      });
-      if (!total) out.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No matching records found.'));
-    }
-    var qInit = TOR.param('q');
-    if (qInit) inp.value = qInit;
-    runSearch(inp.value);
-    form.addEventListener('submit', function (e) { e.preventDefault(); runSearch(inp.value); });
-    inp.addEventListener('input', function () { runSearch(inp.value); });
-  })();
-
-  // ---------- scoreboard link in nav/footer + scoreboard page ----------
-  (function () {
-    var sbHref = lang === 'ar' ? 'scoreboard-ar.html' : 'scoreboard-en.html';
-    var sbLabel = lang === 'ar' ? 'المتصدرون' : 'Scoreboard';
-    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
-      if (nav.querySelector('a[href="' + sbHref + '"]')) return;
-      var a = document.createElement('a'); a.href = sbHref; a.textContent = sbLabel;
-      var about = nav.querySelector('a[href^="about-"]');
-      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
-    });
-    if (page !== 'scoreboard-ar' && page !== 'scoreboard-en') return;
-    var box = document.getElementById('scoreboard-box');
-    if (!box) return;
-    box.innerHTML = '<p class="notice"><span class="spinner"></span> ' + (lang === 'ar' ? 'جاري تحميل الترتيب...' : 'Loading scoreboard...') + '</p>';
-    fetch(TOR.apiBase() + '/api/scoreboard')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        var rows = (d && d.scoreboard) || [];
-        box.innerHTML = '';
-        if (!rows.length) {
-          box.appendChild(el('p', 'notice', lang === 'ar' ? 'لم تُسجّل حلول بعد — كن أول متصدر!' : 'No solves recorded yet — be the first on the board!'));
-          return;
-        }
-        var tbl = el('table', 'artifacts');
-        var trh = el('tr');
-        [lang === 'ar' ? 'الترتيب' : 'Rank', lang === 'ar' ? 'اللاعب' : 'Player', lang === 'ar' ? 'النقاط' : 'Points', lang === 'ar' ? 'المحلول' : 'Solved', 'First Blood', lang === 'ar' ? 'آخر حل' : 'Last solve'].forEach(function (h) {
-          var th = el('th', null, h); th.setAttribute('scope', 'col'); trh.appendChild(th);
-        });
-        tbl.appendChild(trh);
-        rows.forEach(function (r, idx) {
-          var tr = el('tr');
-          tr.appendChild(el('td', 'mono', idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : '#' + (idx + 1)));
-          tr.appendChild(el('td', null, r.name || 'Anonymous'));
-          tr.appendChild(el('td', 'mono', num(r.points)));
-          tr.appendChild(el('td', 'mono', num(r.solved)));
-          tr.appendChild(el('td', 'mono', r.firstBloods ? '🩸 ' + num(r.firstBloods) : '—'));
-          var tf = formatSolveTime(r.lastSolve, lang);
-          tr.appendChild(el('td', 'mono', tf.relative || '—'));
-          tbl.appendChild(tr);
-        });
-        box.appendChild(tbl);
-      })
-      .catch(function () {
-        box.innerHTML = '';
-        box.appendChild(el('p', 'notice', lang === 'ar' ? 'تعذر تحميل لوحة المتصدرين.' : 'Could not load scoreboard.'));
-      });
-  })();
 
   // ---------- listings ----------
   if (page === 'articles-ar' || page === 'articles-en') {
@@ -898,8 +780,7 @@ window.TOR = (function () {
         fillChips(tab.querySelector('.labels'), fc.chips, !!fc.sample);
         var th = tab.querySelector('[data-slot="title"]'); if (th) th.textContent = L(fc.title);
         var tm = tab.querySelector('[data-slot="meta"]');
-        if (tm) tm.textContent = metaJoin([L(fc.difficulty), fc.points ? num(fc.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(fc.est_time)],
-          '');
+        if (tm) tm.textContent = metaJoin([L(fc.difficulty), L(fc.est_time)], '');
         if (tm && !tm.textContent && tm.parentNode) tm.parentNode.style.display = 'none';
         var lb = tab.querySelector('.labels'); if (lb) lb.appendChild(solveBadge(fc.id, false));
 
@@ -919,11 +800,20 @@ window.TOR = (function () {
         }
       }
     }
+    var secInvWrap = document.getElementById('investigations');
+    var boxInv = document.getElementById('feat-investigations');
+    if (boxInv && secInvWrap) {
+      var fi = TOR.visible('investigations').slice(0, 2);
+      if (fi.length) {
+        secInvWrap.hidden = false;
+        fi.forEach(function (it) { boxInv.appendChild(invCard(it)); });
+      }
+    }
     var box3 = document.getElementById('feat-articles');
     if (box3) {
       var fa = TOR.visible('articles').slice(0, 2);
-    if (!fa.length) { var secArt = document.getElementById('articles'); if (secArt) secArt.style.display = 'none'; }
-      if (!fa.length) box3.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد مقالات بعد.' : 'No articles yet.'));
+      if (!fa.length) { var secArt = document.getElementById('articles'); if (secArt) secArt.style.display = 'none'; }
+      if (!fa.length) box3.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد كتابات بعد.' : 'No writeups yet.'));
       fa.forEach(function (a) { box3.appendChild(articleCard(a)); });
     }
   }
@@ -932,7 +822,23 @@ window.TOR = (function () {
   (function () {
     var badges = document.querySelectorAll('[data-solve-badge]');
     if (!badges.length) return;
-    function paint(solvedSet, fromServer) {
+    function unlockSolution(chId) {
+      var solEl = document.getElementById('zone-solution');
+      if (solEl && !solEl.children.length) {
+        fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId) + '&identity=' + TOR.identity())
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (d && Array.isArray(d.sections) && d.sections.length && !solEl.children.length) {
+              var cTmp = { headings: [] };
+              d.sections.forEach(function (sec, idx) {
+                var n = renderSection(sec, 'sol-' + idx, cTmp);
+                if (n) solEl.appendChild(n);
+              });
+            }
+          }).catch(function () {});
+      }
+    }
+    function paint(solvedSet, pendingSet, solveTimes, playerName) {
       badges.forEach(function (b) {
         var id = b.getAttribute('data-solve-badge');
         var solved = solvedSet.indexOf(id) !== -1;
@@ -943,22 +849,14 @@ window.TOR = (function () {
       var fs = document.getElementById('flag-status');
       var fbtn = document.getElementById('flag-submit');
       var finp = document.getElementById('flag-input');
+      var cform = document.getElementById('claim-form');
+      var nameIn = document.getElementById('flag-name');
       if (currentChallenge && solvedSet.indexOf(currentChallenge.id) !== -1) {
-        var solEl = document.getElementById('zone-solution');
-        if (solEl && !solEl.children.length) {
-          fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(currentChallenge.id) + '&identity=' + TOR.identity())
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (d) {
-              if (d && Array.isArray(d.sections) && d.sections.length && !solEl.children.length) {
-                var cTmp = { headings: [] };
-                d.sections.forEach(function (sec, idx) {
-                  var n = renderSection(sec, 'sol-' + idx, cTmp);
-                  if (n) solEl.appendChild(n);
-                });
-              }
-            }).catch(function () {});
-        }
-        if (fs) { fs.className = 'flag-status ok'; fs.textContent = lang === 'ar' ? 'هذا التحدي محلول بالفعل ✓' : 'Already solved ✓'; }
+        unlockSolution(currentChallenge.id);
+        var ts = solveTimes && solveTimes[currentChallenge.id];
+        var tsText = ts ? (' · ' + formatSolveTime(ts, lang).full) : '';
+        var who = playerName ? (lang === 'ar' ? ' باسم «' + playerName + '»' : ' by "' + playerName + '"') : '';
+        if (fs) { fs.className = 'flag-status ok'; fs.textContent = (lang === 'ar' ? 'تم تسجيل حلك' : 'Solve recorded') + who + tsText + ' ✓'; }
         if (fbtn) {
           fbtn.disabled = true;
           fbtn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
@@ -967,12 +865,30 @@ window.TOR = (function () {
         }
         if (finp) {
           finp.disabled = true;
-          finp.placeholder = lang === 'ar' ? 'تم حل التحدي بنجاح' : 'Challenge already solved';
+          finp.placeholder = lang === 'ar' ? 'تم التحقق من الفلاج' : 'Flag verified';
+        }
+        if (cform) cform.hidden = true;
+      } else if (currentChallenge && pendingSet && pendingSet.indexOf(currentChallenge.id) !== -1) {
+        unlockSolution(currentChallenge.id);
+        if (fs) { fs.className = 'flag-status ok'; fs.textContent = lang === 'ar' ? 'الفلاج صحيح! اكتب اسمك لتسجيل حلك بالتوقيت.' : 'Correct flag! Enter your name below to record your solve with timestamp.'; }
+        if (fbtn) {
+          fbtn.disabled = true;
+          fbtn.textContent = lang === 'ar' ? 'فلاج صحيح ✓' : 'Verified ✓';
+          fbtn.style.opacity = '0.7';
+          fbtn.style.cursor = 'default';
+        }
+        if (finp) {
+          finp.disabled = true;
+          finp.placeholder = lang === 'ar' ? 'تم التحقق من الفلاج' : 'Flag verified';
+        }
+        if (cform) {
+          cform.hidden = false;
+          if (nameIn && playerName && !nameIn.value) nameIn.value = playerName;
         }
       }
     }
     // instant paint from local cache, then server truth
-    paint(TOR.localSolves(), false);
+    paint(TOR.localSolves(), [], null, '');
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, 2500);
     fetch(TOR.apiBase() + '/api/state?identity=' + TOR.identity(), { signal: ctrl.signal })
@@ -980,7 +896,7 @@ window.TOR = (function () {
       .then(function (d) {
         clearTimeout(timer);
         if (d && Array.isArray(d.solved)) {
-          paint(d.solved, true);
+          paint(d.solved, d.pending || [], d.solveTimes || null, d.name || '');
           try { localStorage.setItem('tor-solves', JSON.stringify(d.solved)); } catch (e) {}
         }
       })
@@ -993,12 +909,13 @@ window.TOR = (function () {
       });
   })();
 
-  // ---------- flag submission + solvers ----------
+  // ---------- two-step flag verification + name/timestamp recording ----------
   (function () {
     var form = document.getElementById('flag-form');
     if (!form || !currentChallenge) return;
+    var claimForm = document.getElementById('claim-form');
     var nameIn = document.getElementById('flag-name');
-    var hideIn = document.getElementById('flag-hide-name');
+    var claimBtn = document.getElementById('claim-submit');
     var input = document.getElementById('flag-input');
     var btn = document.getElementById('flag-submit');
     var status = document.getElementById('flag-status');
@@ -1019,29 +936,28 @@ window.TOR = (function () {
 
       var titleEl = solversSec.querySelector('.solvers-title');
       if (titleEl) {
-        titleEl.innerHTML = '<span>🏆 ' +
-          (isAr ? 'أبطال حلّوا هذا التحدي' : 'Champions of this Challenge') +
+        titleEl.innerHTML = '<span>' +
+          (isAr ? 'اللي حلّوا التحدي' : 'Solved by') +
           '</span>' +
-          (solvers && solvers.length ? '<span class="solvers-count-badge">' + solvers.length + (isAr ? ' حل صحيح' : ' solves') + '</span>' : '');
+          (solvers && solvers.length ? '<span class="solvers-count-badge">' + num(solvers.length) + (isAr ? ' حل' : (solvers.length === 1 ? ' solve' : ' solves')) + '</span>' : '');
       }
 
       if (!solvers || !solvers.length) {
         solversList.innerHTML = '<div class="solvers-empty-box">' +
-          '<div class="empty-icon">🩸⚔️</div>' +
-          '<div class="empty-title">' + (isAr ? 'لم يُسجَّل أي حل صحيح بعد!' : 'No correct solutions recorded yet!') + '</div>' +
-          '<div class="empty-desc">' + (isAr ? 'أرسل الفلاج الصحيح أعلاه لتخلّد اسمك كصاحب أول حل (First Blood) في معبد السجلات.' : 'Submit the correct flag above to etch your name as First Blood in the Temple Records.') + '</div>' +
+          '<div class="empty-title">' + (isAr ? 'لم يسجّل أحد حلّه بعد' : 'No solves recorded yet') + '</div>' +
+          '<div class="empty-desc">' + (isAr ? 'أدخل الفلاج الصحيح أعلاه ثم اكتب اسمك لتسجيل حلك بالتاريخ والوقت.' : 'Submit the correct flag above, then enter your name to record your solve and timestamp.') + '</div>' +
           '</div>';
         return;
       }
 
-      solvers.forEach(function (s, idx) {
+      solvers.forEach(function (s) {
         var badge = document.createElement('span');
-        badge.className = 'solver-badge' + (idx === 0 ? ' first-blood' : '');
+        badge.className = 'solver-badge';
 
-        var rankSpan = document.createElement('span');
-        rankSpan.className = 'rank';
-        rankSpan.textContent = idx === 0 ? '🥇 First Blood' : (idx === 1 ? '🥈 2nd' : (idx === 2 ? '🥉 3rd' : '#' + (idx + 1)));
-        badge.appendChild(rankSpan);
+        var checkSpan = document.createElement('span');
+        checkSpan.className = 'rank';
+        checkSpan.textContent = '✓';
+        badge.appendChild(checkSpan);
 
         var nameSpan = document.createElement('b');
         nameSpan.className = 'solver-name';
@@ -1076,29 +992,18 @@ window.TOR = (function () {
       status.className = 'flag-status ' + cls;
       if (isHtml) status.innerHTML = msg; else status.textContent = msg;
     }
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var nameVal = nameIn ? (nameIn.value || '').trim() : '';
       var val = (input.value || '').trim();
-      if (!nameVal) {
-        set('err', lang === 'ar' ? 'اكتب اسمك أو لقبك أولًا.' : 'Enter your name or handle first.');
-        if (nameIn) nameIn.focus();
-        return;
-      }
-      if (nameVal.length > 50) {
-        set('err', lang === 'ar' ? 'الاسم طويل جدًا (حد أقصى 50 حرفًا).' : 'Name too long (max 50 chars).');
-        if (nameIn) nameIn.focus();
-        return;
-      }
-      if (nameIn) localStorage.setItem('tor-player-name', nameVal);
-      if (!val) { set('err', lang === 'ar' ? 'اكتب الفلاج أولًا.' : 'Enter a flag first.'); input.focus(); return; }
+      if (!val) { set('err', lang === 'ar' ? 'اكتب الفلاج أولاً.' : 'Enter a flag first.'); input.focus(); return; }
       if (val.length > 200) { set('err', lang === 'ar' ? 'المدخل طويل بشكل غير متوقع.' : 'Input unexpectedly long.'); return; }
       btn.disabled = true;
       set('load', '<span class="spinner"></span> ' + (lang === 'ar' ? 'جارٍ التحقق من الفلاج…' : 'Verifying flag…'), true);
       fetch(TOR.apiBase() + '/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity: TOR.identity(), name: nameVal, hideName: !!(hideIn && hideIn.checked), challenge: chId, flag: val })
+        body: JSON.stringify({ identity: TOR.identity(), challenge: chId, flag: val })
       }).then(function (r) {
         return r.json().then(function (d) { return { code: r.status, d: d }; });
       }).then(function (res) {
@@ -1108,31 +1013,42 @@ window.TOR = (function () {
           set('err', lang === 'ar' ? 'محاولات كثيرة بسرعة — انتظر دقيقة وحاول تاني.' : 'Too many attempts — wait a minute and retry.');
           return;
         }
-        if (d.status === 'correct') {
-          set('ok', lang === 'ar' ? 'فلاج صحيح! اتسجّل الحل باسم «' + nameVal + '» ✓' : 'Correct flag! Solve recorded for "' + nameVal + '" ✓');
+        if (d.status === 'verified') {
           btn.disabled = true;
-          btn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
+          btn.textContent = lang === 'ar' ? 'فلاج صحيح ✓' : 'Verified ✓';
           btn.style.opacity = '0.7';
           btn.style.cursor = 'default';
-          if (input) {
-            input.disabled = true;
-            input.placeholder = lang === 'ar' ? 'تم حل التحدي بنجاح' : 'Challenge already solved';
+          if (input) { input.disabled = true; input.placeholder = lang === 'ar' ? 'تم التحقق من الفلاج' : 'Flag verified'; }
+          set('ok', lang === 'ar' ? 'فلاج صحيح! اكتب اسمك أدناه لتسجيل حلك بالتوقيت.' : 'Correct flag! Write your name below to record your solve with timestamp.');
+          if (claimForm) {
+            claimForm.hidden = false;
+            if (nameIn) {
+              var prev = localStorage.getItem('tor-player-name') || '';
+              if (prev && !nameIn.value) nameIn.value = prev;
+              nameIn.focus();
+            }
           }
-          TOR.markLocalSolve(chId);
-          document.querySelectorAll('[data-solve-badge="' + chId + '"]').forEach(function (b) {
-            b.hidden = false; b.textContent = T.solved; b.classList.add('yes');
-          });
-          loadSolvers();
+          var solEl = document.getElementById('zone-solution');
+          if (solEl && !solEl.children.length) {
+            fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId) + '&identity=' + TOR.identity())
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (sd) {
+                if (sd && Array.isArray(sd.sections) && sd.sections.length && !solEl.children.length) {
+                  var cTmp = { headings: [] };
+                  sd.sections.forEach(function (sec, idx) { var n = renderSection(sec, 'sol-' + idx, cTmp); if (n) solEl.appendChild(n); });
+                }
+              }).catch(function () {});
+          }
         } else if (d.status === 'already') {
-          set('ok', lang === 'ar' ? 'هذا التحدي محلول بالفعل باسم «' + (d.name || nameVal) + '» ✓' : 'Already solved by "' + (d.name || nameVal) + '" ✓');
+          var who = d.name || '';
+          var tTxt = d.ts ? (' · ' + formatSolveTime(d.ts, lang).full) : '';
+          set('ok', (lang === 'ar' ? 'مسجّل حلك بالفعل' : 'Already solved') + (who ? (lang === 'ar' ? ' باسم «' + who + '»' : ' by "' + who + '"') : '') + tTxt + ' ✓');
           btn.disabled = true;
           btn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
           btn.style.opacity = '0.7';
           btn.style.cursor = 'default';
-          if (input) {
-            input.disabled = true;
-            input.placeholder = lang === 'ar' ? 'تم حل التحدي بنجاح' : 'Challenge already solved';
-          }
+          if (input) { input.disabled = true; input.placeholder = lang === 'ar' ? 'تم التحقق من الفلاج' : 'Flag verified'; }
+          if (claimForm) claimForm.hidden = true;
           TOR.markLocalSolve(chId);
           loadSolvers();
         } else if (d.status === 'wrong') {
@@ -1147,6 +1063,52 @@ window.TOR = (function () {
         set('err', lang === 'ar' ? 'الخادم غير متاح — شغّل server/server.js وحاول تاني.' : 'Server unavailable — run server/server.js and retry.');
       });
     });
+
+    if (claimForm) {
+      claimForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var nameVal = nameIn ? (nameIn.value || '').trim() : '';
+        if (!nameVal) {
+          set('err', lang === 'ar' ? 'اكتب اسمك أو لقبك أولاً.' : 'Enter your name first.');
+          if (nameIn) nameIn.focus();
+          return;
+        }
+        if (nameVal.length > 50) {
+          set('err', lang === 'ar' ? 'الاسم طويل جدًا (حد أقصى 50 حرفًا).' : 'Name too long (max 50 chars).');
+          if (nameIn) nameIn.focus();
+          return;
+        }
+        localStorage.setItem('tor-player-name', nameVal);
+        if (claimBtn) claimBtn.disabled = true;
+        set('load', '<span class="spinner"></span> ' + (lang === 'ar' ? 'جارٍ تسجيل حلك…' : 'Recording solve…'), true);
+        fetch(TOR.apiBase() + '/api/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identity: TOR.identity(), challenge: chId, name: nameVal })
+        }).then(function (r) {
+          return r.json().then(function (d) { return { code: r.status, d: d }; });
+        }).then(function (res) {
+          var d = res.d || {};
+          if (res.code === 200 && (d.status === 'correct' || d.status === 'already')) {
+            var when = d.ts ? (' · ' + formatSolveTime(d.ts, lang).full) : '';
+            set('ok', lang === 'ar' ? ('تم تسجيل الحل باسم «' + (d.name || nameVal) + '»' + when + ' ✓') : ('Solve recorded for "' + (d.name || nameVal) + '"' + when + ' ✓'));
+            claimForm.hidden = true;
+            btn.textContent = lang === 'ar' ? 'تم الحل ✓' : 'Solved ✓';
+            TOR.markLocalSolve(chId);
+            document.querySelectorAll('[data-solve-badge="' + chId + '"]').forEach(function (b) {
+              b.hidden = false; b.textContent = T.solved; b.classList.add('yes');
+            });
+            loadSolvers();
+          } else {
+            if (claimBtn) claimBtn.disabled = false;
+            set('err', lang === 'ar' ? 'تعذّر تسجيل الاسم — تأكد من التحقق من الفلاج أولاً.' : 'Could not record name — make sure the flag is verified first.');
+          }
+        }).catch(function () {
+          if (claimBtn) claimBtn.disabled = false;
+          set('err', lang === 'ar' ? 'الخادم غير متاح — حاول مرة أخرى.' : 'Server unavailable — retry.');
+        });
+      });
+    }
   })();
 
   // ---------- keep ?a=/?c=/?id= across the language toggle (mapping bilingual slugs) ----------
@@ -1205,33 +1167,33 @@ window.TOR = (function () {
   });
 })();
 
-// ---------- code copy ----------
+// ---------- code copy (delegated for all dynamic code blocks) ----------
 (function () {
-  document.querySelectorAll('.copy-btn').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var pre = document.getElementById(b.dataset.target);
-      if (!pre) return;
-      var text = pre.innerText;
-      function done() {
-        var old = b.textContent;
-        b.textContent = b.dataset.copiedLabel;
-        setTimeout(function () { b.textContent = old; }, 1600);
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
-      } else { fallback(); }
-      function fallback() {
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'absolute';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); done(); } catch (e) {}
-        document.body.removeChild(ta);
-      }
-    });
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.copy-btn') : null;
+    if (!b) return;
+    var pre = document.getElementById(b.dataset.target);
+    if (!pre) return;
+    var text = pre.innerText;
+    function done() {
+      var old = b.textContent;
+      b.textContent = b.dataset.copiedLabel || 'Copied';
+      setTimeout(function () { b.textContent = old; }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
+    } else { fallback(); }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (err) {}
+      document.body.removeChild(ta);
+    }
   });
 })();
 
@@ -1284,7 +1246,7 @@ window.TOR = (function () {
 // ---------- current page in the main navigation ----------
 (function () {
   var page = (document.body && document.body.getAttribute('data-page')) || '';
-  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^investigation/.test(page) ? 'investigations' : /^scoreboard/.test(page) ? 'scoreboard' : /^about/.test(page) ? 'about' : '';
+  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^investigation/.test(page) ? 'investigations' : /^about/.test(page) ? 'about' : '';
   if (!want) return;
   document.querySelectorAll('header.site nav.main a').forEach(function (a) {
     if (!a.classList.contains('pill-lang') && (a.getAttribute('href') || '').indexOf(want + '-') === 0) a.setAttribute('aria-current', 'page');

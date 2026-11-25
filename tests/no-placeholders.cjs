@@ -22,7 +22,7 @@ const PAGES = [
   '/content.js'
 ];
 
-const FORBIDDEN = ['to be added', 'Placeholder', 'FABRICATED'];
+const FORBIDDEN = ['to be added', 'Placeholder', 'FABRICATED', '201063358716'];
 let count = 0;
 const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label); count++; };
 
@@ -44,6 +44,11 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
       }
       check(true, 'clean ' + p);
     }
+    const cvRes = await fetch(base + '/assets/Mina-Maximous-CV.pdf');
+    assert.ok(cvRes.status === 200 && (cvRes.headers.get('content-type') || '').includes('application/pdf'), 'CV PDF served cleanly');
+    const cvBuf = Buffer.from(await cvRes.arrayBuffer());
+    assert.ok(!cvBuf.toString('latin1').includes('201063358716'), 'CV PDF contains no phone number');
+    check(true, 'CV PDF served without phone number');
     console.log('TOTAL ' + count + ' no-placeholder assertions passed');
   } finally {
     child.kill();

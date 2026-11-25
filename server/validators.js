@@ -124,6 +124,9 @@ function validateEntry(e, kind, idx, opts) {
   if (kind === 'articles') {
     out.minutes = str('minutes', 60);
     out.category = lang('category', 120);
+    out.writeup_type = ['concept', 'walkthrough', ''].includes(e.writeup_type || '') ? (e.writeup_type || '') : '';
+    const rel = str('related_challenge', 64);
+    out.related_challenge = /^[a-z0-9-]+$/.test(rel) ? rel : '';
     out.seo_title = lang('seo_title', 200);
     out.meta_description = lang('meta_description', 500);
   } else {
@@ -135,7 +138,6 @@ function validateEntry(e, kind, idx, opts) {
     out.instructions = lang('instructions', 5000);
     out.category = lang('category', 120);
     out.difficulty = lang('difficulty', 120);
-    out.points = Math.max(0, Math.min(100000, parseInt(e.points, 10) || 0));
     out.est_time = lang('est_time', 120);
     out.availability = ['open', 'soon', 'archived'].indexOf(e.availability) > -1 ? e.availability : 'soon';
     out.sample = !!e.sample;
@@ -150,9 +152,7 @@ function validateEntry(e, kind, idx, opts) {
     };
     out.hints = (Array.isArray(e.hints) ? e.hints : []).slice(0, 12).map((h, i) => {
       if (!isLangObj(h, 1000)) { errors.push(p + '.hints[' + i + ']: غير صالح'); h = {}; }
-      const ho = { ar: cleanStr(h.ar || '', 1000), en: cleanStr(h.en || '', 1000), published: h.published !== false };
-      if (h.cost != null && Number.isFinite(Number(h.cost)) && Number(h.cost) > 0) ho.cost = Math.floor(Number(h.cost));
-      return ho;
+      return { ar: cleanStr(h.ar || '', 1000), en: cleanStr(h.en || '', 1000), published: h.published !== false };
     });
     const fl = e.flag || {};
     out.flag = { format_ar: cleanStr(fl.format_ar || '', 200) || '', format_en: cleanStr(fl.format_en || '', 200) || '' };

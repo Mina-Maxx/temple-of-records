@@ -69,7 +69,7 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const checkPaths = [
       '/', '/index-en.html', '/challenges-en.html', '/challenge-en.html?c=log4shell-lab',
       '/articles-en.html', '/article-en.html?id=toggle-article-en',
-      '/investigations-en.html', '/about-en.html', '/scoreboard-en.html', '/search-en.html',
+      '/investigations-en.html', '/about-en.html',
       '/nonexistent-page', '/content.js'
     ];
     for (const cp of checkPaths) {

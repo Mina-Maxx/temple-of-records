@@ -490,51 +490,36 @@ async function handle(req, res, url, ip) {
     return json(res, 200, { status: 'renamed', touched });
   }
 
-  // --- generic collections (kb / investigations / projects): schema-driven CRUD, private scope ---
+  // --- generic collections (investigations / categories / tags): schema-driven CRUD ---
   const SCHEMAS = {
     tags:{fields:[{k:'name',t:'bi',max:120,required:true},{k:'slug',t:'bi',max:120},{k:'description',t:'bi',max:1000}]},
     categories: {
       fields: [
         { k: 'name', t: 'bi', max: 120, required: true },
-        { k: 'description', t: 'bi', max: 1000 },{k:'slug',t:'bi',max:120},{k:'kind',t:'enum',values:['challenge','article','kb','project']}
-      ]
-    },
-    kb: {
-      fields: [
-        { k: 'title', t: 'bi', max: 300, required: true },
-        { k: 'body', t: 'bi', max: 20000 },
-        { k: 'category', t: 'bi', max: 120 },{ k: 'related_articles', t: 'tags' },{ k: 'related_challenges', t: 'tags' },{ k: 'status', t: 'enum', values: ['draft','published','archived'] },
-        { k: 'tags', t: 'tags' },
-        { k: 'date', t: 'str', max: 40 },
-        { k: 'url', t: 'url' }
+        { k: 'description', t: 'bi', max: 1000 },{k:'slug',t:'bi',max:120},{k:'kind',t:'enum',values:['challenge','article','investigation']}
       ]
     },
     investigations: {
       fields: [
         { k: 'title', t: 'bi', max: 300, required: true },
-        { k: 'summary', t: 'bi', max: 4000 },
+        { k: 'summary', t: 'bi', max: 6000 },
         { k: 'status', t: 'enum', values: ['open', 'closed', 'draft'] },
-        { k: 'visibility', t: 'enum', values: ['private', 'public'] },   // default private; public = shown on the site
+        { k: 'visibility', t: 'enum', values: ['private', 'public'] },
         { k: 'date', t: 'str', max: 40 },
+        { k: 'publish_at', t: 'str', max: 40 },
         { k: 'tags', t: 'tags' },
-        { k: 'timeline', t: 'entries', max: 200 },   // [{ts, ar, en}]
+        { k: 'attack', t: 'tags' },
+        { k: 'evidence', t: 'links', max: 50 },
+        { k: 'timeline', t: 'entries', max: 200 },
+        { k: 'analysis', t: 'bi', max: 20000 },
         { k: 'findings', t: 'bi', max: 20000 },
         { k: 'root_cause', t: 'bi', max: 8000 },
-        { k: 'evidence', t: 'links', max:50 },{ k: 'analysis', t:'bi',max:20000 },{ k:'lessons_learned',t:'bi',max:10000 },
-        { k: 'links', t: 'links', max: 50 }          // [{label, url(https)}]
-      ]
-    },
-    projects: {
-      fields: [
-        { k: 'title', t: 'bi', max: 300, required: true },
-        { k: 'description', t: 'bi', max: 8000 },{k:'category',t:'bi',max:120},
-        { k: 'status', t: 'enum', values: ['active', 'wip', 'archived'] },
-        { k: 'tech', t: 'tags' },
-        { k: 'repo_url', t: 'url' },
-        { k:'screenshots',t:'links',max:30 },{ k:'documentation',t:'bi',max:20000 },
-        { k: 'links', t: 'links', max: 50 },
-        { k: 'date', t: 'str', max: 40 },
-        { k: 'tags', t: 'tags' }
+        { k: 'use_case', t: 'bi', max: 12000 },
+        { k: 'detection_engineering', t: 'bi', max: 20000 },
+        { k: 'detection_rule_lang', t: 'str', max: 60 },
+        { k: 'detection_rule', t: 'code', max: 30000 },
+        { k: 'lessons_learned', t: 'bi', max: 10000 },
+        { k: 'links', t: 'links', max: 50 }
       ]
     }
   };
@@ -545,7 +530,7 @@ async function handle(req, res, url, ip) {
     for (const f of schema.fields) {
       const v = b[f.k];
       if (f.t === 'bi') item[f.k] = bi(v, f.max);
-      else if (f.t === 'str') item[f.k] = t(v, f.max);
+      else if (f.t === 'str' || f.t === 'code') item[f.k] = t(v, f.max);
       else if (f.t === 'enum') item[f.k] = f.values.includes(v) ? v : f.values[0];
       else if (f.t === 'tags') item[f.k] = Array.isArray(v) ? v.map(x => t(x, 40)).filter(Boolean).slice(0, 20) : [];
       else if (f.t === 'url') { const u = t(v, 500).trim(); if (u && !/^https:\/\//.test(u)) return null; item[f.k] = u; }
@@ -728,7 +713,6 @@ async function handle(req, res, url, ip) {
       const pl = players[id] = players[id] || { identity: id, name: pNames[id] || '', submissions: 0, correct: 0, first: null, last: null };
       if ((!pl.name || pl.name === 'Anonymous') && pNames[id]) pl.name = pNames[id];
       pl.solved = Object.keys(solves[id]);
-      pl.points = pl.solved.reduce((a, c) => a + challengePoints(c), 0);
     });
     const pst = readJson(path.join(DATA_DIR, 'players_state.json'), { disabled: [] });
     (pst.disabled || []).forEach(id => { if (players[id]) players[id].disabled = true; });
@@ -753,6 +737,8 @@ async function handle(req, res, url, ip) {
       challenges: st.collections.challenges.length,challenges_published:st.collections.challenges.filter(require('./visibility').isPublic).length,
       challenges_available: st.collections.challenges.filter(require('./visibility').isPublic).filter(c=>c.availability==='open').length,
       articles: st.collections.articles.length,
+      investigations: (st.collections.investigations || []).length,
+      investigations_public: (st.collections.investigations || []).filter(require('./visibility').isPublicInvestigation).length,
       total_solves: Object.values(solves).reduce((a, s) => a + Object.keys(s).length, 0),
       total_submissions: subs,
       players: new Set([...Object.keys(solves),...subRows.map(r=>r.identity)]).size,
@@ -837,7 +823,6 @@ function challengeIsOpen(id) {
   const challenge = (getStore().collections.challenges || []).find(c => c.id === id);
   return require('./visibility').isPublic(challenge) && challenge.availability === 'open';
 }
-function challengePoints(id){const c=(getStore().collections.challenges||[]).find(c=>c.id===id);return c&&Number.isFinite(Number(c.points))?Number(c.points):0}
 function mergeArabic(incoming, existing) {
   if (!existing || typeof existing !== 'object') return incoming;
   if (Array.isArray(incoming) && Array.isArray(existing)) {
@@ -857,9 +842,8 @@ function mergeArabic(incoming, existing) {
   }
   return out;
 }
-
 function isArabicEnabled() {
   const s = readJson(path.join(DATA, 'site-settings.json'), {});
   return s.arabic_enabled === true;
 }
-module.exports = { handle, publicContentScript, challengeIsOpen, challengeIsPublic, challengePoints, isArabicEnabled };
+module.exports = { handle, publicContentScript, challengeIsOpen, challengeIsPublic, isArabicEnabled };

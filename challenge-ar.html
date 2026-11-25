@@ -23,7 +23,8 @@
 </a>
 <nav aria-label="التنقل الرئيسي" class="main">
 <a href="challenges-ar.html">التحديات</a>
-<a href="articles-ar.html">المقالات</a>
+<a href="investigations-ar.html">التحقيقات</a>
+<a href="articles-ar.html">الرايتبس</a>
 <a href="about-ar.html">نبذة عنّي</a>
 <a class="pill-lang" aria-label="English" href="challenge-en.html" hreflang="en" lang="en">EN | ع</a>
 </nav>
@@ -62,19 +63,21 @@
 <section class="ctf-region" id="region-flag">
 <h2>تسليم الفلاج</h2>
 <form class="flag-form" id="flag-form" novalidate="">
-<label class="sr-only" for="flag-name">الاسم أو اللقب</label>
-<input autocomplete="name" id="flag-name" maxlength="50" name="name" placeholder="اسمك أو لقبك (مثال: أحمد)" spellcheck="false" type="text"/>
 <label class="sr-only" for="flag-input">الفلاج</label>
 <input autocomplete="off" dir="ltr" id="flag-input" maxlength="200" name="flag" placeholder="TOR{…}" spellcheck="false" type="text"/>
-<button class="btn" id="flag-submit" type="submit">إرسال الفلاج</button>
-<label class="flag-hide-wrap" style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-dim);margin-top:6px;flex-basis:100%"><input id="flag-hide-name" type="checkbox"/> <span>إخفاء اسمي من لوحة المتصدرين</span></label>
+<button class="btn" id="flag-submit" type="submit">تحقق من الفلاج</button>
+</form>
+<form class="flag-form claim-form" id="claim-form" hidden="" novalidate="" style="margin-top:10px">
+<label class="sr-only" for="flag-name">الاسم أو اللقب</label>
+<input autocomplete="name" id="flag-name" maxlength="50" name="name" placeholder="اكتب اسمك أو لقبك لتسجيل حلك" spellcheck="false" type="text"/>
+<button class="btn" id="claim-submit" type="submit">تسجيل حلي</button>
 </form>
 <div class="flag-format" id="flag-format"></div>
 <div aria-live="polite" class="flag-status" id="flag-status"></div>
-<p class="muted-note">التحقق بيتم على الخادم فقط — اكتب اسمك والفلاج وهيتم تسجيل حلك وعرض اسمك بين أبطال التحدي بدون أي تعقيد أو تسجيل حسابات.</p>
+<p class="muted-note">التحقق يتم على الخادم أولاً — حط الفلاج، ولو طلع صح اكتب اسمك عشان يتسجل حلك بالتوقيت في قائمة اللي حلّوا التحدي.</p>
 <p class="muted-note" id="flag-server-note"></p>
 <div class="solvers-section" id="solvers-section" hidden>
-<div class="solvers-title">أبطال حلّوا هذا التحدي:</div>
+<div class="solvers-title">اللي حلّوا التحدي:</div>
 <div class="solvers-list" id="solvers-list"></div>
 </div>
 </section>
@@ -103,7 +106,8 @@
 <div class="who">مينا مكس · التحقيق الجنائي الرقمي والاستجابة للحوادث</div>
 <nav aria-label="تنقل التذييل">
 <a href="challenges-ar.html">التحديات</a>
-<a href="articles-ar.html">المقالات</a>
+<a href="investigations-ar.html">التحقيقات</a>
+<a href="articles-ar.html">الرايتبس</a>
 <a href="about-ar.html">نبذة عنّي</a>
 </nav>
 </div>
