@@ -179,17 +179,28 @@ async function handle(req, res, url, ip) {
   }
 
 
-  if(p==='/admin/api/site-settings'&&req.method==='GET')return json(res,200,{settings:readJson(path.join(DATA,'site-settings.json'),{})});
+  if(p==='/admin/api/site-settings'&&req.method==='GET'){
+    const s=readJson(path.join(DATA,'site-settings.json'),{});
+    return json(res,200,{settings:Object.assign({arabic_enabled:false},s)});
+  }
   if(p==='/admin/api/site-settings'&&req.method==='PUT'){
     const b=await readBody(req),old=readJson(path.join(DATA,'site-settings.json'),{});if(!b)return json(res,400,{error:'invalid'});
+    if(b.arabic_enabled!==undefined&&typeof b.arabic_enabled!=='boolean')return json(res,400,{error:'invalid_arabic_enabled'});
     const out={};for(const k of ['name_ar','name_en','description_ar','description_en','logo','favicon','social_image','other_link'])out[k]=String(b[k]||'').slice(0,1000);
     for(const k of ['logo','favicon','social_image'])if(out[k]&&!/^assets\/[A-Za-z0-9._-]+$/.test(out[k]))return json(res,400,{error:'invalid_asset_path'});
     if(out.other_link&&!/^https:\/\//.test(out.other_link))return json(res,400,{error:'https_required'});
+    out.arabic_enabled=b.arabic_enabled===true;
     out.default_language=b.default_language==='ar'?'ar':'en';out.mode=b.mode==='light'?'light':'dark';
     out.gold=/^#[A-Fa-f0-9]{6}$/.test(b.gold||'')?b.gold:'#D7B776';
     out.font_ar=b.font_ar==='Tajawal'?'Tajawal':'IBM Plex Sans Arabic';
     out.base_url=String(b.base_url||'').replace(/\/$/,'');if(out.base_url&&!/^https:\/\/[^/\s]+$/.test(out.base_url))return json(res,400,{error:'invalid_base_url'});
-    writeJson(path.join(DATA,'site-settings.json'),out);audit(sess.username,'site_settings','settings','ok');return json(res,200,{status:'saved'});
+    writeJson(path.join(DATA,'site-settings.json'),out);
+    if(out.arabic_enabled!==(old.arabic_enabled===true)){
+      audit(sess.username,'site_settings','arabic_enabled','ok',out.arabic_enabled?'Arabic site enabled':'Arabic site disabled');
+    }else{
+      audit(sess.username,'site_settings','settings','ok');
+    }
+    return json(res,200,{status:'saved'});
   }
   if(p==='/admin/api/password'&&req.method==='PUT'){
     const b=await readBody(req);const a=readJson(ADMIN_FILE,null);
@@ -767,4 +778,8 @@ function challengeIsOpen(id) {
   return require('./visibility').isPublic(challenge) && challenge.availability === 'open';
 }
 function challengePoints(id){const c=(getStore().collections.challenges||[]).find(c=>c.id===id);return c&&Number.isFinite(Number(c.points))?Number(c.points):0}
-module.exports = { handle, publicContentScript, challengeIsOpen, challengeIsPublic, challengePoints };
+function isArabicEnabled() {
+  const s = readJson(path.join(DATA, 'site-settings.json'), {});
+  return s.arabic_enabled === true;
+}
+module.exports = { handle, publicContentScript, challengeIsOpen, challengeIsPublic, challengePoints, isArabicEnabled };
