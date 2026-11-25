@@ -50,6 +50,19 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const admJs = require('node:fs').readFileSync(path.join(root, 'server/admin.js'), 'utf8');
     check(!admJs.includes('content.js.tmp'), 'admin.js publishStore does not write back to content.js');
 
+    const os = require('node:os');
+    const customData = require('node:fs').mkdtempSync(path.join(os.tmpdir(), 'tor-data-'));
+    const portData = 19442;
+    const childData = spawn(process.execPath, ['server/server.js'], { cwd: root, env: { ...process.env, TOR_PORT: String(portData), TOR_DATA_DIR: customData }, stdio: 'ignore' });
+    try {
+      for (let i = 0; i < 50; i++) { try { if ((await fetch('http://127.0.0.1:' + portData + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+      await fetch('http://127.0.0.1:' + portData + '/content.js');
+      check(require('node:fs').existsSync(path.join(customData, 'store.json')), 'TOR_DATA_DIR seeds store.json into custom directory');
+    } finally {
+      childData.kill();
+      try { require('node:fs').rmSync(customData, { recursive: true, force: true }); } catch {}
+    }
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();

@@ -7,15 +7,15 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 
-const DATA = path.join(__dirname, 'data');
+const DATA = process.env.TOR_DATA_DIR ? path.resolve(process.env.TOR_DATA_DIR) : path.join(__dirname, 'data');
 const ROOT = path.resolve(__dirname, '..');
 const ADMIN_FILE = path.join(DATA, 'admin.json');
 const SESSIONS_FILE = path.join(DATA, 'sessions.json');
 const STORE_FILE = path.join(DATA, 'store.json');
 const AUDIT_FILE = path.join(DATA, 'audit.jsonl');
 const SUBMISSIONS_FILE = path.join(DATA, 'submissions.jsonl');
-const FLAGS_FILE = path.join(__dirname, 'flags.json');
-const DATA_DIR = path.join(__dirname, 'data');
+const FLAGS_FILE = process.env.TOR_FLAGS_FILE ? path.resolve(process.env.TOR_FLAGS_FILE) : path.join(__dirname, 'flags.json');
+const DATA_DIR = DATA;
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const SESSION_TTL_MS = 12 * 3600 * 1000;
 

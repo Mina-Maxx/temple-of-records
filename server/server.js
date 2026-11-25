@@ -22,10 +22,10 @@ const admin = require('./admin');
 const seo = require('./seo');
 
 const ROOT = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.TOR_DATA_DIR ? path.resolve(process.env.TOR_DATA_DIR) : path.join(__dirname, 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const SOLVES_FILE = path.join(DATA_DIR, 'solves.json');
-const FLAGS_FILE_PATH = path.join(__dirname, 'flags.json');
+const FLAGS_FILE_PATH = process.env.TOR_FLAGS_FILE ? path.resolve(process.env.TOR_FLAGS_FILE) : path.join(__dirname, 'flags.json');
 // Re-read per request: flag set/replace and policy changes in the admin panel apply live, no restart.
 function loadFlags() {
   try { return JSON.parse(fs.readFileSync(FLAGS_FILE_PATH, 'utf8')); } catch (e) { return {}; }
@@ -311,7 +311,7 @@ function serveStatic(req, res, url) {
     let ok = false;
     if (m) {
       try {
-        const sessions = JSON.parse(fs.readFileSync(require('path').join(__dirname, 'data', 'sessions.json'), 'utf8'));
+        const sessions = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sessions.json'), 'utf8'));
         ok = !!(sessions[m[1]] && sessions[m[1]].exp > Date.now());
       } catch (e) { ok = false; }
     }
