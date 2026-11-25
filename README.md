@@ -85,3 +85,22 @@ node tests/public-boundaries.cjs
 - **الاختبارات:** `npm test` (أو `cmd /c npm test` في PowerShell على ويندوز)
 - **لوحة التحكم:** `/admin/` (محمية بكلمة مرور مشفرة بـ `scrypt` و CSRF وتحديد معدل المحاولات).
 - **النشر الإنتاجي:** يُنصح بخادم VPS أو استضافة تدعم قرصاً دائماً (Persistent Volume) عبر `TOR_DATA_DIR` للحفاظ على الحلول وتعديلات الأدمن.
+
+---
+
+## Arabic Site Switch (`arabic_enabled`)
+
+Controlled from `/admin/settings.html` ("Enable Arabic site", stored in `server/data/site-settings.json`, shipped default: `false`). Toggling takes effect immediately without restarting the server and never deletes or modifies Arabic content.
+
+- **When `false` (default):**
+  - `/` and `/index.html` always serve `index-en.html` (ignoring `default_language`).
+  - Any `/-ar.html` URL (including `/admin/preview.html?lang=ar`) returns `302` to its English counterpart, mapping Arabic `?id=` / `?c=` / `?a=` slugs to English slugs (or `404-en.html` if non-public or missing an English version).
+  - `/content.js` strips all Arabic keys (`ar`, `*_ar`, `*Ar`, `slug.ar`, `*-ar:*` defaults, Arabic field labels/groups) and exposes `SITE_CONFIG = { arabic: false }`.
+  - Served English HTML removes `a.pill-lang`, `-ar.html` links, `hreflang="ar"`, and Arabic Google Fonts; `/sitemap.xml` includes English URLs only; `/feed-ar.xml` returns `404`.
+  - Admin CMS hides `.ar-only` inputs, disables `default_language`, requires only English fields, and preserves existing Arabic fields on save via `mergeArabic()`.
+- **When `true`:** Full bilingual behavior is active.
+
+### Known Limits
+- `script.js` retains its internal `lang === 'ar'` UI string ternaries behind the `SITE_CONFIG.arabic === false` guard (`arabicOff`); they are never rendered when Arabic is off.
+- Player-submitted scoreboard names are not filtered by script.
+- The admin dashboard's own UI language toggle remains independent of `arabic_enabled`.

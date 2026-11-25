@@ -218,3 +218,4 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.87rem;background:var(--
 button.user-chip{background:transparent;border-block:0;border-inline-end:0;cursor:pointer;font:inherit;color:var(--dim)}
 
 .tbl .mono{direction:ltr;unicode-bidi:isolate;white-space:nowrap}.panel>h2{font-family:var(--body-font);font-weight:700}
+body.en-only .ar-only{display:none!important}

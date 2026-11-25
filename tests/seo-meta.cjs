@@ -30,7 +30,7 @@ store.collections.articles.push({
 fs.writeFileSync(storeFile, JSON.stringify(store));
 
 const settingsFile = path.join(root, 'server/data/site-settings.json');
-fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en', base_url: 'https://example.test' }));
+fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en', arabic_enabled: true, base_url: 'https://example.test' }));
 
 let count = 0;
 const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label); count++; };
@@ -64,7 +64,7 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(r3.status === 404 && h3.includes('noindex'), 'hidden/draft id returns 404 + noindex');
 
     // 4. Without base_url -> no canonical / og:url
-    fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en' }));
+    fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en', arabic_enabled: true }));
     const r4 = await fetch(base + '/article-en.html?id=seo-xss-en');
     const h4 = await r4.text();
     check(r4.status === 200 && !h4.includes('rel="canonical"') && !h4.includes('property="og:url"') && h4.includes('Alert &lt;script&gt;'), 'without base_url: title injected, no canonical/og:url');
@@ -73,7 +73,7 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const r5 = await fetch(base + '/challenges-en.html');
     const h5 = await r5.text();
     check(!h5.includes('mina-max.website') && !h5.includes('rel="canonical"') && h5.includes('property="og:title"'), 'static page strips canonical/og:url when base_url empty');
-    fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en', base_url: 'https://custom.example' }));
+    fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'en', arabic_enabled: true, base_url: 'https://custom.example' }));
     const r6 = await fetch(base + '/challenges-en.html');
     const h6 = await r6.text();
     check(h6.includes('https://custom.example/challenges-en.html') && h6.includes('hreflang="x-default"') && !h6.includes('mina-max.website'), 'static page substitutes base_url and has x-default');

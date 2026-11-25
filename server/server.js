@@ -405,6 +405,7 @@ function serveStatic(req, res, url) {
   try { p = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); return res.end('bad path'); }
   if (p === '/admin' || p === '/admin/') { res.writeHead(302, { Location: '/admin/index.html' }); return res.end(); }
   if (p === '/content.js') {
+    const arabicEnabled = admin.isArabicEnabled();
     const buf = Buffer.from(admin.publicContentScript(), 'utf8');
     const etag = bodyEtag(buf);
     return sendResponse(req, res, {
@@ -412,19 +413,47 @@ function serveStatic(req, res, url) {
       contentType: 'text/javascript; charset=utf-8',
       cacheControl: 'public, max-age=0, must-revalidate',
       etag,
-      cacheKey: 'content.js:' + etag,
+      cacheKey: 'content.js:ar=' + (arabicEnabled ? '1' : '0') + ':' + etag,
       isText: true
     });
+  }
+  const arabicEnabled = admin.isArabicEnabled();
+  if (!arabicEnabled && /-ar\.html$/.test(p)) {
+    const dm = /^\/(article|challenge|investigation)-ar\.html$/.exec(p);
+    if (dm) {
+      const idParam = url.searchParams.get('id') || url.searchParams.get('c') || url.searchParams.get('a') || '';
+      if (idParam) {
+        const pubCols = require('./visibility').publicCollections(seo.loadCollections(DATA_DIR));
+        const item = (pubCols[dm[1] + 's'] || []).find(x => x.id === idParam || (x.slug && (x.slug.ar === idParam || x.slug.en === idParam)));
+        if (!item || (!(item.title && item.title.en) && !(item.slug && item.slug.en))) {
+          return sendResponse(req, res, {
+            buf: Buffer.from(seo.render404(ROOT, false), 'utf8'),
+            status: 404,
+            contentType: 'text/html; charset=utf-8',
+            cacheControl: 'no-store',
+            isText: true
+          });
+        }
+        const keyName = url.searchParams.get('id') ? 'id' : (url.searchParams.get('c') ? 'c' : 'a');
+        const enId = (item.slug && item.slug.en) || item.id;
+        res.writeHead(302, { Location: '/' + dm[1] + '-en.html?' + keyName + '=' + encodeURIComponent(enId), 'Cache-Control': 'no-store' });
+        return res.end();
+      }
+    }
+    res.writeHead(302, { Location: p.replace(/-ar\.html$/, '-en.html') + (url.search || ''), 'Cache-Control': 'no-store' });
+    return res.end();
   }
   // Explicit static surface: no server files, backups, dotfiles or test fixtures.
   const allowed = /^\/(?!admin\.html$)[a-z0-9][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?)$/.test(p);
   if (!allowed) {
     if (req.headers.accept && req.headers.accept.includes('text/html')) {
-      try {
-        const err404 = fs.readFileSync(path.join(ROOT, '404.html'), 'utf8');
-        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
-        return res.end(err404);
-      } catch (e) {}
+      return sendResponse(req, res, {
+        buf: Buffer.from(seo.render404(ROOT, arabicEnabled), 'utf8'),
+        status: 404,
+        contentType: 'text/html; charset=utf-8',
+        cacheControl: 'no-store',
+        isText: true
+      });
     }
     res.writeHead(404); return res.end('not found');
   }
@@ -445,11 +474,19 @@ function serveStatic(req, res, url) {
     }
   }
   if(p==='/admin/preview.html'){
-    const k=url.searchParams.get('kind');const kind=(k==='article'||k==='investigation')?k:'challenge';const lang=url.searchParams.get('lang')==='en'?'en':'ar';
+    const k=url.searchParams.get('kind');const kind=(k==='article'||k==='investigation')?k:'challenge';
+    if(!arabicEnabled && url.searchParams.get('lang')==='ar'){
+      const idq=url.searchParams.get('id')||'';
+      res.writeHead(302,{Location:'/admin/preview.html?kind='+kind+'&lang=en'+(idq?'&id='+encodeURIComponent(idq):''),'Cache-Control':'no-store'});return res.end();
+    }
+    const lang=(arabicEnabled && url.searchParams.get('lang')!=='en')?'ar':'en';
     let html=fs.readFileSync(path.join(ROOT,kind+'-'+lang+'.html'),'utf8').replace('<head>','<head><base href="/">').replace('<script src="content.js"></script>','<script src="/admin/api/preview-content"></script>');
     html=html.replace('<body','<body data-admin-preview="true"');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);
   }
-  if (p === '/' || p === '/index.html') {let cfg={};try{cfg=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'site-settings.json'),'utf8'))}catch{}p=cfg.default_language==='ar'?'/index-ar.html':'/index-en.html';}
+  if (p === '/' || p === '/index.html') {
+    if (!arabicEnabled) { p = '/index-en.html'; }
+    else { let cfg={};try{cfg=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'site-settings.json'),'utf8'))}catch{}p=cfg.default_language==='ar'?'/index-ar.html':'/index-en.html'; }
+  }
   const file = path.resolve(ROOT, '.' + p);
   if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
@@ -457,7 +494,7 @@ function serveStatic(req, res, url) {
     if (err || !st.isFile()) {
       if (req.headers.accept && req.headers.accept.includes('text/html')) {
         return sendResponse(req, res, {
-          buf: Buffer.from(seo.render404(ROOT), 'utf8'),
+          buf: Buffer.from(seo.render404(ROOT, arabicEnabled), 'utf8'),
           status: 404,
           contentType: 'text/html; charset=utf-8',
           cacheControl: 'no-store',
@@ -476,17 +513,17 @@ function serveStatic(req, res, url) {
     if (ext === '.html') {
       const rawHtml = fs.readFileSync(file, 'utf8');
       const resMeta = /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)
-        ? seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR)
-        : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR) };
+        ? seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR, arabicEnabled)
+        : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR, arabicEnabled) };
       const buf = Buffer.from(resMeta.html, 'utf8');
-      const etag = (isAdminRoute || resMeta.status !== 200) ? null : bodyEtag(buf);
+      const etag = (isAdminRoute || resMeta.status !== 200) ? null : bodyEtag(Buffer.concat([buf, Buffer.from(':ar=' + (arabicEnabled ? '1' : '0'))]));
       return sendResponse(req, res, {
         buf,
         status: resMeta.status,
         contentType: 'text/html; charset=utf-8',
         cacheControl: (isAdminRoute || resMeta.status !== 200) ? 'no-store' : 'public, max-age=0, must-revalidate',
         etag,
-        cacheKey: p + ':' + (etag || 'ns'),
+        cacheKey: p + ':ar=' + (arabicEnabled ? '1' : '0') + ':' + (etag || 'ns'),
         isText: true
       });
     }
@@ -528,11 +565,12 @@ const server = http.createServer((req, res) => {
   if (HTTPS_MODE) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   const ip = clientIp(req);
   if(url.pathname==='/sitemap.xml'){
-    const xml = seo.renderSitemap(DATA_DIR);
+    const xml = seo.renderSitemap(DATA_DIR, admin.isArabicEnabled());
     if (!xml) { res.writeHead(404,{'Content-Type':'text/plain'}); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
     res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'}); return res.end(xml);
   }
   if (url.pathname === '/feed.xml' || url.pathname === '/feed-ar.xml') {
+    if (url.pathname === '/feed-ar.xml' && !admin.isArabicEnabled()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
     const xml = seo.renderFeed(url.pathname === '/feed-ar.xml' ? 'ar' : 'en', DATA_DIR);
     if (!xml) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
     res.writeHead(200, { 'Content-Type': 'application/atom+xml; charset=utf-8' }); return res.end(xml);

@@ -43,7 +43,7 @@ function listPage(CFG){
      '<td>'+((it.tags||[]).map(function(t){return '<span class="tag">'+A.esc(t)+'</span>'}).join('')||'<span class="dim small">—</span>')+'</td>'+
      '<td class="small dim">'+A.esc(it.date||'—')+'</td>'+
      '<td><a class="btn sm ghost" href="'+CFG.col+'.html?edit=1&id='+encodeURIComponent(it.id)+'">'+A.t('edit')+'</a>'+
-     (CFG.col==='investigations'?' <a class="btn sm ghost" href="preview.html?kind=investigation&lang='+A.lang()+'&id='+encodeURIComponent(it.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة':'Preview')+'</a>':'')+
+     (CFG.col==='investigations'?' <a class="btn sm ghost" href="preview.html?kind=investigation&lang='+(A.arabicEnabled()?A.lang():'en')+'&id='+encodeURIComponent(it.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة':'Preview')+'</a>':'')+
      '</td></tr>';
     }).join('')+'</tbody></table></div>'
     :'<div class="empty"><div class="ic">'+A.icon(CFG.icon,22)+'</div><h3>'+A.t('empty')+'</h3><p>'+A.t('emptySub')+'</p></div>')+
@@ -56,7 +56,7 @@ function editPage(CFG,id){
   var ar=A.lang()==='ar';
   function start(item){
    c.innerHTML='<div class="page-head"><h1>'+(id?(ar?A.esc(item.title.ar||item.id):A.esc(item.title.en||item.title.ar||item.id)):A.t('create'))+'</h1>'+
-   '<span class="sub mono">'+A.esc(item.id||'new')+'</span><div class="acts">'+(id&&CFG.col==='investigations'?'<a class="btn ghost" href="preview.html?kind=investigation&lang='+A.lang()+'&id='+encodeURIComponent(item.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة (المحفوظ)':'Preview (saved)')+'</a>':'')+'<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
+   '<span class="sub mono">'+A.esc(item.id||'new')+'</span><div class="acts">'+(id&&CFG.col==='investigations'?'<a class="btn ghost" href="preview.html?kind=investigation&lang='+(A.arabicEnabled()?A.lang():'en')+'&id='+encodeURIComponent(item.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة (المحفوظ)':'Preview (saved)')+'</a>':'')+'<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
    '<div class="errlist" id="errs" role="alert" style="display:none;background:rgba(232,143,143,.1);border:1px solid rgba(232,143,143,.4);border-radius:8px;padding:12px 16px;font-size:.83rem;color:var(--err);margin-bottom:16px"></div>'+
    '<div class="panel">'+(id?'':'<div class="field"><label>ID (a-z0-9-)</label><input class="input mono" dir="ltr" id="f-id"></div>')+
    CFG.fields.map(function(f){return fieldHtml(f,item)}).join('')+
@@ -74,7 +74,7 @@ function editPage(CFG,id){
 function fieldHtml(f,item){
  var v=item[f.k];
  if(f.t==='bi')return '<div class="field"><label>'+l(f.k)+'</label><div class="row2">'+
-  '<textarea class="input" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="ar">'+A.esc(v&&v.ar||'')+'</textarea>'+
+  '<textarea class="input ar-only" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="ar">'+A.esc(v&&v.ar||'')+'</textarea>'+
   '<textarea class="input" dir="ltr" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="en" placeholder="English">'+A.esc(v&&v.en||'')+'</textarea></div></div>';
  if(f.t==='enum')return '<div class="field" style="max-width:280px"><label>'+l(f.k)+'</label><select class="input" data-k="'+f.k+'">'+f.values.map(function(x){return '<option value="'+x+'"'+(v===x?' selected':'')+'>'+l(x)+'</option>'}).join('')+'</select></div>';
  if(f.t==='tags')return '<div class="field"><label>'+l(f.k)+'</label><input class="input" data-k="'+f.k+'" value="'+A.esc((v||[]).join(', '))+'"></div>';

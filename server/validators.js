@@ -80,8 +80,9 @@ function validateSection(sec, p, isChallenge) {
   return { errors, value: errors.length ? null : out };
 }
 
-function validateEntry(e, kind, idx) {
+function validateEntry(e, kind, idx, opts) {
   const p = kind + '[' + idx + ']';
+  const arEnabled = !(opts && opts.arabicEnabled === false);
   let errors = [];
   if (!e || typeof e !== 'object') return { errors: [p + ': عنصر غير صالح'] };
   if (!/^[a-z0-9][a-z0-9-]{0,60}$/.test(e.id || '')) errors.push(p + ': المعرّف (id) لازم حروف إنجليزية صغيرة وأرقام وشرطات');
@@ -104,6 +105,7 @@ function validateEntry(e, kind, idx) {
   });
   out.status = ['draft', 'published', 'archived'].indexOf(e.status) > -1 ? e.status : (e.hidden ? 'archived' : 'published');
   out.title = lang('title', 300);
+  if (!arEnabled && (!out.title.en || !out.title.en.trim())) errors.push(p + '.title.en: English title required');
   out.excerpt = lang('excerpt', 2000);
   out.date = str('date', 100);
   out.tags = (Array.isArray(e.tags) ? e.tags : []).slice(0, 10).map(t => cleanStr(String(t), 40)).filter(Boolean);
@@ -183,7 +185,7 @@ function validateEntry(e, kind, idx) {
   return { errors, value: errors.length ? null : out };
 }
 
-function validateCollections(obj) {
+function validateCollections(obj, opts) {
   let errors = [];
   if (!obj || typeof obj !== 'object') return { ok: false, errors: ['collections: not an object'] };
   const out = { articles: [], challenges: [] };
@@ -192,7 +194,7 @@ function validateCollections(obj) {
     if (arr.length > 50) { errors.push(kind + ': عدد كبير جدًا (الحد 50)'); return; }
     const ids = {};
     arr.forEach((e, i) => {
-      const r = validateEntry(e, kind, i);
+      const r = validateEntry(e, kind, i, opts);
       if (r.errors.length) { errors = errors.concat(r.errors); return; }
       if (ids[r.value.id]) { errors.push(kind + '[' + i + ']: معرّف مكرر ' + r.value.id); return; }
       ids[r.value.id] = true;

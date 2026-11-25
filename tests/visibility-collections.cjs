@@ -35,6 +35,7 @@ check(JSON.stringify(publicCollections(undefined)) === JSON.stringify({ challeng
 // ---- end to end: what /content.js really ships ----
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'temple-vis-'));
 fs.cpSync(path.resolve(__dirname, '..'), root, { recursive: true, filter: src => !src.includes(path.sep + '.git') });
+fs.writeFileSync(path.join(root, 'server/data/site-settings.json'), JSON.stringify({ default_language: 'en', arabic_enabled: true }));
 const storeFile = path.join(root, 'server/data/store.json');
 const store = JSON.parse(fs.readFileSync(storeFile));
 store.collections.investigations = [
