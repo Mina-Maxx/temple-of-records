@@ -33,7 +33,7 @@ function reqRaw(p, headers = {}) {
     const decodedCss = zlib.gunzipSync(css1.buf).toString('utf8');
     check(decodedCss.includes('.hero'), 'gzipped CSS decodes cleanly');
     const css304 = await reqRaw('/style.css', { 'If-None-Match': css1.headers['etag'] });
-    check(css304.status === 304, 'CSS returns 304 on matching ETag');
+    check(css304.status === 304 && css304.headers['vary'] === 'Accept-Encoding', 'CSS returns 304 on matching ETag with Vary');
 
     // 2. Brotli on /content.js
     const cjs = await reqRaw('/content.js', { 'Accept-Encoding': 'br' });
@@ -52,6 +52,16 @@ function reqRaw(p, headers = {}) {
     check(api.headers['cache-control'] === 'no-store', '/health remains no-store');
     const adm = await reqRaw('/admin/login.html');
     check(adm.headers['cache-control'] === 'no-store', '/admin/login.html remains no-store');
+
+    // 5. HEAD request returns empty body with Content-Length
+    const headRes = await new Promise((resolve, reject) => {
+      const r = http.request({ hostname: '127.0.0.1', port, path: '/assets/Mina-Maximous-CV.pdf', method: 'HEAD' }, res => {
+        const chunks = []; res.on('data', c => chunks.push(c));
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, len: Buffer.concat(chunks).length }));
+      });
+      r.on('error', reject); r.end();
+    });
+    check(headRes.status === 200 && Number(headRes.headers['content-length']) > 0 && headRes.len === 0, 'HEAD request returns headers with empty body');
 
     console.log('TOTAL ' + count + ' cache-compression assertions passed');
   } finally {

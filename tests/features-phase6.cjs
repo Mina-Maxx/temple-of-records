@@ -107,16 +107,53 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
       body: JSON.stringify({
         id: 'case-rule-1',
         title: { ar: 'تحقيق اختباري', en: 'Test Investigation' },
+        slug: { ar: 'تحقيق-1', en: 'case-rule-slug' },
         summary: { ar: 'ملخص', en: 'Summary' },
         status: 'closed',
         visibility: 'public',
+        attack: ['T1003.001', 'BAD'],
+        publish_at: '2026-01-01T00:00:00Z',
         use_case: { ar: 'حالة الاستخدام', en: 'Detect suspicious LSASS access' },
         detection_engineering: { ar: 'هندسة الكشف', en: 'Monitor Sysmon Event ID 10 with GrantedAccess 0x1010' },
         detection_rule_lang: 'Sigma',
-        detection_rule: 'title: LSASS Memory Read\nstatus: experimental\ndetection:\n  selection:\n    EventID: 10'
+        detection_rule: 'title: LSASS Memory Read\nstatus: experimental\ndetection:\n  selection:\n    EventID: 10',
+        seo_title: { ar: '', en: 'LSASS SEO Title' }
       })
     });
-    check(invCreate.status === 200, 'admin creates investigation with Use Case, Detection Engineering, and Detection Rule');
+    check(invCreate.status === 200, 'admin creates investigation with Use Case, Detection Engineering, Detection Rule, slug, and SEO');
+    // Partial update preserves slug/seo_title, rejects invalid URL or missing EN title in EN-only mode
+    const invUpd = await fetch(base + '/admin/api/collection/investigations/case-rule-1', {
+      method: 'PUT', headers: { 'content-type': 'application/json', cookie, 'x-csrf-token': csrf },
+      body: JSON.stringify({ title: { en: 'Test Investigation Updated' }, summary: { en: 'Summary' }, status: 'closed', visibility: 'public', use_case: { en: 'Detect suspicious LSASS access' }, detection_engineering: { en: 'Monitor Sysmon Event ID 10 with GrantedAccess 0x1010' }, detection_rule_lang: 'Sigma', detection_rule: 'title: LSASS Memory Read' })
+    });
+    const invGot = await (await fetch(base + '/admin/api/collection/investigations/case-rule-1', { headers: { cookie } })).json();
+    check(invUpd.status === 200 && invGot.item.slug && invGot.item.slug.en === 'case-rule-slug' && invGot.item.seo_title.en === 'LSASS SEO Title' && JSON.stringify(invGot.item.attack) === JSON.stringify(['T1003.001']), 'partial investigation PUT preserves slug, seo_title, and filters attack IDs');
+    const invBadUrl = await fetch(base + '/admin/api/collection/investigations', {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie, 'x-csrf-token': csrf },
+      body: JSON.stringify({ id: 'bad-inv-1', title: { en: 'Bad' }, evidence: [{ label: 'x', url: 'https://nodot' }] })
+    });
+    check(invBadUrl.status === 400, 'investigation rejects URLs missing valid host dot');
+    const invNoEn = await fetch(base + '/admin/api/collection/investigations', {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie, 'x-csrf-token': csrf },
+      body: JSON.stringify({ id: 'bad-inv-2', title: { ar: 'عربي فقط', en: '' } })
+    });
+    check(invNoEn.status === 400, 'investigation requires title.en when arabic_enabled=false');
+
+    // Permanent DELETE /admin/api/challenges/:id removes challenge and flag
+    const mkCh = await fetch(base + '/admin/api/challenges', {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie, 'x-csrf-token': csrf },
+      body: JSON.stringify({ id: 'del-test-ch', status: 'draft', title: { ar: '', en: 'To Delete' }, excerpt: { ar: '', en: '' }, slug: { ar: '', en: 'del-test-ch' }, sections: [] })
+    });
+    check(mkCh.status === 200, 'created temp challenge for delete test');
+    await fetch(base + '/admin/api/challenges/del-test-ch/flag', { method: 'PUT', headers: { 'content-type': 'application/json', cookie, 'x-csrf-token': csrf }, body: JSON.stringify({ flag: 'TOR{tmp}' }) });
+    const delRes = await fetch(base + '/admin/api/challenges/del-test-ch', { method: 'DELETE', headers: { cookie, 'x-csrf-token': csrf } });
+    const afterDelGet = await fetch(base + '/admin/api/challenges/del-test-ch', { headers: { cookie } });
+    const afterDelFlag = await (await fetch(base + '/admin/api/challenges/del-test-ch/flag', { headers: { cookie } })).json();
+    check(delRes.status === 200 && afterDelGet.status === 404 && !afterDelFlag.configured, 'DELETE /admin/api/challenges/:id permanently removes challenge and flag');
+
+    // Oversized body returns 413 cleanly without hanging
+    const bigRes = await fetch(base + '/api/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identity: id1, challenge: 'log4shell-lab', flag: 'A'.repeat(6000) }) });
+    check(bigRes.status === 413, 'oversized /api/submit returns 413 cleanly');
     for (const deadAdm of ['/admin/kb.html', '/admin/projects.html', '/admin/api/collection/kb', '/admin/api/collection/projects']) {
       const ar = await fetch(base + deadAdm, { headers: { cookie }, redirect: 'manual' });
       check(ar.status === 404, `removed ${deadAdm} returns 404`);
@@ -142,9 +179,13 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
       childGate.kill();
     }
 
-    // 6.8 About & CV checks
+    // 6.8 About & CV + CSS/Meta consistency checks
     const aboutEn = await (await fetch(base + '/about-en.html')).text();
     check(aboutEn.includes('assets/Mina-Maximous-CV.pdf') && aboutEn.includes('Technical Skills') && aboutEn.includes('Experience') && aboutEn.includes('Education'), 'about-en.html includes full CV sections and PDF link');
+    const cssTxt = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+    check(cssTxt.includes('code.inline-code') && cssTxt.includes('.papyrus-reader a') && cssTxt.includes('.papyrus-reader blockquote'), 'style.css styles inline-code, links, and blockquotes in papyrus-reader');
+    const artEnHtml = fs.readFileSync(path.join(root, 'articles-en.html'), 'utf8');
+    check(!artEnHtml.includes('twitter:title" content="Articles'), 'articles-en.html twitter meta updated to Writeups');
 
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {

@@ -118,6 +118,37 @@ function hashFlag(salt, flag) {
 }
 const ID_RE = /^[a-f0-9]{32}$/;
 
+function readJsonBody(req, res, limit, onJson) {
+  const chunks = [];
+  let bytes = 0, tooBig = false, handled = false;
+  req.on('data', c => {
+    bytes += c.length;
+    if (bytes > limit) {
+      tooBig = true;
+      chunks.length = 0;
+      if (bytes > limit * 4) req.destroy();
+      return;
+    }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    if (handled) return;
+    handled = true;
+    if (tooBig) return json(res, 413, { error: 'payload_too_large' }, true);
+    let data;
+    try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
+    onJson(data);
+  });
+  req.on('close', () => {
+    if (handled || res.writableEnded) return;
+    handled = true;
+    if (tooBig && !res.headersSent) json(res, 413, { error: 'payload_too_large' }, true);
+  });
+  req.on('error', () => {
+    if (!handled && !res.writableEnded) { handled = true; try { json(res, 400, { error: 'bad_json' }, true); } catch (e) {} }
+  });
+}
+
 function handleApi(req, res, url, ip) {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, DEV_CORS ? {
@@ -196,17 +227,15 @@ function handleApi(req, res, url, ip) {
     if (!solved && ch.solution_public !== true && process.env.TOR_GATE_SOLUTIONS === '1') {
       return json(res, 403, { error: 'solve_required' }, true);
     }
-    const sol = (ch.sections || []).filter(s => s && s.published !== false && s.zone === 'solution');
+    const rawSol = (ch.sections || []).filter(s => s && s.published !== false && s.zone === 'solution');
+    const sol = admin.isArabicEnabled() ? rawSol : admin.stripArabicValue(rawSol);
     return json(res, 200, { challenge, sections: sol }, true);
   }
 
   if (url.pathname === '/api/claim' && req.method === 'POST') {
     if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
-    let body = '';
-    req.on('data', c => { body += c; if (body.length > MAX_BODY) { req.destroy(); } });
-    req.on('end', () => {
-      let data;
-      try { data = JSON.parse(body); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
+    readJsonBody(req, res, MAX_BODY, (data) => {
+      if (!data || typeof data !== 'object') return json(res, 400, { error: 'bad_json' }, true);
       const identity = String(data.identity || '');
       const name = String(data.name || '').trim().slice(0, 50);
       const challenge = String(data.challenge || '');
@@ -214,6 +243,7 @@ function handleApi(req, res, url, ip) {
       if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
       if (!challenge || !admin.challengeIsOpen(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
       if (!name) return json(res, 400, { error: 'name_required' }, true);
+      if (!rateOk('claim:' + identity + ':' + challenge, RATE_PER_IP_CHALLENGE)) return json(res, 429, { error: 'rate_limited' }, true);
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {
         const curName = playerDisplayName(loadPlayerNames()[identity]);
@@ -240,14 +270,8 @@ function handleApi(req, res, url, ip) {
 
   if (url.pathname === '/api/submit' && req.method === 'POST') {
     if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
-    let body = '';
-    req.on('data', c => {
-      body += c;
-      if (body.length > MAX_BODY) { req.destroy(); }
-    });
-    req.on('end', () => {
-      let data;
-      try { data = JSON.parse(body); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
+    readJsonBody(req, res, MAX_BODY, (data) => {
+      if (!data || typeof data !== 'object') return json(res, 400, { error: 'bad_json' }, true);
       const identity = String(data.identity || '');
       const hasName = typeof data.name === 'string' && data.name.trim().length > 0;
       const name = hasName ? data.name.trim().slice(0, 50) : '';
@@ -291,6 +315,7 @@ function handleApi(req, res, url, ip) {
         if (hasName) {
           solves[identity][challenge] = ts;
           saveSolves();
+          if (verified[identity] && verified[identity][challenge]) { delete verified[identity][challenge]; saveVerified(); }
           savePlayerName(identity, name);
           logSub('correct', name);
           return json(res, 200, { status: 'correct', ts, name }, true);
@@ -336,6 +361,7 @@ function sendResponse(req, res, opts) {
     'Content-Type': contentType,
     'Cache-Control': cacheControl
   };
+  if (isText && buf.length >= 256) headers['Vary'] = 'Accept-Encoding';
   if (etag) {
     headers['ETag'] = etag;
     const inm = req.headers['if-none-match'];
@@ -347,7 +373,6 @@ function sendResponse(req, res, opts) {
   let payload = buf;
   if (isText && buf.length >= 256) {
     const ae = String(req.headers['accept-encoding'] || '').toLowerCase();
-    headers['Vary'] = 'Accept-Encoding';
     if (ae.includes('br')) {
       payload = getCompressed(cacheKey || etag || '', buf, 'br');
       headers['Content-Encoding'] = 'br';
@@ -358,7 +383,7 @@ function sendResponse(req, res, opts) {
   }
   headers['Content-Length'] = payload.length;
   res.writeHead(status, headers);
-  return res.end(payload);
+  return res.end(req.method === 'HEAD' ? undefined : payload);
 }
 
 function serveStatic(req, res, url) {
@@ -459,6 +484,9 @@ function serveStatic(req, res, url) {
     if (!arabicEnabled) { p = '/index-en.html'; }
     else { let cfg={};try{cfg=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'site-settings.json'),'utf8'))}catch{}p=cfg.default_language==='ar'?'/index-ar.html':'/index-en.html'; }
   }
+  if (!arabicEnabled && p === '/404.html') {
+    p = '/404-en.html';
+  }
   const file = path.resolve(ROOT, '.' + p);
   if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
@@ -503,7 +531,11 @@ function serveStatic(req, res, url) {
     const cc = isAdminRoute ? 'no-store' : (isAsset ? 'public, max-age=2592000' : 'public, max-age=0, must-revalidate');
     const etag = isAdminRoute ? null : statEtag;
     if (etag && req.headers['if-none-match'] === etag) {
-      res.writeHead(304, { 'Cache-Control': cc, 'ETag': etag });
+      res.writeHead(304, {
+        'Cache-Control': cc,
+        'ETag': etag,
+        ...(isText && st.size >= 256 ? { 'Vary': 'Accept-Encoding' } : {})
+      });
       return res.end();
     }
     if (isText) {
@@ -523,6 +555,7 @@ function serveStatic(req, res, url) {
       'Cache-Control': cc,
       ...(etag ? { 'ETag': etag } : {})
     });
+    if (req.method === 'HEAD') return res.end();
     fs.createReadStream(file).pipe(res);
   });
 }
@@ -543,8 +576,9 @@ function handleRequest(req, res) {
     res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'}); return res.end(xml);
   }
   if (url.pathname === '/feed.xml' || url.pathname === '/feed-ar.xml') {
-    if (url.pathname === '/feed-ar.xml' && !admin.isArabicEnabled()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
-    const xml = seo.renderFeed(url.pathname === '/feed-ar.xml' ? 'ar' : 'en', DATA_DIR);
+    const arOn = admin.isArabicEnabled();
+    if (url.pathname === '/feed-ar.xml' && !arOn) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
+    const xml = seo.renderFeed(url.pathname === '/feed-ar.xml' ? 'ar' : 'en', DATA_DIR, arOn);
     if (!xml) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
     res.writeHead(200, { 'Content-Type': 'application/atom+xml; charset=utf-8' }); return res.end(xml);
   }

@@ -31,6 +31,15 @@ store.collections.articles.push({
   title: { ar: 'مسودة', en: 'Draft' },
   sections: []
 });
+store.collections.articles.push({
+  id: 'ar-only-art',
+  status: 'published',
+  hidden: false,
+  slug: { ar: 'عربي-فقط', en: '' },
+  title: { ar: 'مقال عربي فقط', en: '' },
+  excerpt: { ar: 'ملخص عربي فقط', en: '' },
+  sections: []
+});
 fs.writeFileSync(storeFile, JSON.stringify(store));
 fs.writeFileSync(settingsFile, JSON.stringify({ default_language: 'ar', arabic_enabled: false, base_url: 'https://toggle.example' }));
 
@@ -70,16 +79,19 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
       '/', '/index-en.html', '/challenges-en.html', '/challenge-en.html?c=log4shell-lab',
       '/articles-en.html', '/article-en.html?id=toggle-article-en',
       '/investigations-en.html', '/about-en.html',
-      '/nonexistent-page', '/content.js'
+      '/404.html', '/nonexistent-page', '/content.js', '/feed.xml',
+      '/api/solution?challenge=log4shell-lab&identity=0123456789abcdef0123456789abcdef'
     ];
     for (const cp of checkPaths) {
       const r = await fetch(base + cp, { headers: { Accept: 'text/html' } });
       const txt = await r.text();
       check(!AR_SCRIPT_RE.test(txt), `zero Arabic characters in ${cp}`);
-      if (cp !== '/content.js') {
+      if (!cp.startsWith('/content.js') && !cp.startsWith('/feed.xml') && !cp.startsWith('/api/')) {
         check(!txt.includes('pill-lang') && !txt.includes('hreflang="ar"') && !/Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal/.test(txt), `no pill-lang, hreflang="ar", or Arabic fonts in ${cp}`);
       }
     }
+    const arOnlyEn = await fetch(base + '/article-en.html?id=ar-only-art');
+    check(arOnlyEn.status === 404, 'Arabic-only article returns 404 on EN route when arabic_enabled=false');
 
     // f) /sitemap.xml has no -ar.html
     const sm = await (await fetch(base + '/sitemap.xml')).text();
@@ -99,9 +111,10 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const badBool = await fetch(base + '/admin/api/site-settings', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ arabic_enabled: 'yes' }) });
     check(badBool.status === 400, 'non-boolean arabic_enabled rejected with 400');
 
-    // h) Toggle ON without restart -> 200 on /index-ar.html; toggle OFF -> 302 again
-    const flipOn = await fetch(base + '/admin/api/site-settings', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ arabic_enabled: true, default_language: 'ar', base_url: 'https://toggle.example' }) });
+    // h) Toggle ON without restart -> 200 on /index-ar.html; toggle OFF -> 302 again + preserve font_ar & default_language
+    const flipOn = await fetch(base + '/admin/api/site-settings', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ arabic_enabled: true, default_language: 'ar', font_ar: 'Tajawal', base_url: 'https://toggle.example' }) });
     check(flipOn.status === 200, 'flip arabic_enabled=true succeeds');
+    await fetch(base + '/admin/api/seo', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ ar: { description: 'وصف عربي محفوظ' }, en: { description: 'Saved EN desc' } }) });
     const arOnRes = await fetch(base + '/index-ar.html', { redirect: 'manual' });
     check(arOnRes.status === 200 && (await arOnRes.text()).includes('lang="ar"'), 'after flip ON (no restart), /index-ar.html returns 200 Arabic');
     const auditRes = await (await fetch(base + '/admin/api/audit', { headers: { cookie } })).json();
@@ -120,9 +133,19 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     });
     check(createRes.status === 200, 'created bilingual article while ON');
 
-    await fetch(base + '/admin/api/site-settings', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ arabic_enabled: false, default_language: 'ar', base_url: 'https://toggle.example' }) });
+    await fetch(base + '/admin/api/site-settings', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ arabic_enabled: false, base_url: 'https://toggle.example' }) });
     const arOffAgain = await fetch(base + '/index-ar.html', { redirect: 'manual' });
     check(arOffAgain.status === 302, 'after flip OFF (no restart), /index-ar.html returns 302 again');
+    const gotCfgOff = await (await fetch(base + '/admin/api/site-settings', { headers: { cookie } })).json();
+    check(gotCfgOff.settings.font_ar === 'Tajawal' && gotCfgOff.settings.default_language === 'ar', 'site-settings preserves font_ar and default_language when disabled');
+    await fetch(base + '/admin/api/seo', { method: 'PUT', headers: admHeaders, body: JSON.stringify({ en: { description: 'Updated EN desc' } }) });
+    const gotSeoOff = await (await fetch(base + '/admin/api/seo', { headers: { cookie } })).json();
+    check(gotSeoOff.seo.ar.description === 'وصف عربي محفوظ' && gotSeoOff.seo.en.description === 'Updated EN desc', 'SEO preserves Arabic fields in EN-only mode');
+
+    // Admin editors have .ar-only class on Arabic inputs
+    for (const admPage of ['admin/challenge-edit.html', 'admin/article-edit.html', 'admin/app.js', 'admin/categories.html']) {
+      check(fs.readFileSync(path.join(root, admPage), 'utf8').includes('ar-only'), admPage + ' marks Arabic controls with .ar-only');
+    }
 
     // Edit EN only (empty/omitted AR fields) while OFF
     const editOff = await fetch(base + '/admin/api/articles/preserve-1', {

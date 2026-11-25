@@ -31,11 +31,11 @@ A.boot().then(function(ok){
     '<button class="btn sm '+(p.disabled?'ghost':'danger')+'" data-tgl="'+A.esc(p.identity)+'" data-on="'+(p.disabled?'0':'1')+'">'+(p.disabled?(ar?'تفعيل':'Enable'):(ar?'تعطيل':'Disable'))+'</button></td></tr>'}).join('')+
    '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('users',22)+'</div><h3>'+A.t('empty')+'</h3><p>'+(ar?'يظهر اللاعبون بعد أول حل ناجح.':'Players appear after their first successful solve.')+'</p></div>')+
    '</div>';
-   document.getElementById('pq').onchange=function(){q=this.value;paint()};document.getElementById('pst').onchange=function(){state=this.value;paint()};
+   document.getElementById('pq').oninput=function(){q=this.value;paint();var el=document.getElementById('pq');el.focus();if(el.setSelectionRange)el.setSelectionRange(el.value.length,el.value.length)};document.getElementById('pst').onchange=function(){state=this.value;paint()};
    c.querySelectorAll('[data-tgl]').forEach(function(b){b.onclick=function(){
     var id=b.dataset.tgl,dis=b.dataset.on==='1';
     A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات.':'Disable this token? It will no longer submit.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
-     A.api('/admin/api/players/'+id+'/disabled',{method:'POST',body:{disabled:dis}}).then(function(r){
+     A.api('/admin/api/players/'+encodeURIComponent(id)+'/disabled',{method:'POST',body:{disabled:dis}}).then(function(r){
       done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(A.t('failed'),'err');
      }).catch(function(){done();A.toast(A.t('errNet'),'err')});
     }});

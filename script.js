@@ -342,31 +342,6 @@ window.TOR = (function () {
     box.appendChild(pillsBox);
   }
 
-  // ---------- CTF challenge card ----------
-  function challengeCard(c) {
-    var card = el('article', 'papyrus ctf');
-    var ph = el('div', 'ph');
-    ph.appendChild(el('span', 'cid', c.id));
-    ph.appendChild(solveBadge(c.id, false));
-    card.appendChild(ph);
-    var h3 = el('h3');
-    var link = el('a', null, L(c.title));
-    link.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
-    h3.appendChild(link); card.appendChild(h3);
-    card.appendChild(el('p', null, L(c.excerpt)));
-    var meta = el('div', 'ctf-meta');
-    function row(k, v) { if (v == null || v === '') return; meta.appendChild(el('span', null, k + ': ' + v)); }
-    row(T.category, L(c.category));
-    row(T.difficulty, L(c.difficulty));
-    row(T.time, L(c.est_time));
-    row(T.availability, c.availability === 'open' ? T.open : T.soon);
-    row(T.evidence, (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : '');
-    card.appendChild(meta);
-    addMeta(card, 'foot', [c.date, (c.tags || []).join(' · ')], '');
-    return card;
-  }
-
-
   // ---------- wide record row (challenge list) ----------
   function challengeRow(c) {
     var card = el('article', 'tablet rec-row');
@@ -526,8 +501,9 @@ window.TOR = (function () {
       [['scenario','السيناريو','Scenario'],['objectives','أهداف التحقيق','Investigation objectives'],['required_skills','المهارات المطلوبة','Required skills'],['tools','الأدوات المطلوبة','Tools required'],['instructions','التعليمات','Instructions']].forEach(function(x){var text=L(ch[x[0]]||{});if(text&&main){var h=el('h2',null,lang==='ar'?x[1]:x[2]);h.id='brief-'+x[0];main.appendChild(h);main.appendChild(el('p',null,text));counter2.headings.push({id:h.id,text:h.textContent})}});
       var sol = document.getElementById('zone-solution');
       var firstSolHeading = null;
+      var solCounter = { headings: [] };
       (ch.sections || []).forEach(function (sec, i) {
-        var node = renderSection(sec, i, counter2);
+        var node = renderSection(sec, i, sec.zone === 'solution' ? solCounter : counter2);
         if (!node) return;
         if (sec.zone === 'solution') {
           if (!firstSolHeading && sec.type === 'heading') { node.setAttribute('tabindex', '-1'); firstSolHeading = node; }
@@ -777,7 +753,7 @@ window.TOR = (function () {
         if (im && TOR.imgOk(fc.image)) TOR.setImgSrc(im, fc.image);
         var a0 = tab.querySelector('a.scene-link');
         if (a0) a0.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(fc.id);
-        fillChips(tab.querySelector('.labels'), fc.chips, !!fc.sample);
+        fillChips(tab.querySelector('.labels'), fc.chips, !!fc.sample, fc.attack);
         var th = tab.querySelector('[data-slot="title"]'); if (th) th.textContent = L(fc.title);
         var tm = tab.querySelector('[data-slot="meta"]');
         if (tm) tm.textContent = metaJoin([L(fc.difficulty), L(fc.est_time)], '');
@@ -818,26 +794,32 @@ window.TOR = (function () {
     }
   }
 
+  function unlockSolution(chId) {
+    var solEl = document.getElementById('zone-solution');
+    if (!solEl) return;
+    var emptyPh = solEl.querySelector('[data-empty-sol]');
+    if (solEl.children.length && !emptyPh) return;
+    fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId) + '&identity=' + TOR.identity())
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && Array.isArray(d.sections) && d.sections.length) {
+          var ph = solEl.querySelector('[data-empty-sol]');
+          if (ph) ph.remove();
+          if (!solEl.children.length) {
+            var cTmp = { headings: [] };
+            d.sections.forEach(function (sec, idx) {
+              var n = renderSection(sec, 'sol-' + idx, cTmp);
+              if (n) solEl.appendChild(n);
+            });
+          }
+        }
+      }).catch(function () {});
+  }
+
   // ---------- solved-state sync (server truth, local cache fallback) ----------
   (function () {
     var badges = document.querySelectorAll('[data-solve-badge]');
     if (!badges.length) return;
-    function unlockSolution(chId) {
-      var solEl = document.getElementById('zone-solution');
-      if (solEl && !solEl.children.length) {
-        fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId) + '&identity=' + TOR.identity())
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (d) {
-            if (d && Array.isArray(d.sections) && d.sections.length && !solEl.children.length) {
-              var cTmp = { headings: [] };
-              d.sections.forEach(function (sec, idx) {
-                var n = renderSection(sec, 'sol-' + idx, cTmp);
-                if (n) solEl.appendChild(n);
-              });
-            }
-          }).catch(function () {});
-      }
-    }
     function paint(solvedSet, pendingSet, solveTimes, playerName) {
       badges.forEach(function (b) {
         var id = b.getAttribute('data-solve-badge');
@@ -1028,17 +1010,7 @@ window.TOR = (function () {
               nameIn.focus();
             }
           }
-          var solEl = document.getElementById('zone-solution');
-          if (solEl && !solEl.children.length) {
-            fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(chId) + '&identity=' + TOR.identity())
-              .then(function (r) { return r.ok ? r.json() : null; })
-              .then(function (sd) {
-                if (sd && Array.isArray(sd.sections) && sd.sections.length && !solEl.children.length) {
-                  var cTmp = { headings: [] };
-                  sd.sections.forEach(function (sec, idx) { var n = renderSection(sec, 'sol-' + idx, cTmp); if (n) solEl.appendChild(n); });
-                }
-              }).catch(function () {});
-          }
+          unlockSolution(chId);
         } else if (d.status === 'already') {
           var who = d.name || '';
           var tTxt = d.ts ? (' · ' + formatSolveTime(d.ts, lang).full) : '';
@@ -1050,6 +1022,7 @@ window.TOR = (function () {
           if (input) { input.disabled = true; input.placeholder = lang === 'ar' ? 'تم التحقق من الفلاج' : 'Flag verified'; }
           if (claimForm) claimForm.hidden = true;
           TOR.markLocalSolve(chId);
+          unlockSolution(chId);
           loadSolvers();
         } else if (d.status === 'wrong') {
           btn.disabled = false;
@@ -1144,18 +1117,20 @@ window.TOR = (function () {
     function swapGate(src) {
       if (!gateImg || !src) return;
       gateImg.src = src;
-      if (gateImg.parentNode && gateImg.parentNode.tagName === 'PICTURE') {
-        var s = gateImg.parentNode.querySelector('source[type="image/webp"]');
-        if (s) {
-          var stem = src.replace(/\.jpg$/i, '');
-          s.srcset = stem + '-768.webp 768w, ' + stem + '.webp 1376w';
-        }
-      }
     }
     if (opening) {
       if (gateImg && gateImg.dataset.open) swapGate(gateImg.dataset.open);
       if (gateTitle && gateTitle.dataset.openText) gateTitle.textContent = gateTitle.dataset.openText;
       btn.textContent = btn.dataset.closeText;
+      var solZone = document.getElementById('zone-solution');
+      if (solZone && !solZone.children.length) {
+        var arMsg = !(typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG && SITE_CONFIG.arabic === false) && document.documentElement.lang === 'ar';
+        var ph = document.createElement('p');
+        ph.className = 'muted-note';
+        ph.setAttribute('data-empty-sol', '1');
+        ph.textContent = arMsg ? 'أدخل الفلاج الصحيح أعلاه لفتح شرح الحل (أو لم يُنشر حل لهذا التحدي بعد).' : 'Verify the flag above to unlock the walkthrough (or none published yet).';
+        solZone.appendChild(ph);
+      }
       var h = walk.querySelector('[tabindex="-1"]');
       if (h) h.focus();
     } else {
@@ -1202,7 +1177,8 @@ window.TOR = (function () {
   var page = document.body && document.body.getAttribute('data-page');
   if (!page) return;
   var ov = TOR.fieldOverrides();
-  var lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
+  var arabicOff = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG && SITE_CONFIG.arabic === false);
+  var lang = arabicOff ? 'en' : (document.documentElement.lang === 'en' ? 'en' : 'ar');
   var defs = (typeof SITE_CONTENT !== 'undefined' && SITE_CONTENT.defaults) || {};
   var base = /-(ar|en)$/.test(page) ? page : page + '-' + lang; // data-page may already carry the language
   function val(ckey) {
@@ -1261,7 +1237,8 @@ window.TOR = (function () {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'nav-toggle';
-  var isAr = document.documentElement.lang === 'ar' || /-ar$/.test(document.body && document.body.getAttribute('data-page') || '');
+  var arabicOffNav = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG && SITE_CONFIG.arabic === false);
+  var isAr = !arabicOffNav && (document.documentElement.lang === 'ar' || /-ar$/.test(document.body && document.body.getAttribute('data-page') || ''));
   btn.setAttribute('aria-label', isAr ? 'القائمة' : 'Navigation menu');
   btn.setAttribute('aria-expanded', 'false');
   btn.innerHTML = '<svg class="icon-burger" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 6h16M4 12h16M4 18h16"></path></svg><svg class="icon-close" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><path d="M6 18L18 6M6 6l12 12"></path></svg>';

@@ -108,11 +108,30 @@ function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
 }
+const TOO_LARGE_REQS = new WeakSet();
 function readBody(req, cap) {
+  const limit = cap || 65536;
   return new Promise((resolve) => {
-    let b = '';
-    req.on('data', c => { b += c; if (b.length > (cap || 65536)) req.destroy(); });
-    req.on('end', () => { try { resolve(JSON.parse(b)); } catch (e) { resolve(null); } });
+    const chunks = [];
+    let bytes = 0, done = false, tooBig = false;
+    const finish = val => { if (!done) { done = true; resolve(val); } };
+    req.on('data', c => {
+      bytes += c.length;
+      if (bytes > limit) {
+        tooBig = true;
+        TOO_LARGE_REQS.add(req);
+        chunks.length = 0;
+        if (bytes > Math.max(limit * 4, 2 * 1024 * 1024)) req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      if (tooBig) return finish(null);
+      try { finish(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch (e) { finish(null); }
+    });
+    req.on('close', () => finish(null));
+    req.on('error', () => finish(null));
   });
 }
 
@@ -122,6 +141,9 @@ function loginRateOk(ip) {
   const arr = (loginHits.get(ip) || []).filter(t => now - t < 60000);
   if (arr.length >= 5) { loginHits.set(ip, arr); return false; }
   arr.push(now); loginHits.set(ip, arr);
+  if (loginHits.size > 2000) {
+    for (const [k, v] of loginHits) if (!v.length || now - v[v.length - 1] >= 60000) loginHits.delete(k);
+  }
   return true;
 }
 
@@ -184,20 +206,24 @@ async function handle(req, res, url, ip) {
     return json(res,200,{settings:Object.assign({arabic_enabled:false},s)});
   }
   if(p==='/admin/api/site-settings'&&req.method==='PUT'){
-    const b=await readBody(req),old=readJson(path.join(DATA,'site-settings.json'),{});if(!b)return json(res,400,{error:'invalid'});
+    const b=await readBody(req),old=readJson(path.join(DATA,'site-settings.json'),{});
+    if(TOO_LARGE_REQS.has(req))return json(res,413,{error:'payload_too_large'});
+    if(!b||typeof b!=='object')return json(res,400,{error:'invalid'});
     if(b.arabic_enabled!==undefined&&typeof b.arabic_enabled!=='boolean')return json(res,400,{error:'invalid_arabic_enabled'});
     const out={};for(const k of ['name_ar','name_en','description_ar','description_en','logo','favicon','social_image','other_link'])out[k]=String(b[k]||'').slice(0,1000);
     for(const k of ['logo','favicon','social_image'])if(out[k]&&!/^assets\/[A-Za-z0-9._-]+$/.test(out[k]))return json(res,400,{error:'invalid_asset_path'});
-    if(out.other_link&&!/^https:\/\//.test(out.other_link))return json(res,400,{error:'https_required'});
+    if(out.other_link&&!TorAdmin.urlOk(out.other_link))return json(res,400,{error:'https_required'});
     out.arabic_enabled=b.arabic_enabled===true;
+    out.mode=b.mode==='light'?'light':'dark';
+    out.gold=/^#[A-Fa-f0-9]{6}$/.test(b.gold||'')?b.gold:'#D7B776';
+    out.font_ar=b.font_ar==='Tajawal'?'Tajawal':'IBM Plex Sans Arabic';
+    out.default_language=b.default_language==='ar'?'ar':'en';
     if(!out.arabic_enabled){
       if(!out.name_ar&&old.name_ar)out.name_ar=old.name_ar;
       if(!out.description_ar&&old.description_ar)out.description_ar=old.description_ar;
-      if(!b.font_ar&&old.font_ar)out.font_ar=old.font_ar;
+      if(!b.font_ar&&old.font_ar)out.font_ar=old.font_ar==='Tajawal'?'Tajawal':'IBM Plex Sans Arabic';
+      if(old.default_language==='ar'||old.default_language==='en')out.default_language=old.default_language;
     }
-    out.default_language=b.default_language==='ar'?'ar':'en';out.mode=b.mode==='light'?'light':'dark';
-    out.gold=/^#[A-Fa-f0-9]{6}$/.test(b.gold||'')?b.gold:'#D7B776';
-    out.font_ar=b.font_ar==='Tajawal'?'Tajawal':'IBM Plex Sans Arabic';
     out.base_url=String(b.base_url||'').replace(/\/$/,'');if(out.base_url&&!/^https:\/\/[^/\s]+$/.test(out.base_url))return json(res,400,{error:'invalid_base_url'});
     writeJson(path.join(DATA,'site-settings.json'),out);
     if(out.arabic_enabled!==(old.arabic_enabled===true)){
@@ -241,6 +267,10 @@ async function handle(req, res, url, ip) {
       articles: (st.collections.articles || []).map(a => {
         const t = bi(a.title), e = bi(a.excerpt || a.description);
         return Object.assign({}, a, { title_ar: t.ar || '', title_en: t.en || '', excerpt_ar: e.ar || '', excerpt_en: e.en || '', available: a.availability !== 'soon', sample: a.sample === true });
+      }),
+      investigations: (st.collections.investigations || []).map(iv => {
+        const t = bi(iv.title), s = bi(iv.summary);
+        return Object.assign({}, iv, { title_ar: t.ar || '', title_en: t.en || '', summary_ar: s.ar || '', summary_en: s.en || '' });
       })
     });
     let fixedFields = [];
@@ -278,6 +308,7 @@ async function handle(req, res, url, ip) {
     const list = st.collections.challenges;
     if (req.method === 'POST' && !chMatch[1]) {
       const body = await readBody(req, 2 * 1024 * 1024);
+      if (TOO_LARGE_REQS.has(req)) return json(res, 413, { error: 'payload_too_large' });
       const arOn = isArabicEnabled();
       const v = TorAdmin.validateCollections({ articles: [], challenges: [body] }, { arabicEnabled: arOn });
       if (!v.ok) return json(res, 400, { error: 'invalid', details: v.errors.slice(0, 5) });
@@ -292,6 +323,7 @@ async function handle(req, res, url, ip) {
     if (!entry) return json(res, 404, { error: 'not_found' });
     if (req.method === 'PUT') {
       const body = await readBody(req, 2 * 1024 * 1024);
+      if (TOO_LARGE_REQS.has(req)) return json(res, 413, { error: 'payload_too_large' });
       if(!body)return json(res,400,{error:'invalid_json'});
       body.id = chMatch[1]; // id immutable via this route
       const arOn = isArabicEnabled();
@@ -305,9 +337,13 @@ async function handle(req, res, url, ip) {
       return json(res, 200, { status: 'updated', id: entry.id });
     }
     if (req.method === 'DELETE') {
-      entry.hidden = true; publishStore(st); // archive = hidden; hard delete not default
-      audit(sess.username, 'challenge_archive', entry.id, 'ok');
-      return json(res, 200, { status: 'archived', id: entry.id });
+      list.splice(list.indexOf(entry), 1);
+      publishStore(st);
+      const flags = readJson(FLAGS_FILE, {});
+      delete flags[entry.id];
+      writeJson(FLAGS_FILE, flags);
+      audit(sess.username, 'challenge_delete', entry.id, 'ok', 'flag also removed');
+      return json(res, 200, { status: 'deleted', id: entry.id });
     }
     if (req.method === 'GET') return json(res, 200, { challenge: entry });
   }
@@ -388,7 +424,7 @@ async function handle(req, res, url, ip) {
       if (policy.case_sensitive === false) flag = flag.toLowerCase();
       if (has && body.confirm_replace !== true) return json(res, 409, { error: 'needs_confirm', detail: 'replacing an existing flag requires confirm_replace:true' });
       const salt = crypto.randomBytes(16).toString('hex');
-      flags[flMatch[1]] = { salt, sha256: crypto.createHash('sha256').update(salt + flag, 'utf8').digest('hex'), points: Number(body.points) || (flags[flMatch[1]] || {}).points || 100 };
+      flags[flMatch[1]] = { salt, sha256: crypto.createHash('sha256').update(salt + flag, 'utf8').digest('hex') };
       writeJson(FLAGS_FILE, flags);
       audit(sess.username, has ? 'flag_replace' : 'flag_set', flMatch[1], 'ok');
       return json(res, 200, { status: has ? 'replaced' : 'set', sha256: flags[flMatch[1]].sha256 });
@@ -476,7 +512,7 @@ async function handle(req, res, url, ip) {
     if (!from || !to || to.length > 80) return json(res, 400, { error: 'invalid' });
     const st3 = getStore();
     let touched = 0;
-    ['challenges', 'articles', 'kb', 'investigations', 'projects'].forEach(col => {
+    ['challenges', 'articles', 'investigations'].forEach(col => {
       (st3.collections[col] || []).forEach(it => {
         if (Array.isArray(it.tags) && it.tags.includes(from)) {
           it.tags = it.tags.map(t => t === from ? to : t);
@@ -502,6 +538,7 @@ async function handle(req, res, url, ip) {
     investigations: {
       fields: [
         { k: 'title', t: 'bi', max: 300, required: true },
+        { k: 'slug', t: 'slug', max: 120 },
         { k: 'summary', t: 'bi', max: 6000 },
         { k: 'status', t: 'enum', values: ['open', 'closed', 'draft'] },
         { k: 'visibility', t: 'enum', values: ['private', 'public'] },
@@ -519,28 +556,56 @@ async function handle(req, res, url, ip) {
         { k: 'detection_rule_lang', t: 'str', max: 60 },
         { k: 'detection_rule', t: 'code', max: 30000 },
         { k: 'lessons_learned', t: 'bi', max: 10000 },
-        { k: 'links', t: 'links', max: 50 }
+        { k: 'links', t: 'links', max: 50 },
+        { k: 'seo_title', t: 'bi', max: 200 },
+        { k: 'meta_description', t: 'bi', max: 500 },
+        { k: 'image', t: 'img' }
       ]
     }
   };
-  const cleanBySchema = (schema, b, existing) => {
-    const t = (x, n) => String(x == null ? '' : x).slice(0, n || 1000);
+  const cleanBySchema = (schema, b, existing, opts) => {
+    const arEnabled = !(opts && opts.arabicEnabled === false);
+    const t = (x, n) => TorAdmin.cleanStr(String(x == null ? '' : x).slice(0, n || 1000), n || 1000) || '';
     const bi = (o, m) => ({ ar: t(o && o.ar, m), en: t(o && o.en, m) });
     const item = { id: existing || t(b.id, 60), hidden: !!b.hidden };
     for (const f of schema.fields) {
       const v = b[f.k];
       if (f.t === 'bi') item[f.k] = bi(v, f.max);
+      else if (f.t === 'slug') {
+        const s = bi(v, f.max);
+        if ((s.ar && !/^[\p{L}\p{N}-]+$/u.test(s.ar)) || (s.en && !/^[\p{L}\p{N}-]+$/u.test(s.en))) return null;
+        item[f.k] = s;
+      }
+      else if (f.t === 'img') {
+        const im = t(v, 500).trim();
+        if (im && !TorAdmin.imgOk(im)) return null;
+        if (im) item[f.k] = im;
+      }
+      else if (f.k === 'publish_at') {
+        const pa = t(v, 60).trim();
+        if (pa) {
+          const d = new Date(pa);
+          if (isNaN(d.getTime())) return null;
+          item[f.k] = d.toISOString();
+        } else item[f.k] = '';
+      }
       else if (f.t === 'str' || f.t === 'code') item[f.k] = t(v, f.max);
       else if (f.t === 'enum') item[f.k] = f.values.includes(v) ? v : f.values[0];
-      else if (f.t === 'tags') item[f.k] = Array.isArray(v) ? v.map(x => t(x, 40)).filter(Boolean).slice(0, 20) : [];
-      else if (f.t === 'url') { const u = t(v, 500).trim(); if (u && !/^https:\/\//.test(u)) return null; item[f.k] = u; }
+      else if (f.t === 'tags') {
+        const arr = Array.isArray(v) ? v.map(x => t(x, 40).trim()).filter(Boolean).slice(0, 20) : [];
+        item[f.k] = f.k === 'attack' ? arr.map(x => x.toUpperCase()).filter(x => /^T\d{4}(\.\d{3})?$/.test(x)) : arr;
+      }
+      else if (f.t === 'url') { const u = t(v, 500).trim(); if (u && !TorAdmin.urlOk(u)) return null; item[f.k] = u; }
       else if (f.t === 'entries') item[f.k] = Array.isArray(v) ? v.slice(0, f.max).map(e => ({ ts: t(e && e.ts, 40), ar: t(e && e.ar, 2000), en: t(e && e.en, 2000) })) : [];
       else if (f.t === 'links') {
         const ls = Array.isArray(v) ? v.slice(0, f.max).map(e => ({ label: t(e && e.label, 120), url: t(e && e.url, 500).trim() })) : [];
-        if (ls.some(l => l.url && !/^https:\/\//.test(l.url))) return null;
+        if (ls.some(l => l.url && !TorAdmin.urlOk(l.url))) return null;
         item[f.k] = ls;
       }
-      if (f.required && f.t === 'bi' && !item[f.k].ar && !item[f.k].en) return null;
+      if (f.required && f.t === 'bi') {
+        if (!arEnabled && !item[f.k].en.trim()) return null;
+        if (arEnabled && !item[f.k].ar.trim() && !item[f.k].en.trim()) return null;
+      }
     }
     return item;
   };
@@ -552,10 +617,14 @@ async function handle(req, res, url, ip) {
     const list = st4.collections[col];
     if (req.method === 'POST' && !gcMatch[2]) {
       const body = await readBody(req, 1024 * 1024);
-      const id = String(body && body.id || '').trim();
-      const item = cleanBySchema(schema, body || {}, id);
+      if (TOO_LARGE_REQS.has(req)) return json(res, 413, { error: 'payload_too_large' });
+      if (!body || typeof body !== 'object') return json(res, 400, { error: 'invalid' });
+      const arOn = isArabicEnabled();
+      const id = String(body.id || '').trim();
+      const item = cleanBySchema(schema, body, id, { arabicEnabled: arOn });
       if (!item || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(item.id)) return json(res, 400, { error: 'invalid' });
-      if (list.some(x => x.id === item.id)) return json(res, 409, { error: 'duplicate_id' });
+      const checkLangs = arOn ? ['ar', 'en'] : ['en'];
+      if (list.some(x => x.id === item.id || (col === 'investigations' && checkLangs.some(l => item.slug && item.slug[l] && (x.id === item.slug[l] || (x.slug && x.slug[l] === item.slug[l])))))) return json(res, 409, { error: 'duplicate_id' });
       list.push(item); publishStore(st4);
       audit(sess.username, col + '_create', item.id, 'ok');
       return json(res, 200, { status: 'created', id: item.id });
@@ -564,10 +633,19 @@ async function handle(req, res, url, ip) {
     if (!it) return json(res, 404, { error: 'not_found' });
     if (req.method === 'PUT') {
       const body = await readBody(req, 1024 * 1024);
+      if (TOO_LARGE_REQS.has(req)) return json(res, 413, { error: 'payload_too_large' });
+      if (!body || typeof body !== 'object') return json(res, 400, { error: 'invalid' });
       const arOn = isArabicEnabled();
-      const payload = arOn ? (body || {}) : mergeArabic(body || {}, it);
-      const item = cleanBySchema(schema, payload, gcMatch[2]);
+      const mergedInput = { ...body };
+      for (const f of schema.fields) {
+        if (mergedInput[f.k] === undefined && it[f.k] !== undefined) mergedInput[f.k] = it[f.k];
+      }
+      if (mergedInput.hidden === undefined && it.hidden !== undefined) mergedInput.hidden = it.hidden;
+      const payload = arOn ? mergedInput : mergeArabic(mergedInput, it);
+      const item = cleanBySchema(schema, payload, gcMatch[2], { arabicEnabled: arOn });
       if (!item) return json(res, 400, { error: 'invalid' });
+      const checkLangs = arOn ? ['ar', 'en'] : ['en'];
+      if (col === 'investigations' && list.some(x => x.id !== it.id && checkLangs.some(l => item.slug && item.slug[l] && (x.id === item.slug[l] || (x.slug && x.slug[l] === item.slug[l]))))) return json(res, 409, { error: 'duplicate_slug' });
       list[list.indexOf(it)] = item; publishStore(st4);
       audit(sess.username, col + '_update', item.id, 'ok');
       return json(res, 200, { status: 'updated', id: item.id });
@@ -582,7 +660,7 @@ async function handle(req, res, url, ip) {
 
   // --- SEO: editable meta descriptions / OG tags, injected into the static pages as a marked block ---
   const SEO_FILE = path.join(DATA_DIR, 'seo.json');
-  const SEO_PAGES = { ar: ['index-ar.html', 'challenges-ar.html', 'articles-ar.html', 'about-ar.html'], en: ['index-en.html', 'challenges-en.html', 'articles-en.html', 'about-en.html'] };
+  const SEO_PAGES = { ar: ['index-ar.html', 'challenges-ar.html', 'investigations-ar.html', 'articles-ar.html', 'about-ar.html'], en: ['index-en.html', 'challenges-en.html', 'investigations-en.html', 'articles-en.html', 'about-en.html'] };
   function escAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/\n/g, ' '); }
   function seoBlock(lang, d) {
     const esc = escAttr(d.description || '');
@@ -591,8 +669,10 @@ async function handle(req, res, url, ip) {
       (kw ? '\n<meta name="keywords" content="' + kw + '"/>' : '') +
       '\n<meta property="og:description" content="' + esc + '"/>\n<!-- seo:end -->';
   }
-  function publishSeo(seo) {
-    Object.keys(SEO_PAGES).forEach(lang => {
+  function publishSeo(seo, arOn) {
+    let touched = 0;
+    const langs = arOn ? ['ar', 'en'] : ['en'];
+    langs.forEach(lang => {
       const d = seo[lang] || {};
       SEO_PAGES[lang].forEach(f => {
         const fp = path.join(ROOT, f);
@@ -601,26 +681,30 @@ async function handle(req, res, url, ip) {
         html = html.replace(/\n?<!-- seo:start -->[\s\S]*?<!-- seo:end -->/, '');
         if (d.description) html = html.replace(/(<meta[^>]*name="viewport"[^>]*\/?>)/, '$1\n' + seoBlock(lang, d));
         fs.writeFileSync(fp, html);
+        touched++;
       });
     });
+    return touched;
   }
   if (p === '/admin/api/seo' && req.method === 'GET') {
     return json(res, 200, { seo: readJson(SEO_FILE, { ar: { description: '', keywords: '' }, en: { description: '', keywords: '' } }) });
   }
   if (p === '/admin/api/seo' && req.method === 'PUT') {
     const body = await readBody(req);
+    if (TOO_LARGE_REQS.has(req)) return json(res, 413, { error: 'payload_too_large' });
     const seo = readJson(SEO_FILE, {});
+    const arOn = isArabicEnabled();
     ['ar', 'en'].forEach(lang => {
       const d = body && body[lang] || {};
-      seo[lang] = {
-        description: String(d.description || '').slice(0, 300),
-        keywords: String(d.keywords || '').slice(0, 300)
-      };
+      const desc = String(d.description || '').slice(0, 300);
+      const kw = String(d.keywords || '').slice(0, 300);
+      if (!arOn && lang === 'ar' && !desc && !kw && seo.ar) return;
+      seo[lang] = { description: desc, keywords: kw };
     });
     writeJson(SEO_FILE, seo);
-    publishSeo(seo);
+    const pages = publishSeo(seo, arOn);
     audit(sess.username, 'seo_update', 'meta', 'ok');
-    return json(res, 200, { status: 'saved', pages: Object.values(SEO_PAGES).flat().length });
+    return json(res, 200, { status: 'saved', pages });
   }
 
   // --- flag policy: format + case rules (stored under _policy in flags.json, never a challenge) ---
@@ -656,20 +740,6 @@ async function handle(req, res, url, ip) {
     publishStore(store);
     audit(sess.username, 'challenge_duplicate', src.id, 'ok', 'new id ' + nid + ' (hidden; flag NOT copied)');
     return json(res, 200, { status: 'duplicated', id: nid });
-  }
-  const chDel = p.match(/^\/admin\/api\/challenges\/([a-z0-9-]+)$/);
-  if (chDel && req.method === 'DELETE') {
-    const store = getStore();
-    const list = store.collections.challenges || [];
-    const i = list.findIndex(c => c.id === chDel[1]);
-    if (i === -1) return json(res, 404, { error: 'not_found' });
-    list.splice(i, 1);
-    publishStore(store);
-    const flags = readJson(FLAGS_FILE, {});
-    delete flags[chDel[1]];
-    writeJson(FLAGS_FILE, flags);
-    audit(sess.username, 'challenge_delete', chDel[1], 'ok', 'flag also removed');
-    return json(res, 200, { status: 'deleted', id: chDel[1] });
   }
 
   // --- player disable/enable (enforced by the public submit API) ---
@@ -826,7 +896,18 @@ function challengeIsOpen(id) {
 function mergeArabic(incoming, existing) {
   if (!existing || typeof existing !== 'object') return incoming;
   if (Array.isArray(incoming) && Array.isArray(existing)) {
-    return incoming.map((item, i) => mergeArabic(item, existing[i]));
+    return incoming.map((item, i) => {
+      if (item && typeof item === 'object') {
+        if (typeof item.name === 'string' && item.name) {
+          const byName = existing.find(x => x && x.name === item.name);
+          if (byName) return mergeArabic(item, byName);
+        }
+        if (item.type && existing[i] && existing[i].type && item.type !== existing[i].type) {
+          return item;
+        }
+      }
+      return mergeArabic(item, existing[i]);
+    });
   }
   if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return incoming;
   const out = { ...incoming };
@@ -846,4 +927,4 @@ function isArabicEnabled() {
   const s = readJson(path.join(DATA, 'site-settings.json'), {});
   return s.arabic_enabled === true;
 }
-module.exports = { handle, publicContentScript, challengeIsOpen, challengeIsPublic, isArabicEnabled };
+module.exports = { handle, publicContentScript, challengeIsOpen, challengeIsPublic, isArabicEnabled, stripArabicValue };

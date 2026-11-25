@@ -20,3 +20,5 @@ server/data/audit.jsonl
 server/data/solves.json
 server/data/players_names.json
 server/data/players_state.json
+server/data/verified.json
+server/data/seo.json

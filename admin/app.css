@@ -219,3 +219,4 @@ button.user-chip{background:transparent;border-block:0;border-inline-end:0;curso
 
 .tbl .mono{direction:ltr;unicode-bidi:isolate;white-space:nowrap}.panel>h2{font-family:var(--body-font);font-weight:700}
 body.en-only .ar-only{display:none!important}
+body.en-only .mini-grid,body.en-only .hint-row,body.en-only .row2:has(> .ar-only){grid-template-columns:1fr}

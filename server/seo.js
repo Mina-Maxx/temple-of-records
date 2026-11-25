@@ -24,9 +24,10 @@ function plainText(s, max) {
   return String(s == null ? '' : s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max || 160);
 }
 
-function loc(v, lang) {
+function loc(v, lang, arabicEnabled = true) {
   if (v == null) return '';
   if (typeof v === 'string') return v;
+  if (!arabicEnabled) return v.en || '';
   return v[lang] || v.en || v.ar || '';
 }
 
@@ -55,10 +56,11 @@ function stripArabicFromHtml(html) {
     .replace(/<a\b[^>]*class=["'][^"']*pill-lang[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '')
     .replace(/<a\b[^>]*href=["'][^"']*-ar\.html[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '')
     .replace(/<link\b[^>]*hreflang=["']ar["'][^>]*>\s*/gi, '')
+    .replace(/<link\b[^>]*href=["'][^"']*feed-ar\.xml["'][^>]*>\s*/gi, '')
     .replace(/<meta\b[^>]*property=["']og:locale["'][^>]*>\s*/gi, '<meta property="og:locale" content="en_US"/>\n')
     .replace(/(https:\/\/fonts\.googleapis\.com\/css2\?[^"']+)/gi, (u) =>
-      u.replace(/&amp;family=(?:Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal)[^&"]*/gi, '')
-       .replace(/family=(?:Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal)[^&"]*&amp;/gi, '')
+      u.replace(/(?:&amp;|&)family=(?:Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal)[^&"]*/gi, '')
+       .replace(/family=(?:Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal)[^&"]*(?:&amp;|&)/gi, '')
     );
 }
 
@@ -75,16 +77,16 @@ function injectDetailMeta(html, pathname, url, root, dataDir, arabicEnabled = tr
   const pubCols = visibility.publicCollections(loadCollections(dataDir));
   const list = pubCols[colKey] || [];
   const item = list.find(x => x.id === idParam || (x.slug && (x.slug[lang] === idParam || x.slug.ar === idParam || x.slug.en === idParam)));
-  if (!item) {
+  if (!item || (!arabicEnabled && !(item.title && item.title.en) && !(item.slug && item.slug.en))) {
     return { status: 404, html: render404(root, arabicEnabled) };
   }
 
   const cfg = loadSettings(dataDir);
   const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
   const siteName = lang === 'ar' ? (cfg.name_ar || 'مينا مكس') : (cfg.name_en || 'Mina Max');
-  const rawTitle = loc(item.seo_title, lang) || loc(item.title, lang) || item.id;
+  const rawTitle = loc(item.seo_title, lang, arabicEnabled) || loc(item.title, lang, arabicEnabled) || item.id;
   const fullTitle = rawTitle + ' · ' + siteName;
-  const desc = plainText(loc(item.meta_description, lang) || loc(item.excerpt, lang) || loc(item.summary, lang) || loc(item.description, lang), 160);
+  const desc = plainText(loc(item.meta_description, lang, arabicEnabled) || loc(item.excerpt, lang, arabicEnabled) || loc(item.summary, lang, arabicEnabled) || loc(item.description, lang, arabicEnabled), 160);
 
   let out = html
     .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + escHtml(fullTitle) + '</title>')
@@ -194,13 +196,13 @@ function renderSitemap(dataDir, arabicEnabled = true) {
     '\n</urlset>';
 }
 
-function renderFeed(lang, dataDir) {
+function renderFeed(lang, dataDir, arabicEnabled = true) {
   const cfg = loadSettings(dataDir);
   const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
   if (!baseUrl) return null;
 
   const visible = visibility.publicCollections(loadCollections(dataDir));
-  const articles = visible.articles || [];
+  const articles = (visible.articles || []).filter(a => arabicEnabled || (a.title && a.title.en) || (a.slug && a.slug.en));
   const isAr = lang === 'ar';
   const siteName = isAr ? (cfg.name_ar || 'مينا مكس') : (cfg.name_en || 'Mina Max');
   const feedUrl = `${baseUrl}/${isAr ? 'feed-ar.xml' : 'feed.xml'}`;
@@ -209,8 +211,8 @@ function renderFeed(lang, dataDir) {
   const itemsXml = articles.map(a => {
     const slug = (a.slug && a.slug[lang]) || a.id;
     const link = `${baseUrl}/article-${lang}.html?id=${encodeURIComponent(slug)}`;
-    const title = loc(a.title, lang) || a.id;
-    const summary = plainText(loc(a.excerpt, lang) || '', 300);
+    const title = loc(a.title, lang, arabicEnabled) || a.id;
+    const summary = plainText(loc(a.excerpt, lang, arabicEnabled) || '', 300);
     const upd = (a.date && /^\d{4}-\d{2}-\d{2}/.test(a.date) ? a.date.slice(0, 10) : '2026-01-01') + 'T00:00:00Z';
     return `<entry><title>${escHtml(title)}</title><link href="${escHtml(link)}"/><id>${escHtml(link)}</id><updated>${escHtml(upd)}</updated><summary>${escHtml(summary)}</summary></entry>`;
   }).join('\n');
