@@ -17,6 +17,7 @@ base.artifacts.push({name:'PRIVATE_ARTIFACT_SENTINEL',url:'https://example.org/p
 base.sections.push({type:'paragraph',en:'PRIVATE_SECTION_SENTINEL',ar:'',zone:'solution',published:false});
 const hiddenArticle=structuredClone(store.collections.articles[0]);hiddenArticle.id='secret-article';hiddenArticle.hidden=true;hiddenArticle.title.ar='PRIVATE_ARTICLE_SENTINEL';store.collections.articles.push(hiddenArticle);
 fs.writeFileSync(storeFile,JSON.stringify(store));
+fs.writeFileSync(path.join(root,'server/data/site-settings.json'),JSON.stringify({default_language:'en',arabic_enabled:true}));
 fs.writeFileSync(path.join(root,'server/data/solves.json'),JSON.stringify({'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa':{'test-hidden':'2026-11-23T00:00:00Z','log4shell-lab':'2026-11-23T00:00:00Z'}}));
 const flagFile=path.join(root,'server/flags.json');const flags=JSON.parse(fs.readFileSync(flagFile));for(const [name] of cases)flags['test-'+name]=structuredClone(flags[base.id]);fs.writeFileSync(flagFile,JSON.stringify(flags));
 let child;let port=19287;let count=0;

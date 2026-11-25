@@ -754,6 +754,29 @@ async function handle(req, res, url, ip) {
   return json(res, 404, { error: 'not_found' });
 }
 
+const AR_SCRIPT_RE = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
+function stripArabicValue(v) {
+  if (Array.isArray(v)) return v.map(stripArabicValue);
+  if (!v || typeof v !== 'object') return v;
+  const out = {};
+  for (const [k, val] of Object.entries(v)) {
+    if (k === 'ar' || /_ar$/i.test(k) || /Ar$/.test(k)) continue;
+    out[k] = stripArabicValue(val);
+  }
+  return out;
+}
+function stripArabicFromPayload(settings, fixedDefaults, collections) {
+  const cleanSettings = stripArabicValue(settings || {});
+  delete cleanSettings.font_ar;
+  const cleanDefaults = {};
+  for (const [k, v] of Object.entries(fixedDefaults || {})) {
+    if (/^[a-z]+-ar:/i.test(k) || AR_SCRIPT_RE.test(String(v || ''))) continue;
+    cleanDefaults[k] = v;
+  }
+  const cleanCols = stripArabicValue(collections || {});
+  return { settings: cleanSettings, defaults: cleanDefaults, collections: cleanCols };
+}
+
 // Public serialization excludes private/draft records. Walkthroughs of public
 // challenges remain intentionally revealable without a solve gate.
 function publicContentScript() {
@@ -763,11 +786,22 @@ function publicContentScript() {
   for (const [k, v] of Object.entries(store.fixedDefaults || {})) {
     cleanDefaults[k] = isPlaceholder(v) ? '' : v;
   }
-  const fixed = { fields: seedFields(), defaults: cleanDefaults };
-  const settings=readJson(path.join(DATA,'site-settings.json'),{});
-  const collections = require('./visibility').publicCollections(store.collections);
+  let settings = readJson(path.join(DATA, 'site-settings.json'), {});
+  let collections = require('./visibility').publicCollections(store.collections);
+  const arabic = isArabicEnabled();
+  let finalDefaults = cleanDefaults;
+  if (!arabic) {
+    const stripped = stripArabicFromPayload(settings, cleanDefaults, collections);
+    settings = stripped.settings;
+    finalDefaults = stripped.defaults;
+    collections = stripped.collections;
+  }
+  const fixed = { fields: seedFields(), defaults: finalDefaults };
   const safeJson = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-  return 'const SITE_SETTINGS = '+safeJson(settings)+';\nconst SITE_CONTENT = ' + safeJson(fixed) + ';\nconst SITE_COLLECTIONS = ' + safeJson(collections) + ';\n';
+  return 'var SITE_CONFIG = ' + safeJson({ arabic }) + '; if (typeof window !== "undefined") window.SITE_CONFIG = SITE_CONFIG;\n'
+    + 'const SITE_SETTINGS = ' + safeJson(settings) + ';\n'
+    + 'const SITE_CONTENT = ' + safeJson(fixed) + ';\n'
+    + 'const SITE_COLLECTIONS = ' + safeJson(collections) + ';\n';
 }
 function challengeIsPublic(id) {
   const challenge = (getStore().collections.challenges || []).find(c => c.id === id);

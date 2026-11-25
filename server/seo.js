@@ -38,16 +38,31 @@ function loadCollections(dataDir) {
   try { return JSON.parse(fs.readFileSync(path.join(dataDir, 'store.json'), 'utf8')).collections || {}; } catch { return {}; }
 }
 
-function render404(root) {
+function render404(root, arabicEnabled = true) {
   let html = '';
-  try { html = fs.readFileSync(path.join(root, '404.html'), 'utf8'); } catch { return 'Not found'; }
+  const fname = arabicEnabled ? '404.html' : '404-en.html';
+  try { html = fs.readFileSync(path.join(root, fname), 'utf8'); } catch {
+    try { html = fs.readFileSync(path.join(root, '404.html'), 'utf8'); } catch { return 'Not found'; }
+  }
   if (!/name=["']robots["']/i.test(html)) {
     html = html.replace(/<head([^>]*)>/i, '<head$1>\n<meta name="robots" content="noindex"/>');
   }
   return html;
 }
 
-function injectDetailMeta(html, pathname, url, root, dataDir) {
+function stripArabicFromHtml(html) {
+  return html
+    .replace(/<a\b[^>]*class=["'][^"']*pill-lang[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '')
+    .replace(/<a\b[^>]*href=["'][^"']*-ar\.html[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '')
+    .replace(/<link\b[^>]*hreflang=["']ar["'][^>]*>\s*/gi, '')
+    .replace(/<meta\b[^>]*property=["']og:locale["'][^>]*>\s*/gi, '<meta property="og:locale" content="en_US"/>\n')
+    .replace(/(https:\/\/fonts\.googleapis\.com\/css2\?[^"']+)/gi, (u) =>
+      u.replace(/&amp;family=(?:Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal)[^&"]*/gi, '')
+       .replace(/family=(?:Aref\+Ruqaa|IBM\+Plex\+Sans\+Arabic|Tajawal)[^&"]*&amp;/gi, '')
+    );
+}
+
+function injectDetailMeta(html, pathname, url, root, dataDir, arabicEnabled = true) {
   const m = /^\/(article|challenge|investigation)-(ar|en)\.html$/.exec(pathname);
   if (!m) return { status: 200, html };
 
@@ -55,13 +70,13 @@ function injectDetailMeta(html, pathname, url, root, dataDir) {
   const lang = m[2];
   const colKey = pageType + 's';
   const idParam = url.searchParams.get('id') || url.searchParams.get('c') || url.searchParams.get('a') || '';
-  if (!idParam) return { status: 200, html };
+  if (!idParam) return { status: 200, html: arabicEnabled ? html : stripArabicFromHtml(html) };
 
   const pubCols = visibility.publicCollections(loadCollections(dataDir));
   const list = pubCols[colKey] || [];
   const item = list.find(x => x.id === idParam || (x.slug && (x.slug[lang] === idParam || x.slug.ar === idParam || x.slug.en === idParam)));
   if (!item) {
-    return { status: 404, html: render404(root) };
+    return { status: 404, html: render404(root, arabicEnabled) };
   }
 
   const cfg = loadSettings(dataDir);
@@ -89,7 +104,7 @@ function injectDetailMeta(html, pathname, url, root, dataDir) {
     const ogType = pageType === 'article' ? 'article' : 'website';
 
     tags.push('<link rel="canonical" href="' + escHtml(curUrl) + '"/>');
-    tags.push('<link rel="alternate" hreflang="ar" href="' + escHtml(urlAr) + '"/>');
+    if (arabicEnabled) tags.push('<link rel="alternate" hreflang="ar" href="' + escHtml(urlAr) + '"/>');
     tags.push('<link rel="alternate" hreflang="en" href="' + escHtml(urlEn) + '"/>');
     tags.push('<link rel="alternate" hreflang="x-default" href="' + escHtml(urlEn) + '"/>');
     tags.push('<meta property="og:title" content="' + escHtml(fullTitle) + '"/>');
@@ -117,22 +132,24 @@ function injectDetailMeta(html, pathname, url, root, dataDir) {
   tags.push('<script type="application/ld+json">' + safeJsonLd(ld) + '</script>');
 
   out = out.replace('</head>', tags.join('\n') + '\n</head>');
+  if (!arabicEnabled) out = stripArabicFromHtml(out);
   return { status: 200, html: out };
 }
 
-function injectStaticMeta(html, dataDir) {
+function injectStaticMeta(html, dataDir, arabicEnabled = true) {
   const cfg = loadSettings(dataDir);
   const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
-  if (baseUrl) {
-    return html.replace(/https:\/\/mina-max\.website/g, baseUrl);
-  }
-  return html
-    .replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '')
-    .replace(/<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi, '')
-    .replace(/<meta\s+(?:property|name)=["'](?:og:url|og:image|twitter:image)["'][^>]*>\s*/gi, '');
+  let out = baseUrl
+    ? html.replace(/https:\/\/mina-max\.website/g, baseUrl)
+    : html
+      .replace(/<link\s+rel=["']canonical["'][^>]*>\s*/gi, '')
+      .replace(/<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi, '')
+      .replace(/<meta\s+(?:property|name)=["'](?:og:url|og:image|twitter:image)["'][^>]*>\s*/gi, '');
+  if (!arabicEnabled) out = stripArabicFromHtml(out);
+  return out;
 }
 
-function renderSitemap(dataDir) {
+function renderSitemap(dataDir, arabicEnabled = true) {
   const cfg = loadSettings(dataDir);
   const baseUrl = (cfg.base_url && /^https:\/\/[^/\s]+$/.test(cfg.base_url)) ? cfg.base_url.replace(/\/$/, '') : '';
   if (!baseUrl) return null;
@@ -141,12 +158,13 @@ function renderSitemap(dataDir) {
   const entries = [];
   const staticBases = ['index', 'challenges', 'articles', 'scoreboard', 'about'];
   if ((visible.investigations || []).length) staticBases.push('investigations');
+  const langs = arabicEnabled ? ['ar', 'en'] : ['en'];
 
   for (const b of staticBases) {
-    for (const l of ['ar', 'en']) {
+    for (const l of langs) {
       entries.push({
         loc: `${baseUrl}/${b}-${l}.html`,
-        ar: `${baseUrl}/${b}-ar.html`,
+        ar: arabicEnabled ? `${baseUrl}/${b}-ar.html` : '',
         en: `${baseUrl}/${b}-en.html`,
         lastmod: ''
       });
@@ -159,8 +177,8 @@ function renderSitemap(dataDir) {
       const uAr = `${baseUrl}/${page}-ar.html?id=${encodeURIComponent(slugAr)}`;
       const uEn = `${baseUrl}/${page}-en.html?id=${encodeURIComponent(slugEn)}`;
       const lm = item.date && /^\d{4}-\d{2}-\d{2}/.test(item.date) ? item.date.slice(0, 10) : '';
-      entries.push({ loc: uAr, ar: uAr, en: uEn, lastmod: lm });
-      entries.push({ loc: uEn, ar: uAr, en: uEn, lastmod: lm });
+      if (arabicEnabled) entries.push({ loc: uAr, ar: uAr, en: uEn, lastmod: lm });
+      entries.push({ loc: uEn, ar: arabicEnabled ? uAr : '', en: uEn, lastmod: lm });
     }
   }
 
@@ -169,7 +187,7 @@ function renderSitemap(dataDir) {
     entries.map(e =>
       '<url><loc>' + escHtml(e.loc) + '</loc>' +
       (e.lastmod ? '<lastmod>' + escHtml(e.lastmod) + '</lastmod>' : '') +
-      '<xhtml:link rel="alternate" hreflang="ar" href="' + escHtml(e.ar) + '"/>' +
+      (e.ar ? '<xhtml:link rel="alternate" hreflang="ar" href="' + escHtml(e.ar) + '"/>' : '') +
       '<xhtml:link rel="alternate" hreflang="en" href="' + escHtml(e.en) + '"/>' +
       '<xhtml:link rel="alternate" hreflang="x-default" href="' + escHtml(e.en) + '"/>' +
       '</url>'

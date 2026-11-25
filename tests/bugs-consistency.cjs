@@ -36,7 +36,7 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(clientIp({ socket: { remoteAddress: '10.0.0.1' }, headers: { 'x-real-ip': '9.9.9.9', 'x-forwarded-for': '5.6.7.8' } }, false) === '10.0.0.1', 'clientIp ignores proxy headers when TRUST_PROXY=false');
 
     const idxEn = await (await fetch(base + '/index-en.html')).text();
-    check(idxEn.includes('class="skip-link"') && idxEn.includes('id="main-content"') && idxEn.includes('aria-label="العربية"'), 'a11y skip-link, main-content, and pill-lang aria-label present');
+    check(idxEn.includes('class="skip-link"') && idxEn.includes('id="main-content"'), 'a11y skip-link and main-content present');
     const cssText = require('node:fs').readFileSync(path.join(root, 'style.css'), 'utf8');
     check(cssText.includes('prefers-reduced-motion: reduce'), 'style.css includes prefers-reduced-motion');
     check(sjs.includes("setAttribute('scope', 'col')"), 'artifacts table headers include scope="col"');

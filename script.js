@@ -79,8 +79,14 @@ window.TOR = (function () {
   var body = document.body;
   if (!body) return;
   var page = body.getAttribute('data-page') || '';
-  var lang = /-ar$/.test(page) ? 'ar' : 'en';
-  var L = function (obj) { return (obj && (obj[lang] || obj.ar || obj.en)) || ''; };
+  var arabicOff = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG && SITE_CONFIG.arabic === false);
+  var lang = arabicOff ? 'en' : (/-ar$/.test(page) ? 'ar' : 'en');
+  var L = function (obj) {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj;
+    if (arabicOff) return obj.en || '';
+    return obj[lang] || obj.ar || obj.en || '';
+  };
   var copyLabel = lang === 'ar' ? 'نسخ' : 'Copy';
   var copiedLabel = lang === 'ar' ? 'اتنسخ ✓' : 'Copied ✓';
   var T = {
@@ -1324,7 +1330,7 @@ window.TOR = (function () {
 
 // Optional site appearance and identity settings. No settings means original design.
 (function(){
- if(typeof SITE_SETTINGS==='undefined')return;var s=SITE_SETTINGS,ar=/-ar$/.test(document.body.dataset.page||'');
+ if(typeof SITE_SETTINGS==='undefined')return;var s=SITE_SETTINGS,ar=(typeof SITE_CONFIG!=='undefined'&&SITE_CONFIG&&SITE_CONFIG.arabic===false)?false:/-ar$/.test(document.body.dataset.page||'');
  if(s.gold)document.documentElement.style.setProperty('--gold',s.gold);
  if(s.font_ar)document.documentElement.style.setProperty('--body-ar',"'"+s.font_ar+"', sans-serif");
  if(s.mode==='light')document.documentElement.classList.add('light-mode');
