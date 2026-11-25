@@ -1,6 +1,6 @@
 {
   "name": "temple-of-records",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "description": "The Temple of Records - Bilingual DFIR & CTF Platform",
   "main": "server/server.js",
   "scripts": {
