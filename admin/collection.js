@@ -37,11 +37,14 @@ function listPage(CFG){
    (items.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+l('title')+'</th><th>'+l('status')+'</th><th>'+l('tags')+'</th><th>'+l('date')+'</th><th>'+A.t('actions')+'</th></tr></thead><tbody>'+
     items.map(function(it){
      var title=ar?(it.title&&it.title_ar)||(it.title&&it.title.ar):(it.title&&(it.title_en||it.title.en))||it.id;
-     var st=it.hidden?A.badge(l('archived'),'dim'):(it.status?A.badge(l(it.status),it.status==='open'||it.status==='active'?'ok':it.status==='wip'||it.status==='draft'?'info':'dim'):A.badge(l('active'),'ok'));
+     var isSched=it.publish_at&&Date.parse(it.publish_at)>Date.now();
+     var st=it.hidden?A.badge(l('archived'),'dim'):(isSched?A.badge(ar?'مجدول':'Scheduled','info'):(it.status?A.badge(l(it.status),it.status==='open'||it.status==='active'?'ok':it.status==='wip'||it.status==='draft'?'info':'dim'):A.badge(l('active'),'ok')));
      return '<tr><td><div class="t-main">'+A.esc(title)+'</div><div class="t-sub mono">'+A.esc(it.id)+'</div></td><td>'+st+'</td>'+
      '<td>'+((it.tags||[]).map(function(t){return '<span class="tag">'+A.esc(t)+'</span>'}).join('')||'<span class="dim small">—</span>')+'</td>'+
      '<td class="small dim">'+A.esc(it.date||'—')+'</td>'+
-     '<td><a class="btn sm ghost" href="'+CFG.col+'.html?edit=1&id='+encodeURIComponent(it.id)+'">'+A.t('edit')+'</a></td></tr>';
+     '<td><a class="btn sm ghost" href="'+CFG.col+'.html?edit=1&id='+encodeURIComponent(it.id)+'">'+A.t('edit')+'</a>'+
+     (CFG.col==='investigations'?' <a class="btn sm ghost" href="preview.html?kind=investigation&lang='+A.lang()+'&id='+encodeURIComponent(it.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة':'Preview')+'</a>':'')+
+     '</td></tr>';
     }).join('')+'</tbody></table></div>'
     :'<div class="empty"><div class="ic">'+A.icon(CFG.icon,22)+'</div><h3>'+A.t('empty')+'</h3><p>'+A.t('emptySub')+'</p></div>')+
    '</div>';
@@ -53,7 +56,7 @@ function editPage(CFG,id){
   var ar=A.lang()==='ar';
   function start(item){
    c.innerHTML='<div class="page-head"><h1>'+(id?(ar?A.esc(item.title.ar||item.id):A.esc(item.title.en||item.title.ar||item.id)):A.t('create'))+'</h1>'+
-   '<span class="sub mono">'+A.esc(item.id||'new')+'</span><div class="acts"><button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
+   '<span class="sub mono">'+A.esc(item.id||'new')+'</span><div class="acts">'+(id&&CFG.col==='investigations'?'<a class="btn ghost" href="preview.html?kind=investigation&lang='+A.lang()+'&id='+encodeURIComponent(item.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة (المحفوظ)':'Preview (saved)')+'</a>':'')+'<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
    '<div class="errlist" id="errs" role="alert" style="display:none;background:rgba(232,143,143,.1);border:1px solid rgba(232,143,143,.4);border-radius:8px;padding:12px 16px;font-size:.83rem;color:var(--err);margin-bottom:16px"></div>'+
    '<div class="panel">'+(id?'':'<div class="field"><label>ID (a-z0-9-)</label><input class="input mono" dir="ltr" id="f-id"></div>')+
    CFG.fields.map(function(f){return fieldHtml(f,item)}).join('')+

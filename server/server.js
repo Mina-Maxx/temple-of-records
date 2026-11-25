@@ -17,26 +17,51 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const admin = require('./admin');
+const seo = require('./seo');
 
 const ROOT = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.TOR_DATA_DIR ? path.resolve(process.env.TOR_DATA_DIR) : path.join(__dirname, 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const SOLVES_FILE = path.join(DATA_DIR, 'solves.json');
-const FLAGS_FILE_PATH = path.join(__dirname, 'flags.json');
+const FLAGS_FILE_PATH = process.env.TOR_FLAGS_FILE ? path.resolve(process.env.TOR_FLAGS_FILE) : path.join(__dirname, 'flags.json');
 // Re-read per request: flag set/replace and policy changes in the admin panel apply live, no restart.
 function loadFlags() {
   try { return JSON.parse(fs.readFileSync(FLAGS_FILE_PATH, 'utf8')); } catch (e) { return {}; }
 }
 const PLAYERS_STATE_FILE = path.join(DATA_DIR, 'players_state.json');
 const PLAYER_NAMES_FILE = path.join(DATA_DIR, 'players_names.json');
+const HINTS_USED_FILE = path.join(DATA_DIR, 'hints_used.json');
+function loadHintsUsed() { try { return JSON.parse(fs.readFileSync(HINTS_USED_FILE, 'utf8')); } catch (e) { return {}; } }
+function saveHintsUsed(obj) {
+  scoreboardCache = { ts: 0, data: null };
+  const tmp = HINTS_USED_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 1));
+  fs.renameSync(tmp, HINTS_USED_FILE);
+}
+function hintPenalty(identity, chId) {
+  const rec = (loadHintsUsed()[identity] || {})[chId] || {};
+  return Object.values(rec).reduce((sum, c) => sum + (Number(c) || 0), 0);
+}
 function loadPlayerNames() {
   try { return JSON.parse(fs.readFileSync(PLAYER_NAMES_FILE, 'utf8')); } catch (e) { return {}; }
 }
-function savePlayerName(identity, name) {
-  if (!identity || !name) return;
+function playerDisplayName(rec) {
+  if (!rec) return 'Anonymous';
+  if (typeof rec === 'string') return rec || 'Anonymous';
+  if (rec.hide) return 'Anonymous';
+  return rec.name || 'Anonymous';
+}
+function savePlayerName(identity, name, hide) {
+  if (!identity || (!name && hide === undefined)) return;
   const names = loadPlayerNames();
-  names[identity] = name;
+  const prev = names[identity];
+  const prevName = typeof prev === 'string' ? prev : (prev && prev.name) || '';
+  const prevHide = typeof prev === 'object' && prev ? !!prev.hide : false;
+  const nextName = name || prevName || 'Anonymous';
+  const nextHide = hide !== undefined ? !!hide : prevHide;
+  names[identity] = nextHide ? { name: nextName, hide: true } : nextName;
   const tmp = PLAYER_NAMES_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(names, null, 1));
   fs.renameSync(tmp, PLAYER_NAMES_FILE);
@@ -55,14 +80,8 @@ const HTTPS_MODE = process.env.TOR_HTTPS === '1' || process.env.NODE_ENV === 'pr
 const TRUST_PROXY = process.env.TOR_TRUST_PROXY === '1' || !!process.env.PORT;
 const DEV_CORS = process.env.TOR_DEV_CORS === '1';
 const LOOPBACK = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-function clientIp(req) {
-  const raw = req.socket.remoteAddress || 'unknown';
-  if (TRUST_PROXY) {
-    const v = String(req.headers['x-real-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || '').trim();
-    if (/^[0-9a-fA-F:.]{3,45}$/.test(v)) return v;
-  }
-  return raw;
-}
+const { clientIp: resolveClientIp } = require('./client-ip');
+function clientIp(req) { return resolveClientIp(req, TRUST_PROXY); }
 const PORT = Number(process.env.PORT || process.env.TOR_PORT || 8000);
 
 const MAX_BODY = 4096;
@@ -73,8 +92,10 @@ const RATE_PER_IP_CHALLENGE = 20;
 
 // ---------- solve store ----------
 let solves = {};
+let scoreboardCache = { ts: 0, data: null };
 try { solves = JSON.parse(fs.readFileSync(SOLVES_FILE, 'utf8')); } catch (e) { solves = {}; }
 function saveSolves() {
+  scoreboardCache = { ts: 0, data: null };
   const tmp = SOLVES_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(solves, null, 1));
   fs.renameSync(tmp, SOLVES_FILE);
@@ -128,7 +149,57 @@ function handleApi(req, res, url, ip) {
     if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
     const mine = solves[identity] || {};
     const names = loadPlayerNames();
-    return json(res, 200, { solved: Object.keys(mine).filter(id => admin.challengeIsPublic(id)), name: names[identity] || '' }, true);
+    const rec = names[identity];
+    const rawName = typeof rec === 'string' ? rec : (rec && rec.name) || '';
+    const hideName = typeof rec === 'object' && rec ? !!rec.hide : false;
+    return json(res, 200, { solved: Object.keys(mine).filter(id => admin.challengeIsPublic(id)), name: rawName, hideName }, true);
+  }
+
+  if (url.pathname === '/api/scoreboard' && req.method === 'GET') {
+    if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
+    if (scoreboardCache.data && Date.now() - scoreboardCache.ts < 15000) {
+      return json(res, 200, scoreboardCache.data, true);
+    }
+    const names = loadPlayerNames();
+    const firstByCh = {};
+    Object.keys(solves).forEach(id => {
+      if (isDisabled(id)) return;
+      const pSolves = solves[id] || {};
+      Object.keys(pSolves).forEach(chId => {
+        if (!admin.challengeIsPublic(chId)) return;
+        const ts = pSolves[chId];
+        if (!firstByCh[chId] || new Date(ts) < new Date(firstByCh[chId].ts)) {
+          firstByCh[chId] = { id, ts };
+        }
+      });
+    });
+    const rows = [];
+    Object.keys(solves).forEach(id => {
+      if (isDisabled(id)) return;
+      const pSolves = solves[id] || {};
+      let points = 0, solved = 0, firstBloods = 0, lastSolve = '';
+      Object.keys(pSolves).forEach(chId => {
+        if (!admin.challengeIsPublic(chId)) return;
+        solved++;
+        points += Math.max(0, admin.challengePoints(chId) - hintPenalty(id, chId));
+        const ts = pSolves[chId];
+        if (!lastSolve || new Date(ts) > new Date(lastSolve)) lastSolve = ts;
+        if (firstByCh[chId] && firstByCh[chId].id === id) firstBloods++;
+      });
+      if (solved > 0) {
+        rows.push({
+          name: playerDisplayName(names[id]),
+          points,
+          solved,
+          firstBloods,
+          lastSolve
+        });
+      }
+    });
+    rows.sort((a, b) => (b.points - a.points) || (new Date(a.lastSolve) - new Date(b.lastSolve)));
+    const payload = { scoreboard: rows.slice(0, 100) };
+    scoreboardCache = { ts: Date.now(), data: payload };
+    return json(res, 200, payload, true);
   }
 
   if (url.pathname === '/api/solvers' && req.method === 'GET') {
@@ -140,7 +211,7 @@ function handleApi(req, res, url, ip) {
       Object.keys(solves).forEach(id => {
         if (solves[id] && solves[id][challenge]) {
           list.push({
-            name: names[id] || 'Anonymous',
+            name: playerDisplayName(names[id]),
             ts: solves[id][challenge]
           });
         }
@@ -155,7 +226,7 @@ function handleApi(req, res, url, ip) {
         if (!admin.challengeIsPublic(chId)) return;
         if (!all[chId]) all[chId] = [];
         all[chId].push({
-          name: names[id] || 'Anonymous',
+          name: playerDisplayName(names[id]),
           ts: pSolves[chId]
         });
       });
@@ -164,6 +235,55 @@ function handleApi(req, res, url, ip) {
       all[chId].sort((a, b) => new Date(a.ts) - new Date(b.ts));
     });
     return json(res, 200, { solvers: all }, true);
+  }
+
+  if (url.pathname === '/api/solution' && req.method === 'GET') {
+    const challenge = url.searchParams.get('challenge') || '';
+    const identity = url.searchParams.get('identity') || '';
+    if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+    if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
+    if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
+    const cols = seo.loadCollections(DATA_DIR);
+    const ch = (cols.challenges || []).find(c => c.id === challenge);
+    if (!ch) return json(res, 404, { error: 'unknown_challenge' }, true);
+    const solved = !!(solves[identity] && solves[identity][challenge]);
+    if (!solved && ch.solution_public !== true && process.env.TOR_GATE_SOLUTIONS === '1') {
+      return json(res, 403, { error: 'solve_required' }, true);
+    }
+    const sol = (ch.sections || []).filter(s => s && s.published !== false && s.zone === 'solution');
+    return json(res, 200, { challenge, sections: sol }, true);
+  }
+
+  if (url.pathname === '/api/hint' && req.method === 'POST') {
+    if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > MAX_BODY) { req.destroy(); } });
+    req.on('end', () => {
+      let data;
+      try { data = JSON.parse(body); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
+      const identity = String(data.identity || '');
+      const challenge = String(data.challenge || '');
+      const index = parseInt(data.index, 10);
+      if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
+      if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
+      if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+      const cols = seo.loadCollections(DATA_DIR);
+      const ch = (cols.challenges || []).find(c => c.id === challenge);
+      const hint = ch && Array.isArray(ch.hints) && Number.isInteger(index) && index >= 0 ? ch.hints[index] : null;
+      if (!hint || hint.published === false) return json(res, 404, { error: 'unknown_hint' }, true);
+      const cost = Math.max(0, parseInt(hint.cost, 10) || 0);
+      if (cost > 0) {
+        const used = loadHintsUsed();
+        used[identity] = used[identity] || {};
+        used[identity][challenge] = used[identity][challenge] || {};
+        if (used[identity][challenge][index] === undefined) {
+          used[identity][challenge][index] = cost;
+          saveHintsUsed(used);
+        }
+      }
+      return json(res, 200, { status: 'ok', cost, penalty: hintPenalty(identity, challenge) }, true);
+    });
+    return;
   }
 
   if (url.pathname === '/api/submit' && req.method === 'POST') {
@@ -204,7 +324,7 @@ function handleApi(req, res, url, ip) {
       };
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {
-        if (name && name !== 'Anonymous') savePlayerName(identity, name);
+        if (name && name !== 'Anonymous') savePlayerName(identity, name, data.hideName);
         logSub('already');
         return json(res, 200, { status: 'already', name }, true);
       }
@@ -215,7 +335,7 @@ function handleApi(req, res, url, ip) {
       if (expect.length === got.length && crypto.timingSafeEqual(expect, got)) {
         solves[identity][challenge] = new Date().toISOString();
         saveSolves();
-        if (name) savePlayerName(identity, name);
+        if (name) savePlayerName(identity, name, data.hideName);
         logSub('correct');
         return json(res, 200, { status: 'correct', points: admin.challengePoints(challenge), name }, true);
       }
@@ -236,13 +356,65 @@ const MIME = {
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
   '.pcap': 'application/vnd.tcpdump.pcap'
 };
+const COMPRESSIBLE_EXTS = new Set(['.html', '.css', '.js', '.json', '.svg', '.xml', '.txt']);
+const compressCache = new Map();
+function getCompressed(cacheKey, buf, enc) {
+  const k = enc + ':' + cacheKey;
+  if (compressCache.has(k)) return compressCache.get(k);
+  const out = enc === 'br' ? zlib.brotliCompressSync(buf) : zlib.gzipSync(buf);
+  if (compressCache.size > 120) compressCache.delete(compressCache.keys().next().value);
+  compressCache.set(k, out);
+  return out;
+}
+function bodyEtag(buf) {
+  return 'W/"' + crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16) + '"';
+}
+function sendResponse(req, res, opts) {
+  const { buf, contentType, cacheControl, etag, cacheKey, isText, status = 200 } = opts;
+  const headers = {
+    'Content-Type': contentType,
+    'Cache-Control': cacheControl
+  };
+  if (etag) {
+    headers['ETag'] = etag;
+    const inm = req.headers['if-none-match'];
+    if (inm && inm === etag && status === 200) {
+      res.writeHead(304, headers);
+      return res.end();
+    }
+  }
+  let payload = buf;
+  if (isText && buf.length >= 256) {
+    const ae = String(req.headers['accept-encoding'] || '').toLowerCase();
+    headers['Vary'] = 'Accept-Encoding';
+    if (ae.includes('br')) {
+      payload = getCompressed(cacheKey || etag || '', buf, 'br');
+      headers['Content-Encoding'] = 'br';
+    } else if (ae.includes('gzip')) {
+      payload = getCompressed(cacheKey || etag || '', buf, 'gzip');
+      headers['Content-Encoding'] = 'gzip';
+    }
+  }
+  headers['Content-Length'] = payload.length;
+  res.writeHead(status, headers);
+  return res.end(payload);
+}
+
 function serveStatic(req, res, url) {
   let p;
   try { p = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); return res.end('bad path'); }
   if (p === '/admin' || p === '/admin/') { res.writeHead(302, { Location: '/admin/index.html' }); return res.end(); }
   if (p === '/content.js') {
-    res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end(admin.publicContentScript());
+    const buf = Buffer.from(admin.publicContentScript(), 'utf8');
+    const etag = bodyEtag(buf);
+    return sendResponse(req, res, {
+      buf,
+      contentType: 'text/javascript; charset=utf-8',
+      cacheControl: 'public, max-age=0, must-revalidate',
+      etag,
+      cacheKey: 'content.js:' + etag,
+      isText: true
+    });
   }
   // Explicit static surface: no server files, backups, dotfiles or test fixtures.
   const allowed = /^\/(?!admin\.html$)[a-z0-9][a-z0-9-]*\.html$/.test(p) || ['/', '/script.js', '/style.css'].includes(p) || /^\/admin\/[a-z][a-z0-9-]*\.(html|js|css)$/.test(p) || /^\/assets\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(jpg|jpeg|png|gif|webp|svg|woff2?)$/.test(p);
@@ -263,7 +435,7 @@ function serveStatic(req, res, url) {
     let ok = false;
     if (m) {
       try {
-        const sessions = JSON.parse(fs.readFileSync(require('path').join(__dirname, 'data', 'sessions.json'), 'utf8'));
+        const sessions = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sessions.json'), 'utf8'));
         ok = !!(sessions[m[1]] && sessions[m[1]].exp > Date.now());
       } catch (e) { ok = false; }
     }
@@ -273,7 +445,7 @@ function serveStatic(req, res, url) {
     }
   }
   if(p==='/admin/preview.html'){
-    const kind=url.searchParams.get('kind')==='article'?'article':'challenge';const lang=url.searchParams.get('lang')==='en'?'en':'ar';
+    const k=url.searchParams.get('kind');const kind=(k==='article'||k==='investigation')?k:'challenge';const lang=url.searchParams.get('lang')==='en'?'en':'ar';
     let html=fs.readFileSync(path.join(ROOT,kind+'-'+lang+'.html'),'utf8').replace('<head>','<head><base href="/">').replace('<script src="content.js"></script>','<script src="/admin/api/preview-content"></script>');
     html=html.replace('<body','<body data-admin-preview="true"');res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(html);
   }
@@ -282,11 +454,65 @@ function serveStatic(req, res, url) {
   if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   fs.stat(file, (err, st) => {
-    if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
+    if (err || !st.isFile()) {
+      if (req.headers.accept && req.headers.accept.includes('text/html')) {
+        return sendResponse(req, res, {
+          buf: Buffer.from(seo.render404(ROOT), 'utf8'),
+          status: 404,
+          contentType: 'text/html; charset=utf-8',
+          cacheControl: 'no-store',
+          isText: true
+        });
+      }
+      res.writeHead(404); return res.end('not found');
+    }
+    const ext = path.extname(file).toLowerCase();
+    const ct = MIME[ext] || 'application/octet-stream';
+    const isAdminRoute = p.startsWith('/admin/');
+    const isAsset = p.startsWith('/assets/');
+    const isText = COMPRESSIBLE_EXTS.has(ext);
+    const statEtag = 'W/"' + st.size + '-' + Math.floor(st.mtimeMs) + '"';
+
+    if (ext === '.html') {
+      const rawHtml = fs.readFileSync(file, 'utf8');
+      const resMeta = /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)
+        ? seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR)
+        : { status: 200, html: seo.injectStaticMeta(rawHtml, DATA_DIR) };
+      const buf = Buffer.from(resMeta.html, 'utf8');
+      const etag = (isAdminRoute || resMeta.status !== 200) ? null : bodyEtag(buf);
+      return sendResponse(req, res, {
+        buf,
+        status: resMeta.status,
+        contentType: 'text/html; charset=utf-8',
+        cacheControl: (isAdminRoute || resMeta.status !== 200) ? 'no-store' : 'public, max-age=0, must-revalidate',
+        etag,
+        cacheKey: p + ':' + (etag || 'ns'),
+        isText: true
+      });
+    }
+
+    const cc = isAdminRoute ? 'no-store' : (isAsset ? 'public, max-age=2592000' : 'public, max-age=0, must-revalidate');
+    const etag = isAdminRoute ? null : statEtag;
+    if (etag && req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { 'Cache-Control': cc, 'ETag': etag });
+      return res.end();
+    }
+    if (isText) {
+      const buf = fs.readFileSync(file);
+      return sendResponse(req, res, {
+        buf,
+        contentType: ct,
+        cacheControl: cc,
+        etag,
+        cacheKey: p + ':' + st.size + '-' + Math.floor(st.mtimeMs),
+        isText: true
+      });
+    }
     res.writeHead(200, {
-      'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+      'Content-Type': ct,
       'Content-Length': st.size,
-      'Cache-Control': 'no-store'
+      'Cache-Control': cc,
+      ...(etag ? { 'ETag': etag } : {})
     });
     fs.createReadStream(file).pipe(res);
   });
@@ -302,13 +528,18 @@ const server = http.createServer((req, res) => {
   if (HTTPS_MODE) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   const ip = clientIp(req);
   if(url.pathname==='/sitemap.xml'){
-    let cfg={};try{cfg=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'site-settings.json'),'utf8'))}catch{}
-    if(!cfg.base_url){res.writeHead(404,{'Content-Type':'text/plain'});return res.end('Configure a real HTTPS site origin in admin settings first.');}
-    const esc=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    const pages=['index','challenges','articles','about'].flatMap(p=>['ar','en'].map(l=>p+'-'+l+'.html'));
-    let collections={};try{collections=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'store.json'),'utf8')).collections||{}}catch{}
-    const visible=require('./visibility').publicCollections(collections);if((visible.investigations||[]).length)['ar','en'].forEach(l=>pages.push('investigations-'+l+'.html'));for(const [key,page] of [['articles','article'],['challenges','challenge'],['investigations','investigation']])for(const item of visible[key]||[])for(const l of ['ar','en'])pages.push(page+'-'+l+'.html?id='+encodeURIComponent(item.slug&&item.slug[l]||item.id));
-    res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'});return res.end('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+pages.map(p=>'<url><loc>'+esc(cfg.base_url+'/'+p)+'</loc></url>').join('')+'</urlset>');
+    const xml = seo.renderSitemap(DATA_DIR);
+    if (!xml) { res.writeHead(404,{'Content-Type':'text/plain'}); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
+    res.writeHead(200,{'Content-Type':'application/xml; charset=utf-8'}); return res.end(xml);
+  }
+  if (url.pathname === '/feed.xml' || url.pathname === '/feed-ar.xml') {
+    const xml = seo.renderFeed(url.pathname === '/feed-ar.xml' ? 'ar' : 'en', DATA_DIR);
+    if (!xml) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Configure a real HTTPS site origin in admin settings first.'); }
+    res.writeHead(200, { 'Content-Type': 'application/atom+xml; charset=utf-8' }); return res.end(xml);
+  }
+  if (url.pathname === '/robots.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end(seo.renderRobots(DATA_DIR));
   }
   if (url.pathname === '/health' || url.pathname.startsWith('/api/')) return handleApi(req, res, url, ip);
   if (url.pathname.startsWith('/admin/api/')) {

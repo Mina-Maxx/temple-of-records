@@ -79,3 +79,7 @@ Not changed (still true): single salted SHA-256 for flags (use long random flags
 Tests: `tests/visibility-collections.cjs` (9 assertions) added to `npm test`.
 
 Still open from the v7 review: `clientIp()` trusts the first `X-Forwarded-For` entry (login throttle can be bypassed), Render free-tier storage is ephemeral, and the repository is public.
+
+## v9 changes
+
+- Branch `v9-cleanup`: hidden placeholder/sample content by default (`TOR_SHOW_SAMPLES=1` opt-in, `isPlaceholder()` helper), unified `README.md` + `package.json` v9.0.0, server-side SEO/OpenGraph/JSON-LD injection, HTTP caching + zlib compression, optimized WebP/responsive images, bugfixes (`404.html` `<base href="/">`, `clientIp()` last-XFF fix, `aria-current`, duplicate `pill-lang` cleanup), architecture cleanup (`server/validators.js`, `store.json` single source of truth, `TOR_DATA_DIR` + atomic writes + backups), CI workflow, and new features (scoreboard, inline Markdown, MITRE ATT&CK tags, scheduled publication, hint penalties, global search, gated solutions, lab Docker packaging).

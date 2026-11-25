@@ -9,7 +9,11 @@ Thumbs.db
 *.tmp
 *.log
 
-# Runtime data generated on server
+# Runtime data & backups
+backups/
+*.zip
+!artifacts/**/*.zip
+server/data/admin.json
 server/data/sessions.json
 server/data/submissions.jsonl
 server/data/audit.jsonl

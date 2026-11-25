@@ -246,13 +246,14 @@
             "ar": "يظهر هنا الحل خطوة بخطوة عند نشره من الكاتب: قراءة السجل سطرًا بسطر، عزل سلسلة JNDI، واستخراج المضيف الخبيث.",
             "en": "The step-by-step walkthrough appears here when the author publishes it: reading the log line by line, isolating the JNDI string, and extracting the malicious host."
           }
-        ]
+        ],
+        "sample": true
       }
     ],
     "articles": [
       {
         "id": "first-record",
-        "hidden": false,
+        "hidden": true,
         "image": "assets/archive.jpg",
         "date": "",
         "minutes": "",
@@ -367,7 +368,8 @@
             "ar": "[روابط المصادر والاستشهادات تُضاف هنا مع المقال.]",
             "en": "[Source links and citations will be added here with the article.]"
           }
-        ]
+        ],
+        "status": "draft"
       }
     ],
     "investigations": [],

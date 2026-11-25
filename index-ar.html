@@ -9,6 +9,7 @@
 <link rel="canonical" href="https://mina-max.website/index-ar.html"/>
 <link rel="alternate" hreflang="ar" href="https://mina-max.website/index-ar.html"/>
 <link rel="alternate" hreflang="en" href="https://mina-max.website/index-en.html"/>
+<link rel="alternate" hreflang="x-default" href="https://mina-max.website/index-en.html"/>
 <meta property="og:title" content="مينا مكس · معبد السجلات (DFIR &amp; CTF Platform)"/>
 <meta property="og:description" content="منصة وتحديات تحقيق جنائي رقمي واستجابة للحوادث السيبرانية. كل أثر رقمي يُوثَّق."/>
 <meta property="og:type" content="website"/>
@@ -20,11 +21,15 @@
 <meta name="twitter:image" content="https://mina-max.website/assets/hero.jpg"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&amp;family=Tajawal:wght@400;700&amp;family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@400&amp;family=Aref+Ruqaa:wght@400;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&amp;family=Aref+Ruqaa:wght@400;700&amp;family=IBM+Plex+Sans+Arabic:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
 <link href="style.css" rel="stylesheet"/>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#14110c"/>
+<link rel="apple-touch-icon" href="assets/favicon.svg"/>
+<link rel="preload" as="image" href="assets/hero.webp" type="image/webp"/>
 </head>
 <body class="ar" data-page="index-ar">
+<a class="skip-link" href="#main-content">تخطي إلى المحتوى</a>
 <header class="site">
 <div class="container bar">
 <a aria-label="مينا مكس، الرئيسية" class="brand" href="#top">
@@ -42,12 +47,12 @@
 <a href="challenges-ar.html">التحديات</a>
 <a href="articles-ar.html">المقالات</a>
 <a href="about-ar.html">نبذة عنّي</a>
-<a class="pill-lang" href="index-en.html" hreflang="en" lang="en">EN | ع</a>
+<a class="pill-lang" aria-label="English" href="index-en.html" hreflang="en" lang="en">EN | ع</a>
 </nav>
 </div>
 </header>
 <section class="hero" id="top">
-<img alt="معبد سجلات تضيئه المشاعل، وجدرانه المنحوتة تسيل عليها شيفرة سداسية متوهجة" class="bg" src="assets/hero.jpg"/>
+<picture><source type="image/webp" srcset="assets/hero-768.webp 768w, assets/hero.webp 1376w" sizes="100vw"/><img alt="معبد سجلات تضيئه المشاعل، وجدرانه المنحوتة تسيل عليها شيفرة سداسية متوهجة" class="bg" src="assets/hero.jpg" width="1376" height="768" fetchpriority="high" decoding="async"/></picture>
 <div class="scrim"></div>
 <div class="content">
 <div class="kicker" data-ckey="hero-kicker">معبد السجلات · مينا مكس</div>
@@ -56,14 +61,14 @@
 </div>
 </section>
 <div class="hero-cta-row"><a class="cta" data-ckey="hero-cta" href="challenges-ar.html">ادخل سجلّ التحديات</a></div>
-<main class="container">
+<main class="container" id="main-content">
 <section class="register" id="challenges">
 <div class="reg-head">
 <div class="kicker">السجل ٠١ · التحديات</div>
 <h2>داخل حجرة الأدلة</h2>
 </div>
 <article class="tablet" id="feat-challenge">
-<a class="scene-link" href="challenge-ar.html"><img alt="متسلل مقنّع يتحرك بين مسلات الخوادم، منحوت كجدارية معبد" class="scene" src="assets/challenge.jpg"/></a>
+<a class="scene-link" href="challenge-ar.html"><picture><source type="image/webp" srcset="assets/challenge-768.webp 768w, assets/challenge.webp 1376w" sizes="100vw"/><img alt="متسلل مقنّع يتحرك بين مسلات الخوادم، منحوت كجدارية معبد" class="scene" src="assets/challenge.jpg" width="1376" height="768" loading="lazy" decoding="async"/></picture></a>
 <div class="body">
 <div class="labels"></div>
 <h3 data-slot="title">تحدي Log4Shell: تحقيق في محاكاة معملية مستوحاة من حادثة موثّقة</h3>
@@ -84,7 +89,7 @@
 <div class="scrolls" id="feat-articles"></div>
 </section>
 <section class="scribe" id="scribe">
-<a href="about-ar.html"><img alt="كاتب يفحص أدلة متوهجة على لوح، منحوت بالحجر والذهب" src="assets/scribe.jpg"/></a>
+<a href="about-ar.html"><picture><source type="image/webp" srcset="assets/scribe-768.webp 768w, assets/scribe.webp 1376w" sizes="100vw"/><img alt="كاتب يفحص أدلة متوهجة على لوح، منحوت بالحجر والذهب" src="assets/scribe.jpg" width="1376" height="768" loading="lazy" decoding="async"/></picture></a>
 <div>
 <h2>كاتب هذا السجل</h2>
 <p data-ckey-from="about-intro"></p>

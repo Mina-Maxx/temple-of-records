@@ -31,6 +31,13 @@ window.TOR = (function () {
   function visible(kind) {
     return (getCollections()[kind] || []).filter(function (x) { return !x.hidden; });
   }
+  function setImgSrc(im, src) {
+    if (!im || !src) return;
+    im.src = src;
+    if (im.parentNode && im.parentNode.tagName === 'PICTURE') {
+      im.parentNode.querySelectorAll('source').forEach(function (s) { s.remove(); });
+    }
+  }
   function imgOk(src) {
     return typeof src === 'string' &&
       (/^assets\/[A-Za-z0-9._-]+$/.test(src) || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(src));
@@ -102,6 +109,35 @@ window.TOR = (function () {
   function toArDigits(s) { return String(s).replace(/[0-9]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'[+d]; }); }
   function num(s) { return lang === 'ar' ? toArDigits(s) : String(s); }
 
+  function renderInlineMd(parent, text) {
+    var s = String(text == null ? '' : text);
+    var re = /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`\n]+`|\[[^\]]+\]\(https:\/\/[^)\s]+\))/g;
+    var last = 0, m;
+    while ((m = re.exec(s)) !== null) {
+      if (m.index > last) parent.appendChild(document.createTextNode(s.slice(last, m.index)));
+      var tok = m[0];
+      if (tok.slice(0, 2) === '**') {
+        var b = document.createElement('strong'); b.textContent = tok.slice(2, -2); parent.appendChild(b);
+      } else if (tok.charAt(0) === '*') {
+        var em = document.createElement('em'); em.textContent = tok.slice(1, -1); parent.appendChild(em);
+      } else if (tok.charAt(0) === '`') {
+        var cd = document.createElement('code'); cd.className = 'inline-code'; cd.textContent = tok.slice(1, -1); parent.appendChild(cd);
+      } else if (tok.charAt(0) === '[') {
+        var mid = tok.indexOf('](');
+        var label = tok.slice(1, mid), href = tok.slice(mid + 2, -1);
+        if (TOR.urlOk(href)) {
+          var a = document.createElement('a'); a.textContent = label; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          parent.appendChild(a);
+        } else {
+          parent.appendChild(document.createTextNode(tok));
+        }
+      }
+      last = re.lastIndex;
+    }
+    if (last < s.length) parent.appendChild(document.createTextNode(s.slice(last)));
+    return parent;
+  }
+
   function renderSection(sec, idx, counter) {
     var t = sec.type, node;
     if (t === 'heading') {
@@ -110,10 +146,10 @@ window.TOR = (function () {
       counter.headings.push({ id: node.id, text: L(sec) });
       return node;
     }
-    if (t === 'paragraph') return el('p', null, L(sec));
+    if (t === 'paragraph') return renderInlineMd(el('p'), L(sec));
     if(t==='inline_code')return el('code', 'inline-code', L(sec));
     if(t==='link'){if(!TOR.urlOk(sec.url))return null;node=el('p');var a=el('a',null,L(sec)||sec.url);a.href=sec.url;a.target='_blank';a.rel='noopener noreferrer';node.appendChild(a);return node;}
-    if (t === 'quote') return el('blockquote', null, L(sec));
+    if (t === 'quote') return renderInlineMd(el('blockquote'), L(sec));
     if (t === 'table') {
       node=el('div','artifacts-wrap'); var tab=el('table','artifacts');
       var hr=el('tr');(sec.headers||[]).forEach(function(x){hr.appendChild(el('th',null,L(x)))});tab.appendChild(hr);
@@ -123,7 +159,7 @@ window.TOR = (function () {
     if (t === 'callout') {
       node = el('div', 'callout');
       node.appendChild(el('span', 'callout-title', lang === 'ar' ? sec.title_ar : sec.title_en));
-      node.appendChild(document.createTextNode(L(sec)));
+      renderInlineMd(node, L(sec));
       return node;
     }
     if (t === 'code') {
@@ -143,7 +179,7 @@ window.TOR = (function () {
     }
     if (t === 'list') {
       node = el(sec.ordered ? 'ol' : 'ul');
-      (sec.items || []).forEach(function (it) { node.appendChild(el('li', null, L(it))); });
+      (sec.items || []).forEach(function (it) { node.appendChild(renderInlineMd(el('li'), L(it))); });
       return node;
     }
     if (t === 'timeline') {
@@ -188,10 +224,31 @@ window.TOR = (function () {
     if (meta) container.appendChild(meta);
   }
 
-  function fillChips(box, chips) {
+  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
+  function isPlaceholder(str) {
+    if (typeof str !== 'string' || !str.trim()) return false;
+    var low = str.toLowerCase();
+    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) {
+      if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
+    }
+    return false;
+  }
+
+  function fillChips(box, chips, isSample, attack) {
     if (!box) return;
     box.innerHTML = '';
-    (chips || []).forEach(function (c) { box.appendChild(el('span', 'chip' + (c.gold ? ' gold' : ''), L(c))); });
+    (chips || []).forEach(function (c) {
+      var txt = L(c);
+      if (!isSample && /playable demo|fabricated|platform test|تجريبي|مُلفّقة|لاختبار المنصة/i.test(txt)) return;
+      box.appendChild(el('span', 'chip' + (c.gold ? ' gold' : ''), txt));
+    });
+    (attack || []).forEach(function (id) {
+      if (!/^T\d{4}(\.\d{3})?$/.test(id)) return;
+      var a = el('a', 'chip gold', 'ATT&CK ' + id);
+      a.href = 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/';
+      a.target = '_blank'; a.rel = 'noopener noreferrer';
+      box.appendChild(a);
+    });
   }
   function metaJoin(parts, fallback) {
     var clean = parts.filter(function (x) { return x && String(x).trim(); });
@@ -332,12 +389,12 @@ window.TOR = (function () {
     var href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
     if (TOR.imgOk(c.image)) {
       var a0 = el('a', 'scene-link'); a0.href = href;
-      var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy';
+      var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.width = 1376; im.height = 768;
       a0.appendChild(im); card.appendChild(a0);
     }
     var body = el('div', 'body');
     var labels = el('div', 'labels');
-    fillChips(labels, c.chips);
+    fillChips(labels, c.chips, !!c.sample);
     labels.appendChild(el('span', 'chip' + (c.availability === 'open' ? ' gold' : ''), c.availability === 'open' ? T.open : T.soon));
     labels.appendChild(solveBadge(c.id, true));
     body.appendChild(labels);
@@ -425,8 +482,8 @@ window.TOR = (function () {
       var md=L(item.meta_description||{});if(md){var mm=document.querySelector('meta[name=description]')||document.createElement('meta');mm.name='description';mm.content=md;document.head.appendChild(mm)}
       var cur = document.getElementById('crumb-cur'); if (cur) cur.textContent = L(item.title);
       var ban = document.querySelector('.pagehead .banner');
-      if (ban && TOR.imgOk(item.image)) ban.src = item.image;
-      fillChips(document.getElementById('item-labels'), item.chips);
+      if (ban && TOR.imgOk(item.image)) setImgSrc(ban, item.image);
+      fillChips(document.getElementById('item-labels'), item.chips, !!item.sample, item.attack);
       var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
       var meta = document.getElementById('item-meta');
       if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes],
@@ -455,8 +512,8 @@ window.TOR = (function () {
       document.title = L(ch.title) + (lang === 'ar' ? ' · مينا مكس' : ' · Mina Max');
       var cur2 = document.getElementById('crumb-cur'); if (cur2) cur2.textContent = L(ch.title);
       var ban2 = document.querySelector('.pagehead .banner');
-      if (ban2 && TOR.imgOk(ch.image)) ban2.src = ch.image;
-      fillChips(document.getElementById('item-labels'), ch.chips);
+      if (ban2 && TOR.imgOk(ch.image)) setImgSrc(ban2, ch.image);
+      fillChips(document.getElementById('item-labels'), ch.chips, !!ch.sample, ch.attack);
       var h1b = document.getElementById('item-title'); if (h1b) h1b.textContent = L(ch.title);
       var meta2 = document.getElementById('item-meta');
       if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty),
@@ -499,7 +556,7 @@ window.TOR = (function () {
           var trh = el('tr');
           [lang === 'ar' ? 'الملف' : 'File', lang === 'ar' ? 'النوع' : 'Type',
            lang === 'ar' ? 'الحجم' : 'Size', 'SHA-256', lang === 'ar' ? 'الوصف' : 'Description',
-           lang === 'ar' ? 'التحميل' : 'Download'].forEach(function (h) { trh.appendChild(el('th', null, h)); });
+           lang === 'ar' ? 'التحميل' : 'Download'].forEach(function (h) { var th = el('th', null, h); th.setAttribute('scope', 'col'); trh.appendChild(th); });
           tbl.appendChild(trh);
           arts.forEach(function (a) {
             var tr = el('tr');
@@ -544,8 +601,22 @@ window.TOR = (function () {
         } else {
           hints.forEach(function (h, i) {
             var d = el('details', 'hint');
-            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1)));
+            var costTxt = (h.cost && Number(h.cost) > 0) ? ' (-' + num(h.cost) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') + ')' : '';
+            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1) + costTxt));
             d.appendChild(el('p', null, L(h)));
+            if (h.cost && Number(h.cost) > 0) {
+              var recorded = false;
+              d.addEventListener('toggle', function () {
+                if (d.open && !recorded) {
+                  recorded = true;
+                  fetch(TOR.apiBase() + '/api/hint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ challenge: ch.id, index: i, identity: TOR.identity() })
+                  }).catch(function () {});
+                }
+              });
+            }
             hintBox.appendChild(d);
           });
         }
@@ -649,6 +720,121 @@ window.TOR = (function () {
     });
   })();
 
+  // ---------- global search (client-side, Arabic-aware normalization) ----------
+  function normSearch(s) {
+    return String(s == null ? '' : s)
+      .toLowerCase()
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه');
+  }
+  (function () {
+    var srHref = lang === 'ar' ? 'search-ar.html' : 'search-en.html';
+    var srLabel = lang === 'ar' ? 'بحث' : 'Search';
+    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
+      if (nav.querySelector('a[href="' + srHref + '"]')) return;
+      var a = document.createElement('a'); a.href = srHref; a.textContent = srLabel;
+      var about = nav.querySelector('a[href^="about-"]');
+      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
+    });
+    if (page !== 'search-ar' && page !== 'search-en') return;
+    var form = document.getElementById('search-form');
+    var inp = document.getElementById('search-q');
+    var out = document.getElementById('search-results');
+    if (!form || !inp || !out) return;
+    function runSearch(q) {
+      out.innerHTML = '';
+      var nq = normSearch(q).trim();
+      var groups = [
+        { key: 'challenges', label: lang === 'ar' ? 'التحديات' : 'Challenges', page: lang === 'ar' ? 'challenge-ar.html?c=' : 'challenge-en.html?c=' },
+        { key: 'articles', label: lang === 'ar' ? 'المقالات' : 'Articles', page: lang === 'ar' ? 'article-ar.html?a=' : 'article-en.html?a=' },
+        { key: 'investigations', label: lang === 'ar' ? 'التحقيقات' : 'Investigations', page: lang === 'ar' ? 'investigation-ar.html?id=' : 'investigation-en.html?id=' }
+      ];
+      var total = 0;
+      groups.forEach(function (g) {
+        var items = TOR.visible(g.key).filter(function (it) {
+          if (!nq) return true;
+          var hay = normSearch([L(it.title), L(it.excerpt || it.summary), (it.tags || []).join(' '), (it.attack || []).join(' ')].join(' '));
+          return hay.indexOf(nq) !== -1;
+        });
+        if (!items.length) return;
+        total += items.length;
+        var h2 = el('h2', null, g.label + ' (' + num(items.length) + ')');
+        h2.style.margin = '18px 0 10px';
+        out.appendChild(h2);
+        var ul = el('div', 'rec-list');
+        items.forEach(function (it) {
+          var card = el('article', 'tablet rec-row');
+          var body = el('div', 'body');
+          var h3 = el('h3');
+          var a = el('a', null, L(it.title) || it.id);
+          a.href = g.page + encodeURIComponent(it.id);
+          h3.appendChild(a); body.appendChild(h3);
+          var ex = L(it.excerpt || it.summary);
+          if (ex) body.appendChild(el('p', 'rec-ex', ex));
+          card.appendChild(body);
+          ul.appendChild(card);
+        });
+        out.appendChild(ul);
+      });
+      if (!total) out.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No matching records found.'));
+    }
+    var qInit = TOR.param('q');
+    if (qInit) inp.value = qInit;
+    runSearch(inp.value);
+    form.addEventListener('submit', function (e) { e.preventDefault(); runSearch(inp.value); });
+    inp.addEventListener('input', function () { runSearch(inp.value); });
+  })();
+
+  // ---------- scoreboard link in nav/footer + scoreboard page ----------
+  (function () {
+    var sbHref = lang === 'ar' ? 'scoreboard-ar.html' : 'scoreboard-en.html';
+    var sbLabel = lang === 'ar' ? 'المتصدرون' : 'Scoreboard';
+    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
+      if (nav.querySelector('a[href="' + sbHref + '"]')) return;
+      var a = document.createElement('a'); a.href = sbHref; a.textContent = sbLabel;
+      var about = nav.querySelector('a[href^="about-"]');
+      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
+    });
+    if (page !== 'scoreboard-ar' && page !== 'scoreboard-en') return;
+    var box = document.getElementById('scoreboard-box');
+    if (!box) return;
+    box.innerHTML = '<p class="notice"><span class="spinner"></span> ' + (lang === 'ar' ? 'جاري تحميل الترتيب...' : 'Loading scoreboard...') + '</p>';
+    fetch(TOR.apiBase() + '/api/scoreboard')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var rows = (d && d.scoreboard) || [];
+        box.innerHTML = '';
+        if (!rows.length) {
+          box.appendChild(el('p', 'notice', lang === 'ar' ? 'لم تُسجّل حلول بعد — كن أول متصدر!' : 'No solves recorded yet — be the first on the board!'));
+          return;
+        }
+        var tbl = el('table', 'artifacts');
+        var trh = el('tr');
+        [lang === 'ar' ? 'الترتيب' : 'Rank', lang === 'ar' ? 'اللاعب' : 'Player', lang === 'ar' ? 'النقاط' : 'Points', lang === 'ar' ? 'المحلول' : 'Solved', 'First Blood', lang === 'ar' ? 'آخر حل' : 'Last solve'].forEach(function (h) {
+          var th = el('th', null, h); th.setAttribute('scope', 'col'); trh.appendChild(th);
+        });
+        tbl.appendChild(trh);
+        rows.forEach(function (r, idx) {
+          var tr = el('tr');
+          tr.appendChild(el('td', 'mono', idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : '#' + (idx + 1)));
+          tr.appendChild(el('td', null, r.name || 'Anonymous'));
+          tr.appendChild(el('td', 'mono', num(r.points)));
+          tr.appendChild(el('td', 'mono', num(r.solved)));
+          tr.appendChild(el('td', 'mono', r.firstBloods ? '🩸 ' + num(r.firstBloods) : '—'));
+          var tf = formatSolveTime(r.lastSolve, lang);
+          tr.appendChild(el('td', 'mono', tf.relative || '—'));
+          tbl.appendChild(tr);
+        });
+        box.appendChild(tbl);
+      })
+      .catch(function () {
+        box.innerHTML = '';
+        box.appendChild(el('p', 'notice', lang === 'ar' ? 'تعذر تحميل لوحة المتصدرين.' : 'Could not load scoreboard.'));
+      });
+  })();
+
   // ---------- listings ----------
   if (page === 'articles-ar' || page === 'articles-en') {
     var box = document.getElementById('listing');
@@ -699,10 +885,10 @@ window.TOR = (function () {
       if (!fc) { tab.style.display = 'none'; }
       else {
         var im = tab.querySelector('img.scene');
-        if (im && TOR.imgOk(fc.image)) im.src = fc.image;
+        if (im && TOR.imgOk(fc.image)) setImgSrc(im, fc.image);
         var a0 = tab.querySelector('a.scene-link');
         if (a0) a0.href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(fc.id);
-        fillChips(tab.querySelector('.labels'), fc.chips);
+        fillChips(tab.querySelector('.labels'), fc.chips, !!fc.sample);
         var th = tab.querySelector('[data-slot="title"]'); if (th) th.textContent = L(fc.title);
         var tm = tab.querySelector('[data-slot="meta"]');
         if (tm) tm.textContent = metaJoin([L(fc.difficulty), fc.points ? num(fc.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(fc.est_time)],
@@ -751,6 +937,20 @@ window.TOR = (function () {
       var fbtn = document.getElementById('flag-submit');
       var finp = document.getElementById('flag-input');
       if (currentChallenge && solvedSet.indexOf(currentChallenge.id) !== -1) {
+        var solEl = document.getElementById('zone-solution');
+        if (solEl && !solEl.children.length) {
+          fetch(TOR.apiBase() + '/api/solution?challenge=' + encodeURIComponent(currentChallenge.id) + '&identity=' + TOR.identity())
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+              if (d && Array.isArray(d.sections) && d.sections.length && !solEl.children.length) {
+                var cTmp = { headings: [] };
+                d.sections.forEach(function (sec, idx) {
+                  var n = renderSection(sec, 'sol-' + idx, cTmp);
+                  if (n) solEl.appendChild(n);
+                });
+              }
+            }).catch(function () {});
+        }
         if (fs) { fs.className = 'flag-status ok'; fs.textContent = lang === 'ar' ? 'هذا التحدي محلول بالفعل ✓' : 'Already solved ✓'; }
         if (fbtn) {
           fbtn.disabled = true;
@@ -791,6 +991,7 @@ window.TOR = (function () {
     var form = document.getElementById('flag-form');
     if (!form || !currentChallenge) return;
     var nameIn = document.getElementById('flag-name');
+    var hideIn = document.getElementById('flag-hide-name');
     var input = document.getElementById('flag-input');
     var btn = document.getElementById('flag-submit');
     var status = document.getElementById('flag-status');
@@ -890,7 +1091,7 @@ window.TOR = (function () {
       fetch(TOR.apiBase() + '/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identity: TOR.identity(), name: nameVal, challenge: chId, flag: val })
+        body: JSON.stringify({ identity: TOR.identity(), name: nameVal, hideName: !!(hideIn && hideIn.checked), challenge: chId, flag: val })
       }).then(function (r) {
         return r.json().then(function (d) { return { code: r.status, d: d }; });
       }).then(function (res) {
@@ -941,10 +1142,22 @@ window.TOR = (function () {
     });
   })();
 
-  // ---------- keep ?a=/?c= across the language toggle ----------
+  // ---------- keep ?a=/?c=/?id= across the language toggle (mapping bilingual slugs) ----------
   var pill = document.querySelector('.pill-lang');
   if (pill && location.search) {
-    pill.setAttribute('href', pill.getAttribute('href').split('?')[0] + location.search);
+    var baseHref = pill.getAttribute('href').split('?')[0];
+    var otherLang = lang === 'ar' ? 'en' : 'ar';
+    var qParam = TOR.param('id') || TOR.param('c') || TOR.param('a');
+    var mKind = /^(article|challenge|investigation)-(ar|en)$/.exec(page);
+    var mappedSearch = location.search;
+    if (mKind && qParam) {
+      var foundItem = TOR.find(mKind[1] + 's', qParam);
+      if (foundItem && foundItem.slug && foundItem.slug[otherLang]) {
+        var keyName = TOR.param('id') ? 'id' : (TOR.param('c') ? 'c' : 'a');
+        mappedSearch = '?' + keyName + '=' + encodeURIComponent(foundItem.slug[otherLang]);
+      }
+    }
+    pill.setAttribute('href', baseHref + mappedSearch);
   }
 })();
 
@@ -959,14 +1172,25 @@ window.TOR = (function () {
     var opening = walk.hidden;
     walk.hidden = !opening;
     btn.setAttribute('aria-expanded', String(opening));
+    function swapGate(src) {
+      if (!gateImg || !src) return;
+      gateImg.src = src;
+      if (gateImg.parentNode && gateImg.parentNode.tagName === 'PICTURE') {
+        var s = gateImg.parentNode.querySelector('source[type="image/webp"]');
+        if (s) {
+          var stem = src.replace(/\.jpg$/i, '');
+          s.srcset = stem + '-768.webp 768w, ' + stem + '.webp 1376w';
+        }
+      }
+    }
     if (opening) {
-      if (gateImg && gateImg.dataset.open) gateImg.src = gateImg.dataset.open;
+      if (gateImg && gateImg.dataset.open) swapGate(gateImg.dataset.open);
       if (gateTitle && gateTitle.dataset.openText) gateTitle.textContent = gateTitle.dataset.openText;
       btn.textContent = btn.dataset.closeText;
       var h = walk.querySelector('[tabindex="-1"]');
       if (h) h.focus();
     } else {
-      if (gateImg && gateImg.dataset.sealed) gateImg.src = gateImg.dataset.sealed;
+      if (gateImg && gateImg.dataset.sealed) swapGate(gateImg.dataset.sealed);
       if (gateTitle && gateTitle.dataset.sealedText) gateTitle.textContent = gateTitle.dataset.sealedText;
       btn.textContent = btn.dataset.openText;
       btn.focus();
@@ -1018,14 +1242,23 @@ window.TOR = (function () {
     return v;
   }
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  var PLACEHOLDER_MARKERS = ['to be added', 'تُضاف لاحقًا', 'يُضاف لاحقًا', 'تُضافان لاحقًا', 'يُضافان لاحقًا', 'placeholder', 'fabricated', 'أماكن مؤقتة'];
+  function isPh(s) {
+    if (typeof s !== 'string' || !s.trim()) return false;
+    var low = s.toLowerCase();
+    for (var i = 0; i < PLACEHOLDER_MARKERS.length; i++) if (low.indexOf(PLACEHOLDER_MARKERS[i].toLowerCase()) !== -1) return true;
+    return false;
+  }
   document.querySelectorAll('[data-ckey-from]').forEach(function (el) { // text owned by the About page (home teaser)
     var k = el.getAttribute('data-ckey-from'), ap = 'about-' + lang;
     var v = ov[ap + ':' + k]; if (v == null || v === '') v = defs[ap + ':' + k];
+    if (isPh(v)) { el.style.display = 'none'; return; }
     if (v) el.textContent = v;
   });
   document.querySelectorAll('[data-ckey]').forEach(function (el) {
     var v = val(el.getAttribute('data-ckey'));
     if (v == null || v === '') return;
+    if (isPh(v)) { el.style.display = 'none'; return; }
     if (el.hasAttribute('data-multiline')) { el.innerHTML = esc(v).replace(/\n/g, '<br>'); }
     else { el.textContent = v; }
   });
@@ -1044,7 +1277,7 @@ window.TOR = (function () {
 // ---------- current page in the main navigation ----------
 (function () {
   var page = (document.body && document.body.getAttribute('data-page')) || '';
-  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^about/.test(page) ? 'about' : '';
+  var want = /^challenge/.test(page) ? 'challenges' : /^article/.test(page) ? 'articles' : /^investigation/.test(page) ? 'investigations' : /^scoreboard/.test(page) ? 'scoreboard' : /^about/.test(page) ? 'about' : '';
   if (!want) return;
   document.querySelectorAll('header.site nav.main a').forEach(function (a) {
     if (!a.classList.contains('pill-lang') && (a.getAttribute('href') || '').indexOf(want + '-') === 0) a.setAttribute('aria-current', 'page');
@@ -1088,8 +1321,6 @@ window.TOR = (function () {
     });
   });
 })();
-
-(function(){var a=document.querySelector('a.pill-lang');if(a&&location.search)a.href=a.getAttribute('href').split('?')[0]+location.search})();
 
 // Optional site appearance and identity settings. No settings means original design.
 (function(){

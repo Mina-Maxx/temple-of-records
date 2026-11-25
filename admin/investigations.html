@@ -19,7 +19,7 @@
 <script>
 TORCOL.run({col:'investigations',nav:'investigations',t:'nInv',icon:'search',
  sub:function(){return TORADMIN.lang()==='ar'?'سجل تحقيقات بحالات وخطوط زمنية ونتائج وأسباب جذرية وروابط. الظهور «عام» + الحالة غير «مسودة» = ينشر على الموقع؛ غير ذلك يبقى خاصا.':'An investigations register with cases, timelines, findings, root causes, and links. Visibility "public" + a status other than draft publishes it on the site; everything else stays private.'},
- fields:[{k:'title',t:'bi',max:300},{k:'summary',t:'bi',max:4000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'tags',t:'tags'},{k:'timeline',t:'entries',max:200},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'evidence',t:'links',max:50},{k:'analysis',t:'bi',max:20000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50}]});
+ fields:[{k:'title',t:'bi',max:300},{k:'summary',t:'bi',max:4000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'timeline',t:'entries',max:200},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'evidence',t:'links',max:50},{k:'analysis',t:'bi',max:20000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50}]});
 </script>
 </body>
 </html>

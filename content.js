@@ -260,6 +260,7 @@ const SITE_COLLECTIONS = {
  "challenges": [
   {
    "id": "log4shell-lab",
+      "sample": true,
    "hidden": false,
    "image": "assets/challenge.jpg",
    "title": {
@@ -455,7 +456,8 @@ const SITE_COLLECTIONS = {
  "articles": [
   {
    "id": "first-record",
-   "hidden": false,
+      "hidden": true,
+      "status": "draft",
    "image": "assets/archive.jpg",
    "date": "2026-11-20",
    "minutes": "8 min",

@@ -1,0 +1,10 @@
+# Local offline viewer for the fabricated Log4Shell DFIR lab bundle
+# Run with: docker compose up
+services:
+  lab-artifacts:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    restart: "no"

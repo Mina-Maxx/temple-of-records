@@ -56,5 +56,5 @@ const base = 'http://127.0.0.1:' + port;
     check(!js.includes('PRIVATE_KB_SENTINEL') && !js.includes('PRIVATE_PROJECT_SENTINEL'), '/content.js omits kb and projects entirely');
     for (const p of ['/investigations-en.html', '/investigation-ar.html']) { const r = await fetch(base + p); check(r.status === 200, 'page served ' + p); }
     console.log('TOTAL ' + count + ' collection-visibility assertions passed');
-  } finally { child.kill(); }
+  } finally { child.kill(); try { fs.rmSync(root, { recursive: true, force: true }); } catch {} }
 })().catch(e => { console.error('FAIL', e.message); process.exit(1); });
