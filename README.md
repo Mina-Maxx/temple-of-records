@@ -1,5 +1,7 @@
 # The Temple of Records (v9)
 
+[![CI](https://github.com/Mina-Maxx/temple-of-records/actions/workflows/ci.yml/badge.svg)](https://github.com/Mina-Maxx/temple-of-records/actions/workflows/ci.yml)
+
 A zero-dependency, bilingual (Arabic RTL / English LTR) Digital Forensics & Incident Response (DFIR) and CTF platform built with Node.js built-ins only, static HTML/CSS/JS, a JSON-file backend, and a built-in CMS under `/admin`.
 
 ---
