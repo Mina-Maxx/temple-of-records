@@ -18,6 +18,10 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const h1 = await r1.text();
     check(r1.status === 404 && h1.includes('<base href="/"/>'), 'nested 404 /foo/bar returns 404.html with <base href="/">');
 
+    const r2 = await fetch(base + '/does-not-exist.html', { headers: { Accept: 'text/html' } });
+    const h2 = await r2.text();
+    check(r2.status === 404 && h2.includes('error-code') && h2.includes('noindex'), 'allowlisted missing .html returns styled 404.html');
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();

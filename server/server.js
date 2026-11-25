@@ -336,7 +336,18 @@ function serveStatic(req, res, url) {
   if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   fs.stat(file, (err, st) => {
-    if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
+    if (err || !st.isFile()) {
+      if (req.headers.accept && req.headers.accept.includes('text/html')) {
+        return sendResponse(req, res, {
+          buf: Buffer.from(seo.render404(ROOT), 'utf8'),
+          status: 404,
+          contentType: 'text/html; charset=utf-8',
+          cacheControl: 'no-store',
+          isText: true
+        });
+      }
+      res.writeHead(404); return res.end('not found');
+    }
     const ext = path.extname(file).toLowerCase();
     const ct = MIME[ext] || 'application/octet-stream';
     const isAdminRoute = p.startsWith('/admin/');
