@@ -720,6 +720,73 @@ window.TOR = (function () {
     });
   })();
 
+  // ---------- global search (client-side, Arabic-aware normalization) ----------
+  function normSearch(s) {
+    return String(s == null ? '' : s)
+      .toLowerCase()
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ة/g, 'ه');
+  }
+  (function () {
+    var srHref = lang === 'ar' ? 'search-ar.html' : 'search-en.html';
+    var srLabel = lang === 'ar' ? 'بحث' : 'Search';
+    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
+      if (nav.querySelector('a[href="' + srHref + '"]')) return;
+      var a = document.createElement('a'); a.href = srHref; a.textContent = srLabel;
+      var about = nav.querySelector('a[href^="about-"]');
+      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
+    });
+    if (page !== 'search-ar' && page !== 'search-en') return;
+    var form = document.getElementById('search-form');
+    var inp = document.getElementById('search-q');
+    var out = document.getElementById('search-results');
+    if (!form || !inp || !out) return;
+    function runSearch(q) {
+      out.innerHTML = '';
+      var nq = normSearch(q).trim();
+      var groups = [
+        { key: 'challenges', label: lang === 'ar' ? 'التحديات' : 'Challenges', page: lang === 'ar' ? 'challenge-ar.html?c=' : 'challenge-en.html?c=' },
+        { key: 'articles', label: lang === 'ar' ? 'المقالات' : 'Articles', page: lang === 'ar' ? 'article-ar.html?a=' : 'article-en.html?a=' },
+        { key: 'investigations', label: lang === 'ar' ? 'التحقيقات' : 'Investigations', page: lang === 'ar' ? 'investigation-ar.html?id=' : 'investigation-en.html?id=' }
+      ];
+      var total = 0;
+      groups.forEach(function (g) {
+        var items = TOR.visible(g.key).filter(function (it) {
+          if (!nq) return true;
+          var hay = normSearch([L(it.title), L(it.excerpt || it.summary), (it.tags || []).join(' '), (it.attack || []).join(' ')].join(' '));
+          return hay.indexOf(nq) !== -1;
+        });
+        if (!items.length) return;
+        total += items.length;
+        var h2 = el('h2', null, g.label + ' (' + num(items.length) + ')');
+        h2.style.margin = '18px 0 10px';
+        out.appendChild(h2);
+        var ul = el('div', 'rec-list');
+        items.forEach(function (it) {
+          var card = el('article', 'tablet rec-row');
+          var body = el('div', 'body');
+          var h3 = el('h3');
+          var a = el('a', null, L(it.title) || it.id);
+          a.href = g.page + encodeURIComponent(it.id);
+          h3.appendChild(a); body.appendChild(h3);
+          var ex = L(it.excerpt || it.summary);
+          if (ex) body.appendChild(el('p', 'rec-ex', ex));
+          card.appendChild(body);
+          ul.appendChild(card);
+        });
+        out.appendChild(ul);
+      });
+      if (!total) out.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No matching records found.'));
+    }
+    var qInit = TOR.param('q');
+    if (qInit) inp.value = qInit;
+    runSearch(inp.value);
+    form.addEventListener('submit', function (e) { e.preventDefault(); runSearch(inp.value); });
+    inp.addEventListener('input', function () { runSearch(inp.value); });
+  })();
+
   // ---------- scoreboard link in nav/footer + scoreboard page ----------
   (function () {
     var sbHref = lang === 'ar' ? 'scoreboard-ar.html' : 'scoreboard-en.html';

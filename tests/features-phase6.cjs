@@ -92,6 +92,14 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     const hHidden = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 1, identity: id1 }) });
     check(hHidden.status === 404, 'hidden/unpublished hint cannot be revealed');
 
+    // 6.6 Search pages + Arabic normalization
+    check((await fetch(base + '/search-en.html')).status === 200 && (await fetch(base + '/search-ar.html')).status === 200, 'search-{en,ar}.html served');
+    const sjs6 = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
+    const normMatch = sjs6.match(/function normSearch\(s\) \{[\s\S]*?\n  \}/);
+    const ctx6 = {};
+    vm.runInNewContext(normMatch[0], ctx6);
+    check(ctx6.normSearch('إِختِبَارْ مَدْرَسَةٌ') === 'اختبار مدرسه', 'Arabic search normalization strips tashkeel and unifies alef/ta marbuta');
+
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {
     child.kill();
