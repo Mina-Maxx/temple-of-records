@@ -601,8 +601,22 @@ window.TOR = (function () {
         } else {
           hints.forEach(function (h, i) {
             var d = el('details', 'hint');
-            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1)));
+            var costTxt = (h.cost && Number(h.cost) > 0) ? ' (-' + num(h.cost) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') + ')' : '';
+            d.appendChild(el('summary', null, (lang === 'ar' ? 'تلميح ' : 'Hint ') + num(i + 1) + costTxt));
             d.appendChild(el('p', null, L(h)));
+            if (h.cost && Number(h.cost) > 0) {
+              var recorded = false;
+              d.addEventListener('toggle', function () {
+                if (d.open && !recorded) {
+                  recorded = true;
+                  fetch(TOR.apiBase() + '/api/hint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ challenge: ch.id, index: i, identity: TOR.identity() })
+                  }).catch(function () {});
+                }
+              });
+            }
             hintBox.appendChild(d);
           });
         }

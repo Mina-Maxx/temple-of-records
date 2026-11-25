@@ -74,6 +74,24 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check(vis.publicCollections(schedCols, Date.parse('2029-12-31T23:59:59Z')).articles.length === 0, 'scheduled item hidden before publish_at');
     check(vis.publicCollections(schedCols, Date.parse('2030-01-01T00:00:01Z')).articles.length === 1, 'scheduled item visible after publish_at');
 
+    // 6.5 Hint penalty + idempotency + hidden hint blocked
+    const stFile = path.join(root, 'server/data/store.json');
+    const stObj = JSON.parse(fs.readFileSync(stFile, 'utf8'));
+    stObj.collections.challenges[0].hints = [
+      { ar: 'مدفوع', en: 'Paid hint', published: true, cost: 25 },
+      { ar: 'مخفي', en: 'Hidden hint', published: false, cost: 10 }
+    ];
+    fs.writeFileSync(stFile, JSON.stringify(stObj));
+    const h1 = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 0, identity: id1 }) });
+    const h1j = await h1.json();
+    const h2 = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 0, identity: id1 }) });
+    const h2j = await h2.json();
+    check(h1.status === 200 && h1j.penalty === 25 && h2j.penalty === 25, 'paid hint deducts once (idempotent)');
+    const sbAfter = await (await fetch(base + '/api/scoreboard')).json();
+    check(sbAfter.scoreboard.find(x => x.name === 'Alice').points === 125, 'scoreboard deducts paid hint cost (150 - 25 = 125)');
+    const hHidden = await fetch(base + '/api/hint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ challenge: 'log4shell-lab', index: 1, identity: id1 }) });
+    check(hHidden.status === 404, 'hidden/unpublished hint cannot be revealed');
+
     console.log('TOTAL ' + count + ' phase-6 assertions passed');
   } finally {
     child.kill();

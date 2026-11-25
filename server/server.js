@@ -32,6 +32,18 @@ function loadFlags() {
 }
 const PLAYERS_STATE_FILE = path.join(DATA_DIR, 'players_state.json');
 const PLAYER_NAMES_FILE = path.join(DATA_DIR, 'players_names.json');
+const HINTS_USED_FILE = path.join(DATA_DIR, 'hints_used.json');
+function loadHintsUsed() { try { return JSON.parse(fs.readFileSync(HINTS_USED_FILE, 'utf8')); } catch (e) { return {}; } }
+function saveHintsUsed(obj) {
+  scoreboardCache = { ts: 0, data: null };
+  const tmp = HINTS_USED_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 1));
+  fs.renameSync(tmp, HINTS_USED_FILE);
+}
+function hintPenalty(identity, chId) {
+  const rec = (loadHintsUsed()[identity] || {})[chId] || {};
+  return Object.values(rec).reduce((sum, c) => sum + (Number(c) || 0), 0);
+}
 function loadPlayerNames() {
   try { return JSON.parse(fs.readFileSync(PLAYER_NAMES_FILE, 'utf8')); } catch (e) { return {}; }
 }
@@ -169,7 +181,7 @@ function handleApi(req, res, url, ip) {
       Object.keys(pSolves).forEach(chId => {
         if (!admin.challengeIsPublic(chId)) return;
         solved++;
-        points += admin.challengePoints(chId);
+        points += Math.max(0, admin.challengePoints(chId) - hintPenalty(id, chId));
         const ts = pSolves[chId];
         if (!lastSolve || new Date(ts) > new Date(lastSolve)) lastSolve = ts;
         if (firstByCh[chId] && firstByCh[chId].id === id) firstBloods++;
@@ -223,6 +235,38 @@ function handleApi(req, res, url, ip) {
       all[chId].sort((a, b) => new Date(a.ts) - new Date(b.ts));
     });
     return json(res, 200, { solvers: all }, true);
+  }
+
+  if (url.pathname === '/api/hint' && req.method === 'POST') {
+    if (!rateOk('ip:' + ip, RATE_PER_IP)) return json(res, 429, { error: 'rate_limited' }, true);
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > MAX_BODY) { req.destroy(); } });
+    req.on('end', () => {
+      let data;
+      try { data = JSON.parse(body); } catch (e) { return json(res, 400, { error: 'bad_json' }, true); }
+      const identity = String(data.identity || '');
+      const challenge = String(data.challenge || '');
+      const index = parseInt(data.index, 10);
+      if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
+      if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
+      if (!challenge || !admin.challengeIsPublic(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+      const cols = seo.loadCollections(DATA_DIR);
+      const ch = (cols.challenges || []).find(c => c.id === challenge);
+      const hint = ch && Array.isArray(ch.hints) && Number.isInteger(index) && index >= 0 ? ch.hints[index] : null;
+      if (!hint || hint.published === false) return json(res, 404, { error: 'unknown_hint' }, true);
+      const cost = Math.max(0, parseInt(hint.cost, 10) || 0);
+      if (cost > 0) {
+        const used = loadHintsUsed();
+        used[identity] = used[identity] || {};
+        used[identity][challenge] = used[identity][challenge] || {};
+        if (used[identity][challenge][index] === undefined) {
+          used[identity][challenge][index] = cost;
+          saveHintsUsed(used);
+        }
+      }
+      return json(res, 200, { status: 'ok', cost, penalty: hintPenalty(identity, challenge) }, true);
+    });
+    return;
   }
 
   if (url.pathname === '/api/submit' && req.method === 'POST') {
