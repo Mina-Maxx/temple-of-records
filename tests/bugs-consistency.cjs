@@ -29,6 +29,12 @@ const check = (ok, label) => { assert.ok(ok, label); console.log('PASS ' + label
     check((sjs.match(/querySelector\(['"]a?\.pill-lang['"]\)/g) || []).length === 1, 'script.js has single pill-lang handler (no duplicate)');
     check(sjs.includes('foundItem.slug[otherLang]'), 'pill-lang maps bilingual slugs across languages');
 
+    const { clientIp } = require('../server/client-ip');
+    check(clientIp({ socket: { remoteAddress: '10.0.0.1' }, headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' } }, true) === '5.6.7.8', 'clientIp uses LAST X-Forwarded-For entry when TRUST_PROXY=true');
+    check(clientIp({ socket: { remoteAddress: '10.0.0.1' }, headers: { 'x-real-ip': '9.9.9.9', 'x-forwarded-for': '1.2.3.4, 5.6.7.8' } }, true) === '9.9.9.9', 'clientIp prefers X-Real-IP over X-Forwarded-For');
+    check(clientIp({ socket: { remoteAddress: '10.0.0.1' }, headers: { 'x-forwarded-for': '1.2.3.4, not-an-ip' } }, true) === '10.0.0.1', 'clientIp falls back to socket address on invalid XFF');
+    check(clientIp({ socket: { remoteAddress: '10.0.0.1' }, headers: { 'x-real-ip': '9.9.9.9', 'x-forwarded-for': '5.6.7.8' } }, false) === '10.0.0.1', 'clientIp ignores proxy headers when TRUST_PROXY=false');
+
     console.log('TOTAL ' + count + ' bugs-consistency assertions passed');
   } finally {
     child.kill();

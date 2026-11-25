@@ -57,14 +57,8 @@ const HTTPS_MODE = process.env.TOR_HTTPS === '1' || process.env.NODE_ENV === 'pr
 const TRUST_PROXY = process.env.TOR_TRUST_PROXY === '1' || !!process.env.PORT;
 const DEV_CORS = process.env.TOR_DEV_CORS === '1';
 const LOOPBACK = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-function clientIp(req) {
-  const raw = req.socket.remoteAddress || 'unknown';
-  if (TRUST_PROXY) {
-    const v = String(req.headers['x-real-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || '').trim();
-    if (/^[0-9a-fA-F:.]{3,45}$/.test(v)) return v;
-  }
-  return raw;
-}
+const { clientIp: resolveClientIp } = require('./client-ip');
+function clientIp(req) { return resolveClientIp(req, TRUST_PROXY); }
 const PORT = Number(process.env.PORT || process.env.TOR_PORT || 8000);
 
 const MAX_BODY = 4096;
