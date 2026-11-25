@@ -3,12 +3,12 @@
 'use strict';
 var A=window.TORADMIN;
 var LBL={
- ar:{category:'الفئة',related_articles:'معرفات المقالات ذات الصلة',related_challenges:'معرفات التحديات ذات الصلة',evidence:'روابط الأدلة',analysis:'التحليل',lessons_learned:'الدروس المستفادة',screenshots:'روابط صور المشروع',documentation:'التوثيق',published:'منشور',title:'العنوان',body:'النص',summary:'الملخص',description:'الوصف',tags:'الوسوم (مفصولة بفواصل)',date:'التاريخ',url:'رابط (https)',status:'الحالة',
-     timeline:'الخط الزمني',findings:'النتائج',root_cause:'السبب الجذري',links:'روابط ذات صلة',tech:'التقنيات (مفصولة بفواصل)',repo_url:'مستودع الكود (https)',
+ ar:{category:'الفئة',related_articles:'معرفات الرايتبس ذات الصلة',related_challenges:'معرفات التحديات ذات الصلة',evidence:'روابط الأدلة',analysis:'التحليل التفصيلي',lessons_learned:'الدروس المستفادة',use_case:'حالة الاستخدام (Use Case)',detection_engineering:'هندسة الكشف (Detection Engineering)',detection_rule_lang:'صيغة القاعدة (Sigma / KQL / SPL / YARA / AQL)',detection_rule:'قاعدة الكشف (Detection Rule)',attack:'تقنيات MITRE ATT&CK (مفصولة بفواصل)',publish_at:'موعد النشر المجدول (ISO اختياري)',published:'منشور',title:'العنوان',body:'النص',summary:'الملخص',description:'الوصف',tags:'الوسوم (مفصولة بفواصل)',date:'التاريخ',url:'رابط (https)',status:'الحالة',
+     timeline:'الخط الزمني',findings:'النتائج',root_cause:'السبب الجذري',links:'روابط ذات صلة',
      ts:'الوقت',label:'العنوان',addEntry:'+ حدث',addLink:'+ رابط',visibility:'الظهور',private:'خاص (للأدمن فقط)',public:'عام (يظهر على الموقع)',open:'مفتوح',closed:'مغلق',draft:'مسودة',active:'نشط',wip:'قيد العمل',archived:'مؤرشف',
      hiddenC:'مخفي (مؤرشف)',items:'عنصر'},
- en:{category:'Category',related_articles:'Related article IDs',related_challenges:'Related challenge IDs',evidence:'Evidence links',analysis:'Analysis',lessons_learned:'Lessons learned',screenshots:'Project screenshot links',documentation:'Documentation',published:'Published',title:'Title',body:'Body',summary:'Summary',description:'Description',tags:'Tags (comma-sep)',date:'Date',url:'URL (https)',status:'Status',
-     timeline:'Timeline',findings:'Findings',root_cause:'Root cause',links:'Related links',tech:'Tech (comma-sep)',repo_url:'Code repository (https)',
+ en:{category:'Category',related_articles:'Related writeup IDs',related_challenges:'Related challenge IDs',evidence:'Evidence links',analysis:'Investigation & analysis',lessons_learned:'Lessons learned & remediation',use_case:'Use Case (scenario & trigger)',detection_engineering:'Detection Engineering (telemetry, logic & tuning)',detection_rule_lang:'Detection Rule format (e.g. Sigma, KQL, SPL, YARA, AQL)',detection_rule:'Detection Rule (code)',attack:'MITRE ATT&CK IDs (comma-sep, e.g. T1059.001)',publish_at:'Scheduled publish_at (optional ISO timestamp)',published:'Published',title:'Title',body:'Body',summary:'Summary',description:'Description',tags:'Tags (comma-sep)',date:'Date',url:'URL (https)',status:'Status',
+     timeline:'Timeline',findings:'Findings',root_cause:'Root cause',links:'Related links',
      ts:'Time',label:'Label',addEntry:'+ Entry',addLink:'+ Link',visibility:'Visibility',private:'Private (admin only)',public:'Public (shown on the site)',open:'Open',closed:'Closed',draft:'Draft',active:'Active',wip:'In progress',archived:'Archived',
      hiddenC:'Hidden (archived)',items:'items'}
 };
@@ -76,6 +76,7 @@ function fieldHtml(f,item){
  if(f.t==='bi')return '<div class="field"><label>'+l(f.k)+'</label><div class="row2">'+
   '<textarea class="input ar-only" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="ar">'+A.esc(v&&v.ar||'')+'</textarea>'+
   '<textarea class="input" dir="ltr" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="en" placeholder="English">'+A.esc(v&&v.en||'')+'</textarea></div></div>';
+ if(f.t==='code')return '<div class="field"><label>'+l(f.k)+'</label><textarea class="input mono" dir="ltr" rows="12" data-k="'+f.k+'" placeholder="title: Suspicious Activity\nstatus: experimental\ndetection:\n  selection: ...">'+A.esc(v||'')+'</textarea></div>';
  if(f.t==='enum')return '<div class="field" style="max-width:280px"><label>'+l(f.k)+'</label><select class="input" data-k="'+f.k+'">'+f.values.map(function(x){return '<option value="'+x+'"'+(v===x?' selected':'')+'>'+l(x)+'</option>'}).join('')+'</select></div>';
  if(f.t==='tags')return '<div class="field"><label>'+l(f.k)+'</label><input class="input" data-k="'+f.k+'" value="'+A.esc((v||[]).join(', '))+'"></div>';
  if(f.t==='url')return '<div class="field"><label>'+l(f.k)+'</label><input class="input mono" dir="ltr" data-k="'+f.k+'" value="'+A.esc(v||'')+'" placeholder="https://…"></div>';
@@ -90,7 +91,7 @@ function bind(c,item,CFG,id){
    var row=document.createElement('div');row.className='sec-row';
    row.innerHTML='<div class="head"><span class="num">'+(i+1)+'</span><input class="input mono" dir="ltr" style="max-width:180px" data-p="ts" value="'+A.esc(e.ts||'')+'" placeholder="2026-01-01 00:00"><span style="flex:1"></span>'+
     '<button class="btn sm ghost" data-up>↑</button><button class="btn sm ghost" data-dn>↓</button><button class="btn sm danger" data-del>×</button></div>'+
-    '<div class="row2"><textarea class="input" rows="2" data-p="ar" placeholder="العربية">'+A.esc(e.ar||'')+'</textarea><textarea class="input" dir="ltr" rows="2" data-p="en" placeholder="English">'+A.esc(e.en||'')+'</textarea></div>';
+    '<div class="row2"><textarea class="input ar-only" rows="2" data-p="ar" placeholder="العربية">'+A.esc(e.ar||'')+'</textarea><textarea class="input" dir="ltr" rows="2" data-p="en" placeholder="English">'+A.esc(e.en||'')+'</textarea></div>';
    row.querySelectorAll('[data-p]').forEach(function(inp){inp.oninput=function(){e[inp.dataset.p]=inp.value}});
    row.querySelector('[data-del]').onclick=function(){item[key].splice(i,1);paintEntries(key)};
    row.querySelector('[data-up]').onclick=function(){if(i>0){item[key].splice(i-1,0,item[key].splice(i,1)[0]);paintEntries(key)}};

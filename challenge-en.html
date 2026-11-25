@@ -23,7 +23,8 @@
 </a>
 <nav aria-label="Main" class="main">
 <a href="challenges-en.html">Challenges</a>
-<a href="articles-en.html">Articles</a>
+<a href="investigations-en.html">Investigations</a>
+<a href="articles-en.html">Writeups</a>
 <a href="about-en.html">About</a>
 <a class="pill-lang" aria-label="العربية" href="challenge-ar.html" hreflang="ar" lang="ar">EN | ع</a>
 </nav>
@@ -62,19 +63,21 @@
 <section class="ctf-region" id="region-flag">
 <h2>Flag submission</h2>
 <form class="flag-form" id="flag-form" novalidate="">
-<label class="sr-only" for="flag-name">Your name or handle</label>
-<input autocomplete="name" id="flag-name" maxlength="50" name="name" placeholder="Your name or handle (e.g. Alex)" spellcheck="false" type="text"/>
 <label class="sr-only" for="flag-input">Flag</label>
 <input autocomplete="off" dir="ltr" id="flag-input" maxlength="200" name="flag" placeholder="TOR{…}" spellcheck="false" type="text"/>
-<button class="btn" id="flag-submit" type="submit">Submit flag</button>
-<label class="flag-hide-wrap" style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-dim);margin-top:6px;flex-basis:100%"><input id="flag-hide-name" type="checkbox"/> <span>Hide my name on the scoreboard</span></label>
+<button class="btn" id="flag-submit" type="submit">Verify flag</button>
+</form>
+<form class="flag-form claim-form" id="claim-form" hidden="" novalidate="" style="margin-top:10px">
+<label class="sr-only" for="flag-name">Your name or handle</label>
+<input autocomplete="name" id="flag-name" maxlength="50" name="name" placeholder="Write your name to record your solve" spellcheck="false" type="text"/>
+<button class="btn" id="claim-submit" type="submit">Record my solve</button>
 </form>
 <div class="flag-format" id="flag-format"></div>
 <div aria-live="polite" class="flag-status" id="flag-status"></div>
-<p class="muted-note">Verification happens on the server only — enter your name and the flag. No registration or complex setup required.</p>
+<p class="muted-note">Submit the flag first. Once verified on the server, enter your name so your solve and timestamp are recorded here.</p>
 <p class="muted-note" id="flag-server-note"></p>
 <div class="solvers-section" id="solvers-section" hidden>
-<div class="solvers-title">Challenge solvers:</div>
+<div class="solvers-title">Solved by:</div>
 <div class="solvers-list" id="solvers-list"></div>
 </div>
 </section>
@@ -103,7 +106,8 @@
 <div class="who">Mina Max · Digital forensics &amp; incident response</div>
 <nav aria-label="Footer">
 <a href="challenges-en.html">Challenges</a>
-<a href="articles-en.html">Articles</a>
+<a href="investigations-en.html">Investigations</a>
+<a href="articles-en.html">Writeups</a>
 <a href="about-en.html">About</a>
 </nav>
 </div>

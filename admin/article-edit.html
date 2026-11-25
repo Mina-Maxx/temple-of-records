@@ -57,6 +57,10 @@ A.boot().then(function(ok){
    F(A.lang()==='ar'?'حالة النشر':'Publication status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:A.lang()==='ar'?'مسودة':'Draft',published:A.lang()==='ar'?'منشور':'Published',archived:A.lang()==='ar'?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
 
    F(ar?'الملخص':'Excerpt',bi2('excerpt',item.excerpt,true))+
+   '<div class="row2">'+
+    F(ar?'نوع الرايتب':'Writeup type','<select class="input" data-f="writeup_type"><option value="concept"'+(item.writeup_type!=='walkthrough'?' selected':'')+'>'+(ar?'شرح تقني / مفهوم':'Technical explanation')+'</option><option value="walkthrough"'+(item.writeup_type==='walkthrough'?' selected':'')+'>'+(ar?'حل تحدٍّ (Writeup)':'Challenge walkthrough / solution')+'</option></select>')+
+    F(ar?'معرّف التحدي المرتبط (اختياري)':'Related challenge ID (optional)','<input class="input mono" dir="ltr" data-f="related_challenge" value="'+A.esc(item.related_challenge||'')+'" placeholder="log4shell-lab">')+
+   '</div>'+
    F(ar?'الفئة':'Category',bi2('category',item.category))+F('SEO title',bi2('seo_title',item.seo_title))+F('Meta description',bi2('meta_description',item.meta_description,true))+
    '<div class="row3">'+
     F(ar?'الصورة (مسار نسبي)':'Image (relative path)','<input class="input mono" dir="ltr" data-f="image" value="'+A.esc(item.image||'')+'" placeholder="assets/archive.jpg">')+

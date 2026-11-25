@@ -9,8 +9,12 @@ const PUBLIC_KINDS = ['challenges', 'articles', 'investigations'];
 // Investigations are opt-in: they need visibility === 'public' AND must pass
 // isPublic() (not draft/hidden). Only these fields are ever published, so an
 // extra private field added later can never leak by accident.
-const INVESTIGATION_FIELDS = ['id', 'slug', 'title', 'summary', 'status', 'date', 'tags', 'attack', 'timeline',
-  'findings', 'root_cause', 'analysis', 'lessons_learned', 'evidence', 'links', 'seo_title', 'meta_description'];
+const INVESTIGATION_FIELDS = [
+  'id', 'slug', 'title', 'summary', 'status', 'date', 'tags', 'attack',
+  'evidence', 'timeline', 'analysis', 'findings', 'root_cause',
+  'use_case', 'detection_engineering', 'detection_rule_lang', 'detection_rule',
+  'lessons_learned', 'links', 'seo_title', 'meta_description'
+];
 
 function isPublic(item, now = Date.now()) {
   if (!item || item.hidden || item.published === false || item.private === true) return false;
@@ -41,8 +45,9 @@ function publicCollections(collections, now = Date.now()) {
     }
     out[key] = records.filter(r => isPublic(r, now)).map(r => {
       const o = { ...r };
+      if (key === 'challenges') delete o.points;
       if (Array.isArray(r.artifacts)) o.artifacts = r.artifacts.filter(a => a && a.visibility !== 'hidden');
-      if (Array.isArray(r.hints)) o.hints = r.hints.filter(h => h.published !== false);
+      if (Array.isArray(r.hints)) o.hints = r.hints.filter(h => h.published !== false).map(h => ({ ar: h.ar || '', en: h.en || '', published: h.published }));
       if (Array.isArray(r.sections)) {
         const gateSol = key === 'challenges' && process.env.TOR_GATE_SOLUTIONS === '1' && r.solution_public !== true;
         o.sections = r.sections.filter(s => s.published !== false && (!gateSol || s.zone !== 'solution'));

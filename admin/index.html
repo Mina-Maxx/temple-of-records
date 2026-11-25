@@ -26,10 +26,9 @@ A.boot().then(function(ok){
    '<div class="acts"><a class="btn primary" href="challenge-edit.html">'+A.icon('flag',15)+(A.lang()==='ar'?A.t('create')+' '+A.t('sChal'):'Create challenge')+'</a></div></div>'+
    '<div class="grid-stats">'+
     stat(A.t('sChal'),s.challenges,A.t('sAvail')+': '+s.challenges_available)+
-    stat(A.lang()==='ar'?'تحديات منشورة':'Published challenges',s.challenges_published,'')+stat(A.t('sArt'),s.articles,'')+
+    stat(A.lang()==='ar'?'تحديات منشورة':'Published challenges',s.challenges_published,'')+stat(A.t('sInv'),s.investigations||0,(A.lang()==='ar'?'منشور: ':'Public: ')+(s.investigations_public||0))+stat(A.t('sArt'),s.articles,'')+
     stat(A.t('sSolves'),s.total_solves,'')+
     stat(A.t('sSubs'),s.total_submissions,'')+
-    stat(A.t('sPlayers'),s.players,'')+
     stat(A.lang()==='ar'?'قيد التحضير':'In preparation',s.challenges_preparation,'')+stat(A.lang()==='ar'?'ملفات الأدلة (خارجية)':'Evidence (external)',s.evidence_count,A.lang()==='ar'?'0 بايت مستضاف':'0 bytes hosted')+
    '</div>'+
    '<div class="row2">'+

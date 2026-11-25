@@ -30,7 +30,7 @@ var A=window.TORADMIN;
 var id=new URLSearchParams(location.search).get('id');
 var item=null;
 var SEC_TYPES=['heading','paragraph','list','code','callout','quote','image','table','link','inline_code'];
-function blank(){return {id:'',hidden:false,sample:false,image:'',date:'',level:'',tags:[],title:{ar:'',en:''},excerpt:{ar:'',en:''},chips:[],sections:[],category:{ar:'',en:''},difficulty:{ar:'',en:''},points:100,est_time:{ar:'',en:''},availability:'soon',repo:{url:'',label_ar:'',label_en:''},hints:[],flag:{format_ar:'',format_en:''},artifacts:[]}}
+function blank(){return {id:'',hidden:false,sample:false,image:'',date:'',level:'',tags:[],title:{ar:'',en:''},excerpt:{ar:'',en:''},chips:[],sections:[],category:{ar:'',en:''},difficulty:{ar:'',en:''},est_time:{ar:'',en:''},availability:'soon',repo:{url:'',label_ar:'',label_en:''},hints:[],flag:{format_ar:'',format_en:''},artifacts:[]}}
 A.boot().then(function(ok){
  if(!ok)return;
  function start(){
@@ -82,8 +82,7 @@ A.boot().then(function(ok){
     F((A.lang()==='ar'?'الفئة':'Category'),bi2('category',item.category).replace('data-f="category.ar"','data-f="category.ar" list="catlist-ar"').replace('data-f="category.en"','data-f="category.en" list="catlist-en"')+'<datalist id="catlist-ar"></datalist><datalist id="catlist-en"></datalist>')+
     F((A.lang()==='ar'?'الصعوبة':'Difficulty'),bi2('difficulty',item.difficulty))+
    '</div>'+
-   '<div class="row3">'+
-    F((A.lang()==='ar'?'النقاط':'Points'),'<input class="input mono" type="number" min="0" max="10000" data-f="points" value="'+A.esc(item.points!=null?item.points:100)+'">')+
+   '<div class="row2">'+
     F((A.lang()==='ar'?'الحالة':'Status'),'<select class="input" data-f="availability">'+
       ['open','soon','archived'].map(function(v){return '<option value="'+v+'"'+(item.availability===v?' selected':'')+'>'+(v==='open'?A.t('stAvail'):v==='soon'?A.t('stPrep'):A.t('stArch'))+'</option>'}).join('')+'</select>')+
     F((A.lang()==='ar'?'الوسوم (مفصولة بفواصل)':'Tags (comma-sep)'),'<input class="input" data-f="tags" value="'+A.esc((item.tags||[]).join(', '))+'">')+

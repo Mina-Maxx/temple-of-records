@@ -54,7 +54,7 @@ A.boot().then(function(ok){
    '<span class="small dim">'+filtered.length+' / '+items.length+'</span></div>'+
    '<div class="panel" style="padding:0;overflow:hidden">'+
    (view.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr>'+
-    '<th>'+A.t('thTitle')+'</th><th>'+A.t('thStatus')+'</th><th>'+A.t('thCat')+'</th><th>'+A.t('thDiff')+'</th><th>'+A.t('thPts')+'</th><th>'+A.t('thSolves')+'</th><th>'+(A.lang()==='ar'?'ملفات الأدلة':'Evidence files')+'</th><th>'+(A.lang()==='ar'?'آخر تعديل':'Updated')+'</th><th>'+A.t('actions')+'</th></tr></thead><tbody>'+
+    '<th>'+A.t('thTitle')+'</th><th>'+A.t('thStatus')+'</th><th>'+A.t('thCat')+'</th><th>'+A.t('thDiff')+'</th><th>'+A.t('thSolves')+'</th><th>'+(A.lang()==='ar'?'ملفات الأدلة':'Evidence files')+'</th><th>'+(A.lang()==='ar'?'آخر تعديل':'Updated')+'</th><th>'+A.t('actions')+'</th></tr></thead><tbody>'+
     view.map(function(it){
      var title=A.lang()==='ar'?(it.title_ar||it.title_en):(it.title_en||it.title_ar);
      var sub=A.lang()==='ar'?it.title_en:it.title_ar;
@@ -62,7 +62,6 @@ A.boot().then(function(ok){
      '<td>'+stBadge(it)+'</td>'+
      '<td class="small">'+(A.lang()==='ar'?A.esc(it.category_ar||''):A.esc(it.category_en||it.category_ar||''))+'</td>'+
      '<td class="small dim">'+A.esc((A.lang()==='ar'?it.difficulty_ar:(it.difficulty_en||it.difficulty_ar))||'—')+'</td>'+
-     '<td class="mono">'+A.esc(it.points!=null?it.points:'—')+'</td>'+
      '<td class="mono">'+(it.solves||0)+'</td><td class="mono">'+(it.artifacts||[]).length+'</td><td class="mono small">'+A.esc((it.updated_at||it.date||'').slice(0,10)||'—')+'</td>'+
      '<td style="white-space:nowrap">'+
       '<a class="btn sm ghost" href="challenge-edit.html?id='+encodeURIComponent(it.id)+'">'+A.t('edit')+'</a> '+

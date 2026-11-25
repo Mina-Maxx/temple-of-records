@@ -18,8 +18,8 @@
 <script src="collection.js"></script>
 <script>
 TORCOL.run({col:'investigations',nav:'investigations',t:'nInv',icon:'search',
- sub:function(){return TORADMIN.lang()==='ar'?'سجل تحقيقات بحالات وخطوط زمنية ونتائج وأسباب جذرية وروابط. الظهور «عام» + الحالة غير «مسودة» = ينشر على الموقع؛ غير ذلك يبقى خاصا.':'An investigations register with cases, timelines, findings, root causes, and links. Visibility "public" + a status other than draft publishes it on the site; everything else stays private.'},
- fields:[{k:'title',t:'bi',max:300},{k:'summary',t:'bi',max:4000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'timeline',t:'entries',max:200},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'evidence',t:'links',max:50},{k:'analysis',t:'bi',max:20000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50}]});
+ sub:function(){return TORADMIN.lang()==='ar'?'سجل تحقيقات متكامل: من الخط الزمني والتحليل والنتائج والسبب الجذري وصولاً إلى حالة الاستخدام وهندسة الكشف وقاعدة الكشف. الظهور «عام» + الحالة غير «مسودة» = ينشر على الموقع.':'End-to-end investigation writeups: timeline, analysis, findings, root cause, Use Case, Detection Engineering, and Detection Rule. Visibility "public" + non-draft publishes it.'},
+ fields:[{k:'title',t:'bi',max:300},{k:'summary',t:'bi',max:6000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'evidence',t:'links',max:50},{k:'timeline',t:'entries',max:200},{k:'analysis',t:'bi',max:20000},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'use_case',t:'bi',max:12000},{k:'detection_engineering',t:'bi',max:20000},{k:'detection_rule_lang',t:'str',max:60},{k:'detection_rule',t:'code',max:30000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50}]});
 </script>
 </body>
 </html>

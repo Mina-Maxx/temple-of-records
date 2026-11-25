@@ -156,8 +156,7 @@ function renderSitemap(dataDir, arabicEnabled = true) {
 
   const visible = visibility.publicCollections(loadCollections(dataDir));
   const entries = [];
-  const staticBases = ['index', 'challenges', 'articles', 'scoreboard', 'about'];
-  if ((visible.investigations || []).length) staticBases.push('investigations');
+  const staticBases = ['index', 'challenges', 'investigations', 'articles', 'about'];
   const langs = arabicEnabled ? ['ar', 'en'] : ['en'];
 
   for (const b of staticBases) {
