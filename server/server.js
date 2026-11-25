@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const admin = require('./admin');
+const seo = require('./seo');
 
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(__dirname, 'data');
@@ -283,6 +284,17 @@ function serveStatic(req, res, url) {
   if (file.startsWith(path.join(ROOT, 'server') + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
+    if (path.extname(file).toLowerCase() === '.html' && /^\/(article|challenge|investigation)-(ar|en)\.html$/.test(p)) {
+      const rawHtml = fs.readFileSync(file, 'utf8');
+      const resMeta = seo.injectDetailMeta(rawHtml, p, url, ROOT, DATA_DIR);
+      const buf = Buffer.from(resMeta.html, 'utf8');
+      res.writeHead(resMeta.status, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Length': buf.length,
+        'Cache-Control': 'no-store'
+      });
+      return res.end(buf);
+    }
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
       'Content-Length': st.size,
