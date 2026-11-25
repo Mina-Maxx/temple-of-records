@@ -1,11 +1,11 @@
 {
   "name": "temple-of-records",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "description": "The Temple of Records - Bilingual DFIR & CTF Platform",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node tests/public-boundaries.cjs && node tests/admin-regression.cjs"
+    "test": "node tests/public-boundaries.cjs && node tests/admin-regression.cjs && node tests/visibility-collections.cjs"
   },
   "engines": {
     "node": ">=18"

@@ -69,3 +69,13 @@ Fixes from the security read-through of v6:
 Tests: `public-boundaries` 41 assertions, `admin-regression` 17, all passing. An HTTPS-mode smoke run confirmed Secure cookie, HSTS, direct setup 200 / proxied setup 403, and per-client login throttling.
 
 Not changed (still true): single salted SHA-256 for flags (use long random flags), inline scripts remain so the CSP is a baseline not a strict policy, local JSON persistence, anonymous player tokens. Sample challenge/article and About placeholders are content, not code, and must be replaced by the owner.
+
+## v8 changes
+
+1. **Leak fix (important).** `publicCollections()` used to serialize *every* collection into the public `/content.js`, so any `kb`, `projects` or `investigations` record whose status was not draft/private/archived (for example `closed`, `published`, `active`) was readable by anyone. It now publishes only `challenges`, `articles` and opt-in `investigations`; everything else is never serialized.
+2. **Public investigations pages** (`investigations-{en,ar}.html`, `investigation-{en,ar}.html`). Opt-in: admin sets Visibility = Public and Status != Draft. Existing records default to private. Only whitelisted fields are published. The nav link appears only when at least one case file is public. Sitemap includes them.
+3. **No more "to be added" filler on the public site.** Empty date/tags/difficulty lines are omitted, empty Repository/Evidence regions are hidden, and the home page hides the Articles register when there are no public articles. (Placeholder *content* in store.json, such as the sample article titled "Article title, to be added", must still be replaced or removed by the owner.)
+
+Tests: `tests/visibility-collections.cjs` (9 assertions) added to `npm test`.
+
+Still open from the v7 review: `clientIp()` trusts the first `X-Forwarded-For` entry (login throttle can be bypassed), Render free-tier storage is ephemeral, and the repository is public.

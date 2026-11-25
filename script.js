@@ -90,7 +90,7 @@ window.TOR = (function () {
     files: lang === 'ar' ? 'ملفات' : 'files',
     solved: lang === 'ar' ? 'محلول ✓' : 'Solved ✓',
     unsolved: lang === 'ar' ? 'غير محلول' : 'Unsolved',
-    noDate: lang === 'ar' ? 'التاريخ: يُضاف لاحقًا' : 'Date: to be added'
+    noDate: ''
   };
 
   function el(tag, cls, text) {
@@ -196,6 +196,11 @@ window.TOR = (function () {
   function metaJoin(parts, fallback) {
     var clean = parts.filter(function (x) { return x && String(x).trim(); });
     return clean.length ? clean.join(' · ') : fallback;
+  }
+  // append a meta line only when it has content (no more "to be added" filler on the public site)
+  function addMeta(box, cls, parts, fallback) {
+    var m = metaJoin(parts, fallback || '');
+    if (m) box.appendChild(el('div', cls, m));
   }
   function solveBadge(id, withUnsolved) {
     var b = el('span', 'solve-badge', '');
@@ -315,7 +320,7 @@ window.TOR = (function () {
     row(T.availability, c.availability === 'open' ? T.open : T.soon);
     row(T.evidence, (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : '');
     card.appendChild(meta);
-    card.appendChild(el('div', 'foot', metaJoin([c.date, (c.tags || []).join(' · ')], T.noDate)));
+    addMeta(card, 'foot', [c.date, (c.tags || []).join(' · ')], '');
     return card;
   }
 
@@ -339,9 +344,9 @@ window.TOR = (function () {
     var h3 = el('h3'); var link = el('a', null, L(c.title)); link.href = href;
     h3.appendChild(link); body.appendChild(h3);
     if (L(c.excerpt)) body.appendChild(el('p', 'rec-ex', L(c.excerpt)));
-    body.appendChild(el('div', 'rec-meta', metaJoin([L(c.category), L(c.difficulty), c.points ? num(c.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(c.est_time),
+    addMeta(body, 'rec-meta', [L(c.category), L(c.difficulty), c.points ? num(c.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(c.est_time),
       (c.artifacts || []).length ? num((c.artifacts || []).length) + ' ' + T.files : ''],
-      lang === 'ar' ? 'الصعوبة والنقاط: تُضافان لاحقًا' : 'Difficulty and points: to be added')));
+      ''));
 
     var solversBox = el('div', 'rec-solvers');
     solversBox.setAttribute('data-solvers-challenge', c.id);
@@ -383,7 +388,7 @@ window.TOR = (function () {
       bar.appendChild(el('span', 'f-note', ar ? 'التصنيف: التحليل الجنائي الرقمي' : 'Category: digital forensics'));
     } else {
       btn('all', ar ? 'كل المقالات' : 'All articles');
-      bar.appendChild(el('span', 'f-note', (items && items.length) ? num(items.length) + ' ' + (ar ? 'مقال' : 'article(s)') : (ar ? 'الوسوم تُضاف لاحقًا' : 'Tags to be added')));
+      bar.appendChild(el('span', 'f-note', (items && items.length) ? num(items.length) + ' ' + (ar ? 'مقال' : 'article(s)') : ''));
     }
     box.parentNode.insertBefore(intro, box);
     box.parentNode.insertBefore(bar, box);
@@ -405,8 +410,7 @@ window.TOR = (function () {
     link.href = (lang === 'ar' ? 'article-ar.html' : 'article-en.html') + '?a=' + encodeURIComponent(a.id);
     h3.appendChild(link); card.appendChild(h3);
     card.appendChild(el('p', null, L(a.excerpt)));
-    card.appendChild(el('div', 'foot', metaJoin([a.date, (a.tags || []).join(' · ')],
-      lang === 'ar' ? 'التاريخ والوسوم: يُضافان لاحقًا' : 'Date and tags: to be added')));
+    addMeta(card, 'foot', [a.date, (a.tags || []).join(' · ')], '');
     return card;
   }
 
@@ -426,7 +430,7 @@ window.TOR = (function () {
       var h1 = document.getElementById('item-title'); if (h1) h1.textContent = L(item.title);
       var meta = document.getElementById('item-meta');
       if (meta) meta.textContent = metaJoin([item.date, (item.tags || []).join(' · '), item.minutes],
-        lang === 'ar' ? 'التاريخ والوسوم وزمن القراءة: تُضاف لاحقًا' : 'Date, tags and reading time: to be added');
+        '');
       var counter = { headings: [] };
       (item.sections || []).forEach(function (sec, i) {
         var node = renderSection(sec, i, counter);
@@ -457,7 +461,7 @@ window.TOR = (function () {
       var meta2 = document.getElementById('item-meta');
       if (meta2) meta2.textContent = metaJoin([L(ch.category), L(ch.difficulty),
         ch.points ? num(ch.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(ch.est_time), ch.date],
-        lang === 'ar' ? 'التصنيف والصعوبة والنقاط: تُضاف لاحقًا' : 'Category, difficulty and points: to be added');
+        '');
       var counter2 = { headings: [] };
       var main = document.getElementById('zone-main');
       [['scenario','السيناريو','Scenario'],['objectives','أهداف التحقيق','Investigation objectives'],['required_skills','المهارات المطلوبة','Required skills'],['tools','الأدوات المطلوبة','Tools required'],['instructions','التعليمات','Instructions']].forEach(function(x){var text=L(ch[x[0]]||{});if(text&&main){var h=el('h2',null,lang==='ar'?x[1]:x[2]);h.id='brief-'+x[0];main.appendChild(h);main.appendChild(el('p',null,text));counter2.headings.push({id:h.id,text:h.textContent})}});
@@ -480,7 +484,7 @@ window.TOR = (function () {
           ra.href = ch.repo.url; ra.target = '_blank'; ra.rel = 'noopener noreferrer';
           repoBox.appendChild(ra);
         } else {
-          repoBox.appendChild(el('p', 'muted-note', lang === 'ar' ? 'رابط المستودع: يُضاف لاحقًا.' : 'Repository link: to be added.'));
+          var rrBox = document.getElementById('region-repo'); if (rrBox) rrBox.style.display = 'none';
         }
       }
 
@@ -489,7 +493,7 @@ window.TOR = (function () {
       if (artBox) {
         var arts = ch.artifacts || [];
         if (!arts.length) {
-          artBox.appendChild(el('p', 'muted-note', lang === 'ar' ? 'ملفات الأدلة: تُضاف لاحقًا.' : 'Evidence files: to be added.'));
+          var raBox = document.getElementById('region-artifacts'); if (raBox) raBox.style.display = 'none';
         } else {
           var tbl = el('table', 'artifacts');
           var trh = el('tr');
@@ -517,7 +521,7 @@ window.TOR = (function () {
                 tdD.appendChild(mr);
               }
             } else {
-              tdD.appendChild(el('span', 'muted-note', lang === 'ar' ? 'الرابط يُضاف لاحقًا' : 'Link to be added'));
+              tdD.appendChild(el('span', 'muted-note', '—'));
             }
             tr.appendChild(tdD);
             tbl.appendChild(tr);
@@ -553,16 +557,97 @@ window.TOR = (function () {
 
       // --- TOC ---
       var tocEntries = counter2.headings.slice();
-      tocEntries.push({ id: 'region-artifacts', text: lang === 'ar' ? 'مستودع الأدلة' : 'Evidence repository' });
+      if ((ch.artifacts || []).length) tocEntries.push({ id: 'region-artifacts', text: lang === 'ar' ? 'مستودع الأدلة' : 'Evidence repository' });
       tocEntries.push({ id: 'region-hints', text: lang === 'ar' ? 'التلميحات' : 'Hints' });
       tocEntries.push({ id: 'region-flag', text: lang === 'ar' ? 'تسليم الفلاج' : 'Flag submission' });
       tocEntries.push({ id: 'walkthrough-section', text: lang === 'ar' ? 'الحل' : 'Walkthrough' });
       buildToc(document.getElementById('toc'), tocEntries);
       var tocMeta = document.querySelector('#toc .toc-meta span:last-child');
-      if (tocMeta) tocMeta.textContent = (lang === 'ar' ? 'الصعوبة: ' : 'Difficulty: ') +
-        (L(ch.difficulty) || (lang === 'ar' ? 'تُضاف لاحقًا' : 'to be added'));
+      if (tocMeta) { if (L(ch.difficulty)) tocMeta.textContent = (lang === 'ar' ? 'الصعوبة: ' : 'Difficulty: ') + L(ch.difficulty); else tocMeta.style.display = 'none'; }
     }
   }
+
+  // ---------- investigations (public case files; opt-in via visibility = public) ----------
+  T.investigation = lang === 'ar' ? 'ملف تحقيق' : 'Case file';
+  function invStatus(st) {
+    if (st === 'open') return lang === 'ar' ? 'مفتوح' : 'Open';
+    if (st === 'closed') return lang === 'ar' ? 'مغلق' : 'Closed';
+    return '';
+  }
+  function invCard(it) {
+    var card = el('article', 'papyrus');
+    var ph = el('div', 'ph'); ph.appendChild(el('span', null, T.investigation)); card.appendChild(ph);
+    var h3 = el('h3'); var link = el('a', null, L(it.title));
+    link.href = (lang === 'ar' ? 'investigation-ar.html' : 'investigation-en.html') + '?id=' + encodeURIComponent(it.id);
+    h3.appendChild(link); card.appendChild(h3);
+    if (L(it.summary)) card.appendChild(el('p', null, L(it.summary)));
+    addMeta(card, 'foot', [invStatus(it.status), it.date, (it.tags || []).join(' · ')], '');
+    return card;
+  }
+  if (page === 'investigations-ar' || page === 'investigations-en') {
+    var invBox = document.getElementById('listing');
+    var invList = TOR.visible('investigations');
+    if (invBox) {
+      if (!invList.length) invBox.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد ملفات تحقيق منشورة بعد.' : 'No published case files yet.'));
+      invList.forEach(function (it) { invBox.appendChild(invCard(it)); });
+    }
+  }
+  if (page === 'investigation-ar' || page === 'investigation-en') {
+    var inv = TOR.param('id') ? TOR.find('investigations', TOR.param('id')) : TOR.visible('investigations')[0];
+    var invReader = document.getElementById('reader');
+    if (!inv) {
+      if (invReader) invReader.appendChild(el('p', 'notice', lang === 'ar' ? 'ملف التحقيق غير متاح.' : 'This case file is not available.'));
+    } else {
+      document.title = (L(inv.seo_title || {}) || L(inv.title)) + (lang === 'ar' ? ' · مينا مكس' : ' · Mina Max');
+      var invDesc = L(inv.meta_description || {}) || L(inv.summary);
+      if (invDesc) { var invMeta = document.querySelector('meta[name=description]') || document.createElement('meta'); invMeta.name = 'description'; invMeta.content = invDesc.slice(0, 300); document.head.appendChild(invMeta); }
+      var invCur = document.getElementById('crumb-cur'); if (invCur) invCur.textContent = L(inv.title);
+      var invH1 = document.getElementById('item-title'); if (invH1) invH1.textContent = L(inv.title);
+      var invLabels = document.getElementById('item-labels');
+      if (invLabels && invStatus(inv.status)) invLabels.appendChild(el('span', 'chip' + (inv.status === 'open' ? ' gold' : ''), invStatus(inv.status)));
+      var invMetaLine = document.getElementById('item-meta');
+      if (invMetaLine) invMetaLine.textContent = metaJoin([inv.date, (inv.tags || []).join(' · ')], '');
+      var secs = [];
+      function invText(arTitle, enTitle, val) {
+        var t = L(val); if (!t || !t.trim()) return;
+        secs.push({ type: 'heading', ar: arTitle, en: enTitle });
+        t.split(/\n{2,}/).forEach(function (p) { p = p.trim(); if (p) secs.push({ type: 'paragraph', ar: p, en: p }); });
+      }
+      function invLinks(arTitle, enTitle, list) {
+        var ok = (list || []).filter(function (x) { return x && TOR.urlOk(x.url); });
+        if (!ok.length) return;
+        secs.push({ type: 'heading', ar: arTitle, en: enTitle });
+        ok.forEach(function (x) { secs.push({ type: 'link', ar: x.label || x.url, en: x.label || x.url, url: x.url }); });
+      }
+      invText('الملخص', 'Summary', inv.summary);
+      var invRows = (inv.timeline || []).filter(function (e) { return e && (L(e) || e.ts); });
+      if (invRows.length) {
+        secs.push({ type: 'heading', ar: 'الخط الزمني', en: 'Timeline' });
+        secs.push({ type: 'timeline', rows: invRows.map(function (e) { return { t: e.ts || '', ar: e.ar, en: e.en }; }) });
+      }
+      invText('النتائج', 'Findings', inv.findings);
+      invText('السبب الجذري', 'Root cause', inv.root_cause);
+      invText('التحليل', 'Analysis', inv.analysis);
+      invText('الدروس المستفادة', 'Lessons learned', inv.lessons_learned);
+      invLinks('روابط الأدلة', 'Evidence links', inv.evidence);
+      invLinks('روابط ذات صلة', 'Related links', inv.links);
+      var invCounter = { headings: [] };
+      secs.forEach(function (sec, i) { var n = renderSection(sec, i, invCounter); if (n && invReader) invReader.appendChild(n); });
+      buildToc(document.getElementById('toc'), invCounter.headings);
+    }
+  }
+  // nav link appears only when at least one case file is public (never a dead/empty link)
+  (function () {
+    if (!TOR.visible('investigations').length) return;
+    var href = lang === 'ar' ? 'investigations-ar.html' : 'investigations-en.html';
+    var label = lang === 'ar' ? 'التحقيقات' : 'Investigations';
+    document.querySelectorAll('header.site nav.main, footer.site nav').forEach(function (nav) {
+      if (nav.querySelector('a[href="' + href + '"]')) return;
+      var a = document.createElement('a'); a.href = href; a.textContent = label;
+      var about = nav.querySelector('a[href^="about-"]');
+      if (about) nav.insertBefore(a, about); else nav.appendChild(a);
+    });
+  })();
 
   // ---------- listings ----------
   if (page === 'articles-ar' || page === 'articles-en') {
@@ -621,7 +706,8 @@ window.TOR = (function () {
         var th = tab.querySelector('[data-slot="title"]'); if (th) th.textContent = L(fc.title);
         var tm = tab.querySelector('[data-slot="meta"]');
         if (tm) tm.textContent = metaJoin([L(fc.difficulty), fc.points ? num(fc.points) + ' ' + (lang === 'ar' ? 'نقطة' : 'pts') : '', L(fc.est_time)],
-          lang === 'ar' ? 'الصعوبة والنقاط: تُضافان لاحقًا' : 'Difficulty and points: to be added');
+          '');
+        if (tm && !tm.textContent && tm.parentNode) tm.parentNode.style.display = 'none';
         var lb = tab.querySelector('.labels'); if (lb) lb.appendChild(solveBadge(fc.id, false));
 
         var tabBody = tab.querySelector('.body');
@@ -643,6 +729,7 @@ window.TOR = (function () {
     var box3 = document.getElementById('feat-articles');
     if (box3) {
       var fa = TOR.visible('articles').slice(0, 2);
+    if (!fa.length) { var secArt = document.getElementById('articles'); if (secArt) secArt.style.display = 'none'; }
       if (!fa.length) box3.appendChild(el('p', 'notice', lang === 'ar' ? 'لا توجد مقالات بعد.' : 'No articles yet.'));
       fa.forEach(function (a) { box3.appendChild(articleCard(a)); });
     }

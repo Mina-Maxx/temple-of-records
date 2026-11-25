@@ -5,11 +5,11 @@ var A=window.TORADMIN;
 var LBL={
  ar:{category:'الفئة',related_articles:'معرفات المقالات ذات الصلة',related_challenges:'معرفات التحديات ذات الصلة',evidence:'روابط الأدلة',analysis:'التحليل',lessons_learned:'الدروس المستفادة',screenshots:'روابط صور المشروع',documentation:'التوثيق',published:'منشور',title:'العنوان',body:'النص',summary:'الملخص',description:'الوصف',tags:'الوسوم (مفصولة بفواصل)',date:'التاريخ',url:'رابط (https)',status:'الحالة',
      timeline:'الخط الزمني',findings:'النتائج',root_cause:'السبب الجذري',links:'روابط ذات صلة',tech:'التقنيات (مفصولة بفواصل)',repo_url:'مستودع الكود (https)',
-     ts:'الوقت',label:'العنوان',addEntry:'+ حدث',addLink:'+ رابط',open:'مفتوح',closed:'مغلق',draft:'مسودة',active:'نشط',wip:'قيد العمل',archived:'مؤرشف',
+     ts:'الوقت',label:'العنوان',addEntry:'+ حدث',addLink:'+ رابط',visibility:'الظهور',private:'خاص (للأدمن فقط)',public:'عام (يظهر على الموقع)',open:'مفتوح',closed:'مغلق',draft:'مسودة',active:'نشط',wip:'قيد العمل',archived:'مؤرشف',
      hiddenC:'مخفي (مؤرشف)',items:'عنصر'},
  en:{category:'Category',related_articles:'Related article IDs',related_challenges:'Related challenge IDs',evidence:'Evidence links',analysis:'Analysis',lessons_learned:'Lessons learned',screenshots:'Project screenshot links',documentation:'Documentation',published:'Published',title:'Title',body:'Body',summary:'Summary',description:'Description',tags:'Tags (comma-sep)',date:'Date',url:'URL (https)',status:'Status',
      timeline:'Timeline',findings:'Findings',root_cause:'Root cause',links:'Related links',tech:'Tech (comma-sep)',repo_url:'Code repository (https)',
-     ts:'Time',label:'Label',addEntry:'+ Entry',addLink:'+ Link',open:'Open',closed:'Closed',draft:'Draft',active:'Active',wip:'In progress',archived:'Archived',
+     ts:'Time',label:'Label',addEntry:'+ Entry',addLink:'+ Link',visibility:'Visibility',private:'Private (admin only)',public:'Public (shown on the site)',open:'Open',closed:'Closed',draft:'Draft',active:'Active',wip:'In progress',archived:'Archived',
      hiddenC:'Hidden (archived)',items:'items'}
 };
 function l(k){var d=LBL[A.lang()];return d[k]||k}

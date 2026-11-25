@@ -497,6 +497,7 @@ async function handle(req, res, url, ip) {
         { k: 'title', t: 'bi', max: 300, required: true },
         { k: 'summary', t: 'bi', max: 4000 },
         { k: 'status', t: 'enum', values: ['open', 'closed', 'draft'] },
+        { k: 'visibility', t: 'enum', values: ['private', 'public'] },   // default private; public = shown on the site
         { k: 'date', t: 'str', max: 40 },
         { k: 'tags', t: 'tags' },
         { k: 'timeline', t: 'entries', max: 200 },   // [{ts, ar, en}]
