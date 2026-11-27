@@ -965,3 +965,12 @@ body.ar .cv-skill-card h3 { text-transform: none; letter-spacing: 0; font-size: 
 .cv-entry ul { margin: 0; padding-inline-start: 18px; color: var(--text-dim); font-size: 13.5px; line-height: 1.65; }
 .cv-entry p { margin: 6px 0 0; color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
 .cv-stack { font-family: var(--mono); font-size: 12px; color: var(--gold-dim); margin-top: 8px; direction: ltr; unicode-bidi: isolate; text-align: start; }
+
+/* v13: investigation sub-headings, mono table cells, accessibility tweaks */
+.sub-h{font-size:1.05rem;margin:30px 0 10px;padding-top:14px;border-top:1px dashed rgba(60,45,20,.28)}
+.artifacts td.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.78rem;overflow-wrap:anywhere;min-width:7rem}
+main p a,main li a,main td a,main blockquote a,.callout a{text-decoration:underline;text-underline-offset:2px}
+.papyrus-reader .tl-t{color:#5b4a28}
+table.artifacts td a{color:#e8cf8f}
+nav.crumb a{text-decoration:underline;text-underline-offset:2px}
+.papyrus-reader .callout .callout-title{color:#5b4a28}

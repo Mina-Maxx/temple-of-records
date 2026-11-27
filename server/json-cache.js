@@ -50,4 +50,15 @@ function writeJsonAtomic(filePath, obj) {
   }
 }
 
-module.exports = { readJsonCached, invalidateJsonCache, writeJsonAtomic };
+// Append-only log with a size cap: when the file passes maxBytes it is moved to <file>.1
+// (one generation kept), so submissions/audit logs can never fill the disk unnoticed.
+function appendLogRotating(filePath, line, maxBytes) {
+  const cap = maxBytes || 5 * 1024 * 1024;
+  try {
+    const st = fs.statSync(filePath);
+    if (st.size > cap) { try { fs.renameSync(filePath, filePath + '.1'); } catch { /* keep appending */ } }
+  } catch { /* file does not exist yet */ }
+  fs.appendFileSync(filePath, line);
+}
+
+module.exports = { readJsonCached, invalidateJsonCache, writeJsonAtomic, appendLogRotating };

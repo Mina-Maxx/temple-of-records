@@ -18,8 +18,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
-const { readJsonCached, writeJsonAtomic } = require('./json-cache');
-const { publicCollections } = require('./visibility');
+const { readJsonCached, writeJsonAtomic, appendLogRotating } = require('./json-cache');
+const { publicCollections, solutionsGated } = require('./visibility');
 const admin = require('./admin');
 const seo = require('./seo');
 
@@ -38,11 +38,20 @@ const VERIFIED_FILE = path.join(DATA_DIR, 'verified.json');
 let verified = readJsonCached(VERIFIED_FILE, {});
 function saveVerified() { writeJsonAtomic(VERIFIED_FILE, verified); }
 function loadPlayerNames() { return readJsonCached(PLAYER_NAMES_FILE, {}); }
+// Public names are free text typed by strangers: strip control / bidi-override / zero-width
+// characters, drop URLs, collapse whitespace, cap at 50 chars. Applied on input AND on output
+// (so names stored before this check are sanitised too).
+const NAME_STRIP_RE = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+function cleanName(raw) {
+  let n = String(raw == null ? '' : raw).replace(NAME_STRIP_RE, '');
+  n = n.replace(/(?:https?:\/\/|www\.)\S+/gi, '');
+  return n.replace(/\s+/g, ' ').trim().slice(0, 50).trim();
+}
 function playerDisplayName(rec) {
   if (!rec) return 'Anonymous';
-  if (typeof rec === 'string') return rec || 'Anonymous';
+  if (typeof rec === 'string') return cleanName(rec) || 'Anonymous';
   if (rec.hide) return 'Anonymous';
-  return rec.name || 'Anonymous';
+  return cleanName(rec.name) || 'Anonymous';
 }
 function savePlayerName(identity, name) {
   if (!identity || !name) return;
@@ -190,10 +199,13 @@ function handleApi(req, res, url, ip) {
     const challenge = url.searchParams.get('challenge');
     const names = loadPlayerNames();
     const publicSet = admin.getPublicChallengeIds();
+    const pst = readJsonCached(PLAYERS_STATE_FILE, {});
+    const hiddenIds = new Set(Array.isArray(pst.disabled) ? pst.disabled : []);   // disabled = removed from public lists
     if (challenge) {
       if (!publicSet.has(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
       const list = [];
       Object.keys(solves).forEach(id => {
+        if (hiddenIds.has(id)) return;
         if (solves[id] && solves[id][challenge]) {
           list.push({
             name: playerDisplayName(names[id]),
@@ -206,6 +218,7 @@ function handleApi(req, res, url, ip) {
     }
     const all = {};
     Object.keys(solves).forEach(id => {
+      if (hiddenIds.has(id)) return;
       const pSolves = solves[id] || {};
       Object.keys(pSolves).forEach(chId => {
         if (!publicSet.has(chId)) return;
@@ -232,7 +245,7 @@ function handleApi(req, res, url, ip) {
     const ch = (cols.challenges || []).find(c => c.id === challenge);
     if (!ch) return json(res, 404, { error: 'unknown_challenge' }, true);
     const solved = !!(solves[identity] && solves[identity][challenge]) || !!(verified[identity] && verified[identity][challenge]);
-    if (!solved && ch.solution_public !== true && process.env.TOR_GATE_SOLUTIONS === '1') {
+    if (!solved && ch.solution_public !== true && solutionsGated()) {
       return json(res, 403, { error: 'solve_required' }, true);
     }
     const rawSol = (ch.sections || []).filter(s => s && s.published !== false && s.zone === 'solution');
@@ -245,7 +258,7 @@ function handleApi(req, res, url, ip) {
     readJsonBody(req, res, MAX_BODY, (data) => {
       if (!data || typeof data !== 'object') return json(res, 400, { error: 'bad_json' }, true);
       const identity = String(data.identity || '');
-      const name = String(data.name || '').trim().slice(0, 50);
+      const name = cleanName(data.name);
       const challenge = String(data.challenge || '');
       if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
       if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
@@ -270,7 +283,7 @@ function handleApi(req, res, url, ip) {
         flag_masked: '(claimed)',
         ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
       };
-      try { fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
+      try { appendLogRotating(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
       return json(res, 200, { status: 'correct', ts, name }, true);
     });
     return;
@@ -281,8 +294,8 @@ function handleApi(req, res, url, ip) {
     readJsonBody(req, res, MAX_BODY, (data) => {
       if (!data || typeof data !== 'object') return json(res, 400, { error: 'bad_json' }, true);
       const identity = String(data.identity || '');
-      const hasName = typeof data.name === 'string' && data.name.trim().length > 0;
-      const name = hasName ? data.name.trim().slice(0, 50) : '';
+      const name = typeof data.name === 'string' ? cleanName(data.name) : '';
+      const hasName = name.length > 0;
       const challenge = String(data.challenge || '');
       const flag = String(data.flag || '').trim();
       if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
@@ -305,7 +318,7 @@ function handleApi(req, res, url, ip) {
           flag_masked: flag.slice(0, 3) + '\u2026(' + flag.length + ')',
           ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
         };
-        try { fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
+        try { appendLogRotating(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
       };
       solves[identity] = solves[identity] || {};
       if (solves[identity][challenge]) {

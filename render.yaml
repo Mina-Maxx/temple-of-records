@@ -24,6 +24,10 @@ services:
         value: /var/data
       - key: TOR_FLAGS_FILE
         value: /var/data/flags.json
+      - key: TOR_GATE_SOLUTIONS
+        value: "1"
+      - key: TOR_BACKUP_DIR
+        value: /var/data/backups
       - key: ADMIN_USER
         sync: false
       - key: ADMIN_PASSWORD

@@ -34,7 +34,7 @@ A.boot().then(function(ok){
    document.getElementById('pq').oninput=function(){q=this.value;paint();var el=document.getElementById('pq');el.focus();if(el.setSelectionRange)el.setSelectionRange(el.value.length,el.value.length)};document.getElementById('pst').onchange=function(){state=this.value;paint()};
    c.querySelectorAll('[data-tgl]').forEach(function(b){b.onclick=function(){
     var id=b.dataset.tgl,dis=b.dataset.on==='1';
-    A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات.':'Disable this token? It will no longer submit.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
+    A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات، وسيختفي اسمه من قوائم الحالّين العامة.':'Disable this token? It can no longer submit and its name is hidden from the public solver lists.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
      A.api('/admin/api/players/'+encodeURIComponent(id)+'/disabled',{method:'POST',body:{disabled:dis}}).then(function(r){
       done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(A.t('failed'),'err');
      }).catch(function(){done();A.toast(A.t('errNet'),'err')});

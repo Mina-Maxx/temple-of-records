@@ -156,6 +156,7 @@ window.TOR = (function () {
   function renderSection(sec, idx, counter) {
     var t = sec.type, node;
     if (t === 'heading') {
+      if (sec.level === 3) { node = el('h3', 'sub-h', L(sec)); node.id = 'sec-' + idx; return node; }
       node = el('h2', null, L(sec));
       node.id = 'sec-' + idx;
       counter.headings.push({ id: node.id, text: L(sec) });
@@ -166,9 +167,9 @@ window.TOR = (function () {
     if(t==='link'){if(!TOR.urlOk(sec.url))return null;node=el('p');var a=el('a',null,L(sec)||sec.url);a.href=sec.url;a.target='_blank';a.rel='noopener noreferrer';node.appendChild(a);return node;}
     if (t === 'quote') return renderInlineMd(el('blockquote'), L(sec));
     if (t === 'table') {
-      node=el('div','artifacts-wrap'); var tab=el('table','artifacts');
+      node=el('div','artifacts-wrap'); node.tabIndex=0; var tab=el('table','artifacts');
       var hr=el('tr');(sec.headers||[]).forEach(function(x){hr.appendChild(el('th',null,L(x)))});tab.appendChild(hr);
-      (sec.rows||[]).forEach(function(row){var tr=el('tr');row.forEach(function(x){tr.appendChild(el('td',null,L(x)))});tab.appendChild(tr)});node.appendChild(tab);return node;
+      (sec.rows||[]).forEach(function(row){var tr=el('tr');row.forEach(function(x){var td=el('td',x&&x.mono?'mono':null);renderInlineMd(td,L(x));tr.appendChild(td)});tab.appendChild(tr)});node.appendChild(tab);return node;
     }
     if (t === 'chips') return el('span', 'chips-inline', L(sec));
     if (t === 'callout') {
@@ -188,7 +189,7 @@ window.TOR = (function () {
       btn.setAttribute('data-copied-label', copiedLabel);
       head.appendChild(btn);
       node.appendChild(head);
-      var pre = el('pre'); pre.id = preId; pre.textContent = sec.code || '';
+      var pre = el('pre'); pre.id = preId; pre.tabIndex = 0; pre.textContent = sec.code || '';
       node.appendChild(pre);
       return node;
     }
@@ -349,7 +350,7 @@ window.TOR = (function () {
     card.setAttribute('data-avail', c.availability === 'open' ? 'open' : 'soon');
     var href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
     if (TOR.imgOk(c.image)) {
-      var a0 = el('a', 'scene-link'); a0.href = href;
+      var a0 = el('a', 'scene-link'); a0.href = href; a0.tabIndex = -1; a0.setAttribute('aria-hidden', 'true');   // the title link below carries the name
       var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
       a0.appendChild(im); card.appendChild(a0);
     }
@@ -562,7 +563,7 @@ window.TOR = (function () {
             tr.appendChild(tdD);
             tbl.appendChild(tr);
           });
-          var awrap = el('div', 'artifacts-wrap');
+          var awrap = el('div', 'artifacts-wrap'); awrap.tabIndex = 0;
           awrap.appendChild(tbl);
           artBox.appendChild(awrap);
           artBox.appendChild(el('p', 'muted-note', lang === 'ar'
@@ -617,7 +618,9 @@ window.TOR = (function () {
     link.href = (lang === 'ar' ? 'investigation-ar.html' : 'investigation-en.html') + '?id=' + encodeURIComponent(it.id);
     h3.appendChild(link); card.appendChild(h3);
     if (L(it.summary)) card.appendChild(el('p', null, L(it.summary)));
-    addMeta(card, 'foot', [invStatus(it.status), it.date, (it.tags || []).join(' · ')], '');
+    var nDet = (it.detections || []).length;
+    addMeta(card, 'foot', [invStatus(it.status), it.date, (it.tags || []).join(' · '),
+      nDet ? (lang === 'ar' ? nDet + ' قاعدة كشف' : nDet + ' detection rule' + (nDet > 1 ? 's' : '')) : ''], '');
     return card;
   }
   if (page === 'investigations-ar' || page === 'investigations-en') {
@@ -643,7 +646,11 @@ window.TOR = (function () {
       if (invLabels) {
         var invChips = [];
         if (invStatus(inv.status)) invChips.push({ ar: invStatus(inv.status), en: invStatus(inv.status), gold: inv.status === 'open' });
-        fillChips(invLabels, invChips, false, inv.attack);
+        var atkSeen = {}, atkAll = [];
+        (inv.attack || []).concat((inv.mitre_mapping || []).map(function (m) { return m && m.technique; }),
+          (inv.detections || []).reduce(function (acc, d) { return acc.concat(String((d && d.attack) || '').split(/[\s,;]+/)); }, []))
+          .forEach(function (x) { x = String(x || '').trim().toUpperCase(); if (x && !atkSeen[x]) { atkSeen[x] = 1; atkAll.push(x); } });
+        fillChips(invLabels, invChips, false, atkAll);
       }
       var invMetaLine = document.getElementById('item-meta');
       if (invMetaLine) invMetaLine.textContent = metaJoin([inv.date, (inv.tags || []).join(' · ')], '');
@@ -671,27 +678,101 @@ window.TOR = (function () {
         secs.push({ type: 'heading', ar: arTitle, en: enTitle });
         ok.forEach(function (x) { secs.push({ type: 'link', ar: x.label || x.url, en: x.label || x.url, url: x.url }); });
       }
+      function plain(x) { return { ar: x, en: x }; }
+      function tableSec(headers, rows) {
+        secs.push({ type: 'table', headers: headers.map(function (h) { return { ar: h[0], en: h[1] }; }), rows: rows });
+      }
+      function cell(x, mono) { var v = String(x == null ? '' : x); return { ar: v, en: v, mono: !!mono }; }
+      var SEV = { info: ['معلومة', 'Info'], low: ['منخفضة', 'Low'], medium: ['متوسطة', 'Medium'], high: ['عالية', 'High'], critical: ['حرجة', 'Critical'] };
+      function sevLabel(k) { var p = SEV[k]; return p ? (lang === 'ar' ? p[0] : p[1]) : (k || ''); }
+      function tidy(k) { return String(k || '').replace(/-/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); }); }
+      function mdBold(label, val) { return val && String(val).trim() ? { type: 'paragraph', ar: '**' + label + '** ' + String(val).trim(), en: '**' + label + '** ' + String(val).trim() } : null; }
+
       invText('الملخص', 'Summary', inv.summary);
+      invText('حالة الاستخدام (Use Case)', 'Use Case', inv.use_case);
+
+      // Lab environment
+      var labRows = (inv.lab_components || []).filter(function (r) { return r && (r.host || r.role || r.os_tools || r.notes); });
+      if (L(inv.lab_environment || {}).trim() || labRows.length) {
+        invText('بيئة المعمل (Lab)', 'Lab Environment', inv.lab_environment);
+        if (labRows.length) {
+          if (!L(inv.lab_environment || {}).trim()) secs.push({ type: 'heading', ar: 'بيئة المعمل (Lab)', en: 'Lab Environment' });
+          tableSec([['الجهاز', 'Host'], ['الدور', 'Role'], ['النظام / الأدوات', 'OS / tools'], ['ملاحظات', 'Notes']],
+            labRows.map(function (r) { return [cell(r.host), cell(r.role), cell(r.os_tools), cell(r.notes)]; }));
+        }
+      }
+
+      // Evidence register (+ plain evidence links)
+      var evRows = (inv.evidence_register || []).filter(function (r) { return r && (r.ref || r.name || r.sha256 || r.source); });
+      if (evRows.length) {
+        secs.push({ type: 'heading', ar: 'سجل الأدلة (Evidence Register)', en: 'Evidence Register' });
+        tableSec([['المرجع', 'Ref'], ['العنصر', 'Item'], ['النوع', 'Type'], ['المصدر', 'Source'], ['SHA-256', 'SHA-256'], ['الاستحواذ', 'Acquired'], ['ملاحظات', 'Notes'], ['رابط', 'Link']],
+          evRows.map(function (r) {
+            return [cell(r.ref, true), cell(r.name), cell(tidy(r.type)), cell(r.source), cell(r.sha256, true), cell(r.acquired_at), cell(r.notes),
+              cell(TOR.urlOk(r.url) ? '[open](' + r.url + ')' : '')];
+          }));
+      }
       invLinks('روابط الأدلة', 'Evidence links', inv.evidence);
+
+      // Timeline
       var invRows = (inv.timeline || []).filter(function (e) { return e && (L(e) || e.ts); });
       if (invRows.length) {
         secs.push({ type: 'heading', ar: 'الخط الزمني', en: 'Timeline' });
         secs.push({ type: 'timeline', rows: invRows.map(function (e) { return { t: e.ts || '', ar: e.ar, en: e.en }; }) });
       }
+
+      // Analysis, findings, root cause
       invText('التحليل', 'Investigation & analysis', inv.analysis);
-      invText('النتائج', 'Findings', inv.findings);
+      var fl = (inv.findings_list || []).filter(function (f) { return f && (f.title || f.description); });
+      if (L(inv.findings || {}).trim() || fl.length) {
+        invText('النتائج', 'Findings', inv.findings);
+        if (fl.length) {
+          if (!L(inv.findings || {}).trim()) secs.push({ type: 'heading', ar: 'النتائج', en: 'Findings' });
+          fl.forEach(function (f, k) {
+            var body = String(f.description || '') + (f.evidence_ref ? '\n\n' + (lang === 'ar' ? 'الدليل: ' : 'Evidence: ') + f.evidence_ref : '');
+            secs.push({ type: 'callout', title_ar: 'F-' + (k + 1) + ' · ' + sevLabel(f.severity) + ' · ' + (f.title || ''),
+              title_en: 'F-' + (k + 1) + ' · ' + sevLabel(f.severity) + ' · ' + (f.title || ''), ar: body.trim() || '—', en: body.trim() || '—' });
+          });
+        }
+      }
       invText('السبب الجذري', 'Root cause', inv.root_cause);
-      invText('حالة الاستخدام (Use Case)', 'Use Case', inv.use_case);
-      invText('هندسة الكشف (Detection Engineering)', 'Detection Engineering', inv.detection_engineering);
-      if (inv.detection_rule && String(inv.detection_rule).trim()) {
-        var ruleLang = String(inv.detection_rule_lang || '').trim();
-        secs.push({ type: 'heading', ar: 'قاعدة الكشف (Detection Rule)', en: 'Detection Rule' });
-        secs.push({
-          type: 'code',
-          label_ar: ruleLang || 'قاعدة الكشف',
-          label_en: ruleLang || 'Detection Rule',
-          code: String(inv.detection_rule)
+
+      // MITRE ATT&CK mapping
+      var mm = (inv.mitre_mapping || []).filter(function (m) { return m && m.technique; });
+      if (mm.length) {
+        secs.push({ type: 'heading', ar: 'ربط MITRE ATT&CK', en: 'MITRE ATT&CK Mapping' });
+        tableSec([['التقنية', 'Technique'], ['التكتيك', 'Tactic'], ['الملاحظة', 'Observation'], ['القاعدة', 'Detection']],
+          mm.map(function (m) {
+            var tid = String(m.technique).toUpperCase();
+            var url = 'https://attack.mitre.org/techniques/' + tid.replace('.', '/') + '/';
+            return [cell('[' + tid + '](' + url + ')', true), cell(tidy(m.tactic)), cell(m.observation), cell(m.detection_ref, true)];
+          }));
+      }
+
+      // Detection engineering
+      var dets = (inv.detections || []).filter(function (d) { return d && (d.title || d.sigma || d.spl || d.kql || d.other_rule || d.use_case); });
+      var legacyRule = inv.detection_rule && String(inv.detection_rule).trim();
+      if (L(inv.detection_engineering || {}).trim() || dets.length || legacyRule) {
+        invText('هندسة الكشف (Detection Engineering)', 'Detection Engineering', inv.detection_engineering);
+        if (!L(inv.detection_engineering || {}).trim()) secs.push({ type: 'heading', ar: 'هندسة الكشف (Detection Engineering)', en: 'Detection Engineering' });
+        dets.forEach(function (d, k) {
+          var title = (d.rule_id ? d.rule_id + ' · ' : '') + (d.title || ('Rule ' + (k + 1)));
+          secs.push({ type: 'heading', level: 3, ar: title, en: title });
+          var meta = [d.status ? tidy(d.status) : '', d.severity ? sevLabel(d.severity) : '', d.data_sources ? (lang === 'ar' ? 'المصادر: ' : 'Data sources: ') + d.data_sources : '',
+            d.attack ? 'ATT&CK: ' + d.attack : ''].filter(Boolean).join(' · ');
+          if (meta) secs.push({ type: 'paragraph', ar: meta, en: meta });
+          var p1 = mdBold(lang === 'ar' ? 'حالة الاستخدام:' : 'Use case:', d.use_case); if (p1) secs.push(p1);
+          [['sigma', 'Sigma'], ['spl', 'SPL'], ['kql', 'KQL']].forEach(function (pair) {
+            if (d[pair[0]] && String(d[pair[0]]).trim()) secs.push({ type: 'code', label_ar: pair[1], label_en: pair[1], code: String(d[pair[0]]) });
+          });
+          if (d.other_rule && String(d.other_rule).trim()) { var ol = d.other_lang || 'Rule'; secs.push({ type: 'code', label_ar: ol, label_en: ol, code: String(d.other_rule) }); }
+          [[lang === 'ar' ? 'الإيجابيات الكاذبة:' : 'False positives:', d.false_positives], [lang === 'ar' ? 'الضبط:' : 'Tuning:', d.tuning],
+            [lang === 'ar' ? 'التحقق:' : 'Validation:', d.validation]].forEach(function (pair) { var p = mdBold(pair[0], pair[1]); if (p) secs.push(p); });
         });
+        if (legacyRule && !dets.length) {
+          var ruleLang = String(inv.detection_rule_lang || '').trim();
+          secs.push({ type: 'code', label_ar: ruleLang || 'قاعدة الكشف', label_en: ruleLang || 'Detection Rule', code: String(inv.detection_rule) });
+        }
       }
       invText('الدروس المستفادة', 'Lessons learned & remediation', inv.lessons_learned);
       invLinks('روابط ذات صلة', 'Related links', inv.links);
@@ -700,6 +781,14 @@ window.TOR = (function () {
       buildToc(document.getElementById('toc'), invCounter.headings);
     }
   }
+
+  // a11y: an accessible name must contain the visible text (WCAG 2.5.3 label-in-name)
+  (function () {
+    document.querySelectorAll('a.brand[aria-label]').forEach(function (a) { a.removeAttribute('aria-label'); });
+    document.querySelectorAll('a.pill-lang[aria-label]').forEach(function (a) {
+      var vis = a.textContent.trim(); a.setAttribute('aria-label', vis + ' — ' + a.getAttribute('aria-label'));
+    });
+  })();
 
   // ---------- listings ----------
   if (page === 'articles-ar' || page === 'articles-en') {

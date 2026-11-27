@@ -104,3 +104,18 @@ Controlled from `/admin/settings.html` ("Enable Arabic site", stored in `server/
 - `script.js` retains its internal `lang === 'ar'` UI string ternaries behind the `SITE_CONFIG.arabic === false` guard (`arabicOff`); they are never rendered when Arabic is off.
 - Player-submitted scoreboard names are not filtered by script.
 - The admin dashboard's own UI language toggle remains independent of `arabic_enabled`.
+
+## Investigations v2 (case file = one record)
+Each investigation (admin → Investigations) now holds, in one editor with a section jump-bar:
+**Overview** (summary, status, visibility, tags, use case) · **Lab environment** (overview + components table) ·
+**Evidence register** (ref, item, type, source, SHA-256, acquired-at, notes, https link) · **Timeline** ·
+**Analysis & findings** (narrative + structured findings with severity) · **MITRE ATT&CK mapping** (technique, tactic, observation, detection ref) ·
+**Detection engineering** (per rule: use case, data sources, **Sigma / SPL / KQL** (+ one free format), false positives, tuning, validation, ATT&CK ids).
+Rules live inside the investigation they came from (`detections[]`), so the public case page shows the incident and its detections together; a card on the list shows "N detection rules".
+Nothing is public until Visibility = Public and Status is not Draft. A legacy single `detection_rule` is moved into a detection row the first time you open the record in the editor.
+
+## Production notes
+* `TOR_GATE_SOLUTIONS` defaults to ON in production (`NODE_ENV=production` or a PaaS `PORT`); `=0` disables it.
+* Disabled players are hidden from the public solver lists; names are sanitised (control/bidi/zero-width characters and URLs removed).
+* Logs rotate at 5 MB (`submissions.jsonl`, `audit.jsonl` → `.1`).
+* First deploy on an empty `TOR_DATA_DIR`: `TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs` (see `deploy/DEPLOY.md` §7). Backups: `TOR_BACKUP_DIR`.

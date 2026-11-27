@@ -13,8 +13,19 @@ const INVESTIGATION_FIELDS = [
   'id', 'slug', 'title', 'summary', 'status', 'date', 'tags', 'attack',
   'evidence', 'timeline', 'analysis', 'findings', 'root_cause',
   'use_case', 'detection_engineering', 'detection_rule_lang', 'detection_rule',
+  'lab_environment', 'lab_components', 'evidence_register', 'findings_list', 'mitre_mapping', 'detections',
   'lessons_learned', 'links', 'seo_title', 'meta_description'
 ];
+
+// Challenge walkthrough sections (zone: solution) are withheld from the public script until
+// the solver unlocks them through /api/solution. Default: ON in production-like environments
+// (NODE_ENV=production or a PaaS-provided PORT), OFF for local work. TOR_GATE_SOLUTIONS=1/0 overrides.
+function solutionsGated() {
+  const v = process.env.TOR_GATE_SOLUTIONS;
+  if (v === '1') return true;
+  if (v === '0') return false;
+  return process.env.NODE_ENV === 'production' || !!process.env.PORT;
+}
 
 function isPublic(item, now = Date.now()) {
   if (!item || item.hidden || item.published === false || item.private === true) return false;
@@ -49,7 +60,7 @@ function publicCollections(collections, now = Date.now()) {
       if (Array.isArray(r.artifacts)) o.artifacts = r.artifacts.filter(a => a && a.visibility !== 'hidden');
       if (Array.isArray(r.hints)) o.hints = r.hints.filter(h => h.published !== false).map(h => ({ ar: h.ar || '', en: h.en || '', published: h.published }));
       if (Array.isArray(r.sections)) {
-        const gateSol = key === 'challenges' && process.env.TOR_GATE_SOLUTIONS === '1' && r.solution_public !== true;
+        const gateSol = key === 'challenges' && solutionsGated() && r.solution_public !== true;
         o.sections = r.sections.filter(s => s.published !== false && (!gateSol || s.zone !== 'solution'));
       }
       return o;
@@ -57,4 +68,4 @@ function publicCollections(collections, now = Date.now()) {
   }
   return out;
 }
-module.exports = { isPublic, isPublicInvestigation, publicCollections, PUBLIC_KINDS };
+module.exports = { isPublic, isPublicInvestigation, publicCollections, solutionsGated, PUBLIC_KINDS };

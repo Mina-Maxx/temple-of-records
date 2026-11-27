@@ -1,0 +1,1032 @@
+diff --git a/README.md b/README.md
+index 7a3f86c..80755e5 100644
+--- a/README.md
++++ b/README.md
+@@ -104,3 +104,18 @@ Controlled from `/admin/settings.html` ("Enable Arabic site", stored in `server/
+ - `script.js` retains its internal `lang === 'ar'` UI string ternaries behind the `SITE_CONFIG.arabic === false` guard (`arabicOff`); they are never rendered when Arabic is off.
+ - Player-submitted scoreboard names are not filtered by script.
+ - The admin dashboard's own UI language toggle remains independent of `arabic_enabled`.
++
++## Investigations v2 (case file = one record)
++Each investigation (admin → Investigations) now holds, in one editor with a section jump-bar:
++**Overview** (summary, status, visibility, tags, use case) · **Lab environment** (overview + components table) ·
++**Evidence register** (ref, item, type, source, SHA-256, acquired-at, notes, https link) · **Timeline** ·
++**Analysis & findings** (narrative + structured findings with severity) · **MITRE ATT&CK mapping** (technique, tactic, observation, detection ref) ·
++**Detection engineering** (per rule: use case, data sources, **Sigma / SPL / KQL** (+ one free format), false positives, tuning, validation, ATT&CK ids).
++Rules live inside the investigation they came from (`detections[]`), so the public case page shows the incident and its detections together; a card on the list shows "N detection rules".
++Nothing is public until Visibility = Public and Status is not Draft. A legacy single `detection_rule` is moved into a detection row the first time you open the record in the editor.
++
++## Production notes
++* `TOR_GATE_SOLUTIONS` defaults to ON in production (`NODE_ENV=production` or a PaaS `PORT`); `=0` disables it.
++* Disabled players are hidden from the public solver lists; names are sanitised (control/bidi/zero-width characters and URLs removed).
++* Logs rotate at 5 MB (`submissions.jsonl`, `audit.jsonl` → `.1`).
++* First deploy on an empty `TOR_DATA_DIR`: `TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs` (see `deploy/DEPLOY.md` §7). Backups: `TOR_BACKUP_DIR`.
+diff --git a/admin/collection.js b/admin/collection.js
+index 5be0361..39e2e2d 100644
+--- a/admin/collection.js
++++ b/admin/collection.js
+@@ -5,11 +5,11 @@ var A=window.TORADMIN;
+ var LBL={
+  ar:{category:'الفئة',related_articles:'معرفات الرايتبس ذات الصلة',related_challenges:'معرفات التحديات ذات الصلة',evidence:'روابط الأدلة',analysis:'التحليل التفصيلي',lessons_learned:'الدروس المستفادة',use_case:'حالة الاستخدام (Use Case)',detection_engineering:'هندسة الكشف (Detection Engineering)',detection_rule_lang:'صيغة القاعدة (Sigma / KQL / SPL / YARA / AQL)',detection_rule:'قاعدة الكشف (Detection Rule)',attack:'تقنيات MITRE ATT&CK (مفصولة بفواصل)',publish_at:'موعد النشر المجدول (ISO اختياري)',published:'منشور',title:'العنوان',slug:'الرابط المختصر (Slug)',seo_title:'عنوان SEO',meta_description:'وصف الميتا (Meta description)',body:'النص',summary:'الملخص',description:'الوصف',tags:'الوسوم (مفصولة بفواصل)',date:'التاريخ',url:'رابط (https)',status:'الحالة',
+      timeline:'الخط الزمني',findings:'النتائج',root_cause:'السبب الجذري',links:'روابط ذات صلة',
+-     ts:'الوقت',label:'العنوان',addEntry:'+ حدث',addLink:'+ رابط',visibility:'الظهور',private:'خاص (للأدمن فقط)',public:'عام (يظهر على الموقع)',open:'مفتوح',closed:'مغلق',draft:'مسودة',active:'نشط',wip:'قيد العمل',archived:'مؤرشف',
++     ts:'الوقت',label:'العنوان',addEntry:'+ حدث',addLink:'+ رابط',g_overview:'نظرة عامة',g_lab:'بيئة المعمل (Lab)',g_evidence:'سجل الأدلة (Evidence Register)',g_timeline:'الخط الزمني',g_findings:'التحليل والنتائج',g_mitre:'ربط MITRE ATT&CK',g_detection:'هندسة الكشف (Detection Engineering)',g_closing:'الخاتمة وSEO',lab_environment:'بيئة المعمل (نظرة عامة)',lab_components:'مكونات المعمل',evidence_register:'سجل الأدلة',findings_list:'النتائج المنظمة (Findings)',mitre_mapping:'ربط التقنيات (ATT&CK mapping)',detections:'قواعد الكشف (Sigma / SPL / KQL)',addRow:'+ صف',addRule:'+ قاعدة كشف',host:'الجهاز (Host)',role:'الدور',os_tools:'النظام / الأدوات',notes:'ملاحظات',ref:'المرجع (EV-001)',name:'العنصر',type:'النوع',source:'المصدر',sha256:'SHA-256',acquired_at:'وقت الاستحواذ',severity:'الخطورة',evidence_ref:'مرجع الدليل',technique:'التقنية (T1059.001)',tactic:'التكتيك',observation:'الملاحظة',detection_ref:'مرجع القاعدة (DET-001)',rule_id:'معرّف القاعدة',data_sources:'مصادر البيانات / السجلات',sigma:'قاعدة Sigma',spl:'SPL (Splunk)',kql:'KQL (Sentinel / Defender)',other_lang:'اسم صيغة أخرى',other_rule:'قاعدة أخرى (YARA / Suricata / …)',false_positives:'الإيجابيات الكاذبة (False positives)',tuning:'الضبط (Tuning)',validation:'التحقق (كيف اختُبرت القاعدة)',tested:'اختُبرت',production:'إنتاج',visibility:'الظهور',private:'خاص (للأدمن فقط)',public:'عام (يظهر على الموقع)',open:'مفتوح',closed:'مغلق',draft:'مسودة',active:'نشط',wip:'قيد العمل',archived:'مؤرشف',
+      hiddenC:'مخفي (مؤرشف)',items:'عنصر'},
+  en:{category:'Category',related_articles:'Related writeup IDs',related_challenges:'Related challenge IDs',evidence:'Evidence links',analysis:'Investigation & analysis',lessons_learned:'Lessons learned & remediation',use_case:'Use Case (scenario & trigger)',detection_engineering:'Detection Engineering (telemetry, logic & tuning)',detection_rule_lang:'Detection Rule format (e.g. Sigma, KQL, SPL, YARA, AQL)',detection_rule:'Detection Rule (code)',attack:'MITRE ATT&CK IDs (comma-sep, e.g. T1059.001)',publish_at:'Scheduled publish_at (optional ISO timestamp)',published:'Published',title:'Title',slug:'Slug (AR / EN)',seo_title:'SEO title',meta_description:'Meta description',body:'Body',summary:'Summary',description:'Description',tags:'Tags (comma-sep)',date:'Date',url:'URL (https)',status:'Status',
+      timeline:'Timeline',findings:'Findings',root_cause:'Root cause',links:'Related links',
+-     ts:'Time',label:'Label',addEntry:'+ Entry',addLink:'+ Link',visibility:'Visibility',private:'Private (admin only)',public:'Public (shown on the site)',open:'Open',closed:'Closed',draft:'Draft',active:'Active',wip:'In progress',archived:'Archived',
++     ts:'Time',label:'Label',addEntry:'+ Entry',addLink:'+ Link',g_overview:'Overview',g_lab:'Lab environment',g_evidence:'Evidence register',g_timeline:'Timeline',g_findings:'Analysis & findings',g_mitre:'MITRE ATT&CK mapping',g_detection:'Detection engineering',g_closing:'Closing & SEO',lab_environment:'Lab environment (overview)',lab_components:'Lab components',evidence_register:'Evidence register',findings_list:'Findings (structured)',mitre_mapping:'ATT&CK mapping',detections:'Detection rules (Sigma / SPL / KQL)',addRow:'+ Row',addRule:'+ Detection rule',host:'Host',role:'Role',os_tools:'OS / tools',notes:'Notes',ref:'Ref (EV-001)',name:'Item',type:'Type',source:'Source',sha256:'SHA-256',acquired_at:'Acquired at',severity:'Severity',evidence_ref:'Evidence ref',technique:'Technique (T1059.001)',tactic:'Tactic',observation:'Observation',detection_ref:'Detection ref (DET-001)',rule_id:'Rule ID',data_sources:'Data sources / logs',sigma:'Sigma rule',spl:'SPL (Splunk)',kql:'KQL (Sentinel / Defender)',other_lang:'Other format label',other_rule:'Other rule (YARA / Suricata / …)',false_positives:'False positives',tuning:'Tuning',validation:'Validation (how it was tested)',tested:'Tested',production:'Production',visibility:'Visibility',private:'Private (admin only)',public:'Public (shown on the site)',open:'Open',closed:'Closed',draft:'Draft',active:'Active',wip:'In progress',archived:'Archived',
+      hiddenC:'Hidden (archived)',items:'items'}
+ };
+ function l(k){var d=LBL[A.lang()];return d[k]||k}
+@@ -24,7 +24,8 @@ window.TORCOL={
+  }
+ };
+ function blank(CFG){var o={id:'',hidden:false};CFG.fields.forEach(function(f){
+- if(f.t==='bi')o[f.k]={ar:'',en:''};else if(f.t==='tags')o[f.k]=[];else if(f.t==='entries'||f.t==='links')o[f.k]=[];
++ if(f.t==='group')return;
++ if(f.t==='bi')o[f.k]={ar:'',en:''};else if(f.t==='tags')o[f.k]=[];else if(f.t==='entries'||f.t==='links'||f.t==='rows')o[f.k]=[];
+  else if(f.t==='enum')o[f.k]=f.values[0];else o[f.k]='';});return o}
+ function listPage(CFG){
+  A.shell(CFG.nav,'<b>'+A.t(CFG.t)+'</b>',function(c){
+@@ -55,14 +56,18 @@ function listPage(CFG){
+ function editPage(CFG,id){
+  A.shell(CFG.nav,'<a href="'+CFG.col+'.html">'+A.t(CFG.t)+'</a> / <b>'+(id?A.esc(id):A.t('create'))+'</b>',function(c){
+   var ar=A.lang()==='ar';
++  var migrated=false;
+   function start(item){
++   if(CFG.col==='investigations')migrated=migrateLegacyRule(item);
+    c.innerHTML='<div class="page-head"><h1>'+(id?((ar&&A.arabicEnabled())?A.esc((item.title&&item.title.ar)||(item.title&&item.title.en)||item.id):A.esc((item.title&&item.title.en)||item.id)):A.t('create'))+'</h1>'+
+    '<span class="sub mono">'+A.esc(item.id||'new')+'</span><div class="acts">'+(id&&CFG.col==='investigations'?'<a class="btn ghost" href="preview.html?kind=investigation&lang='+(A.arabicEnabled()?A.lang():'en')+'&id='+encodeURIComponent(item.id)+'" target="_blank" title="'+(ar?'تعرض المعاينة المحتوى المحفوظ فقط':'Preview shows saved content only')+'">'+(ar?'معاينة (المحفوظ)':'Preview (saved)')+'</a>':'')+'<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
+    '<div class="errlist" id="errs" role="alert" style="display:none;background:rgba(232,143,143,.1);border:1px solid rgba(232,143,143,.4);border-radius:8px;padding:12px 16px;font-size:.83rem;color:var(--err);margin-bottom:16px"></div>'+
++   jumpNav(CFG)+
+    '<div class="panel">'+(id?'':'<div class="field"><label>ID (a-z0-9-)</label><input class="input mono" dir="ltr" id="f-id"></div>')+
+    CFG.fields.map(function(f){return fieldHtml(f,item)}).join('')+
+    '<label class="check"><input type="checkbox" data-k="hidden"'+(item.hidden?' checked':'')+'> <span>'+l('hiddenC')+'</span></label></div>';
+    bind(c,item,CFG,id);
++   if(CFG.col==='investigations'&&migrated)A.toast(ar?'تم نقل قاعدة الكشف القديمة إلى «قواعد الكشف» — اضغط حفظ للتأكيد':'Legacy detection rule moved into "Detection rules" — press Save to keep it','ok');
+   }
+   if(id){
+    A.api('/admin/api/collection/'+CFG.col+'/'+encodeURIComponent(id)).then(function(r){
+@@ -72,8 +77,40 @@ function editPage(CFG,id){
+   }else start(blank(CFG));
+  });
+ }
++function jumpNav(CFG){
++  var gs=CFG.fields.filter(function(f){return f.t==='group'});
++  if(!gs.length)return '';
++  return '<nav class="jump" aria-label="sections">'+gs.map(function(g){return '<a href="#grp-'+g.k+'">'+A.esc(l(g.k))+'</a>'}).join('')+'</nav>';
++}
++function migrateLegacyRule(item){
++  var code=String(item.detection_rule||'').trim();
++  if(!code||(item.detections&&item.detections.length))return false;
++  var lang=String(item.detection_rule_lang||'').trim(),lc=lang.toLowerCase();
++  var row={rule_id:'DET-001',title:lang?(lang+' rule'):'Detection rule',status:'draft',severity:'medium',use_case:'',data_sources:'',sigma:'',spl:'',kql:'',other_lang:'',other_rule:'',false_positives:'',tuning:'',validation:'',attack:''};
++  if(/sigma/.test(lc))row.sigma=item.detection_rule;
++  else if(/spl|splunk/.test(lc))row.spl=item.detection_rule;
++  else if(/kql|kusto|sentinel|defender/.test(lc))row.kql=item.detection_rule;
++  else{row.other_lang=lang||'rule';row.other_rule=item.detection_rule}
++  item.detections=[row];item.detection_rule='';item.detection_rule_lang='';
++  return true;
++}
++function rowPreview(f,r){
++  for(var i=0;i<f.cols.length;i++){var col=f.cols[i];if(col.t==='enum'||col.t==='code')continue;var v=String(r[col.k]||'').trim();if(v)return v.length>70?v.slice(0,70)+'…':v}
++  return '';
++}
++function colHtml(col,r){
++  var v=r[col.k]==null?'':r[col.k],lab='<span>'+A.esc(l(col.k))+'</span>';
++  if(col.t==='enum')return '<label class="cell">'+lab+'<select class="input" data-p="'+col.k+'">'+col.values.map(function(x){return '<option value="'+A.esc(x)+'"'+(v===x?' selected':'')+'>'+A.esc(l(x)||'—')+'</option>'}).join('')+'</select></label>';
++  if(col.t==='code')return '<label class="cell wide">'+lab+'<textarea class="input mono" dir="ltr" rows="8" data-p="'+col.k+'" spellcheck="false">'+A.esc(v)+'</textarea></label>';
++  if(col.t==='text')return '<label class="cell wide">'+lab+'<textarea class="input" dir="ltr" rows="3" data-p="'+col.k+'">'+A.esc(v)+'</textarea></label>';
++  var ph=col.t==='url'?'https://…':col.t==='attack'?'T1059.001':col.t==='attacklist'?'T1059.001, T1003':col.t==='sha256'?'64 hex characters':'';
++  var mono=(col.t==='url'||col.t==='sha256'||col.t==='attack'||col.t==='attacklist')?' mono':'';
++  return '<label class="cell">'+lab+'<input class="input'+mono+'" dir="ltr" data-p="'+col.k+'" value="'+A.esc(v)+'" placeholder="'+ph+'"></label>';
++}
+ function fieldHtml(f,item){
+  var v=item[f.k];
++ if(f.t==='group')return '<h2 class="grp" id="grp-'+f.k+'">'+A.esc(l(f.k))+'</h2>';
++ if(f.t==='rows')return '<div class="field"><label>'+l(f.k)+'</label><div data-rows="'+f.k+'"></div><button class="btn ghost sm" type="button" data-add-row="'+f.k+'">'+l(f.k==='detections'?'addRule':'addRow')+'</button></div>';
+  if(f.t==='bi')return '<div class="field"><label>'+l(f.k)+'</label><div class="row2">'+
+   '<textarea class="input ar-only" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="ar">'+A.esc(v&&v.ar||'')+'</textarea>'+
+   '<textarea class="input" dir="ltr" rows="'+(f.max&&f.max<=4000?3:6)+'" data-k="'+f.k+'" data-part="en" placeholder="English">'+A.esc(v&&v.en||'')+'</textarea></div></div>';
+@@ -110,7 +147,25 @@ function bind(c,item,CFG,id){
+    w.appendChild(row);
+   });
+  }
++ function paintRows(f){
++   var key=f.k,w=c.querySelector('[data-rows="'+key+'"]');w.innerHTML='';
++   (item[key]||[]).forEach(function(r,i){
++    var row=document.createElement('div');row.className='sec-row';
++    row.innerHTML='<div class="head"><span class="num">'+(i+1)+'</span><b class="rtitle">'+A.esc(rowPreview(f,r))+'</b><span style="flex:1"></span>'+
++     '<button class="btn sm ghost" data-up type="button">↑</button><button class="btn sm ghost" data-dn type="button">↓</button><button class="btn sm danger" data-del type="button">×</button></div>'+
++     '<div class="rowgrid">'+f.cols.map(function(col){return colHtml(col,r)}).join('')+'</div>';
++    row.querySelectorAll('[data-p]').forEach(function(inp){
++     var h=function(){r[inp.dataset.p]=inp.value;var t=row.querySelector('.rtitle');if(t)t.textContent=rowPreview(f,r)};
++     inp.addEventListener('input',h);inp.addEventListener('change',h);
++    });
++    row.querySelector('[data-del]').onclick=function(){item[key].splice(i,1);paintRows(f)};
++    row.querySelector('[data-up]').onclick=function(){if(i>0){item[key].splice(i-1,0,item[key].splice(i,1)[0]);paintRows(f)}};
++    row.querySelector('[data-dn]').onclick=function(){if(i<item[key].length-1){item[key].splice(i+1,0,item[key].splice(i,1)[0]);paintRows(f)}};
++    w.appendChild(row);
++   });
++  }
+  CFG.fields.forEach(function(f){
++  if(f.t==='rows'){paintRows(f);c.querySelector('[data-add-row="'+f.k+'"]').onclick=function(){var r={};f.cols.forEach(function(col){r[col.k]=col.t==='enum'?col.values[0]:''});(item[f.k]=item[f.k]||[]).push(r);paintRows(f)}}
+   if(f.t==='entries'){paintEntries(f.k);c.querySelector('[data-add-entry="'+f.k+'"]').onclick=function(){item[f.k].push({ts:'',ar:'',en:''});paintEntries(f.k)}}
+   if(f.t==='links'){paintLinks(f.k);c.querySelector('[data-add-link="'+f.k+'"]').onclick=function(){item[f.k].push({label:'',url:''});paintLinks(f.k)}}
+  });
+diff --git a/admin/investigations.html b/admin/investigations.html
+index 2815359..7d15524 100644
+--- a/admin/investigations.html
++++ b/admin/investigations.html
+@@ -11,6 +11,13 @@
+ .sec-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+ .sec-row .head{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+ .sec-row .num{font-family:var(--mono);font-size:.75rem;color:var(--muted);min-width:26px}
++.grp{margin:34px 0 14px;padding-top:10px;border-top:1px solid var(--line);font-size:1.05rem}
++.jump{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
++.jump a{font-size:.78rem;padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);text-decoration:none}
++.rowgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
++.rowgrid .wide{grid-column:1/-1}
++.rowgrid .cell{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted)}
++@media(max-width:640px){.rowgrid{grid-template-columns:1fr}}
+ </style>
+ </head>
+ <body>
+@@ -19,7 +26,15 @@
+ <script>
+ TORCOL.run({col:'investigations',nav:'inv',t:'nInv',icon:'search',
+  sub:function(){return TORADMIN.lang()==='ar'?'سجل تحقيقات متكامل: من الخط الزمني والتحليل والنتائج والسبب الجذري وصولاً إلى حالة الاستخدام وهندسة الكشف وقاعدة الكشف. الظهور «عام» + الحالة غير «مسودة» = ينشر على الموقع.':'End-to-end investigation writeups: timeline, analysis, findings, root cause, Use Case, Detection Engineering, and Detection Rule. Visibility "public" + non-draft publishes it.'},
+- fields:[{k:'title',t:'bi',max:300},{k:'slug',t:'bi',max:120},{k:'summary',t:'bi',max:6000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'evidence',t:'links',max:50},{k:'timeline',t:'entries',max:200},{k:'analysis',t:'bi',max:20000},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'use_case',t:'bi',max:12000},{k:'detection_engineering',t:'bi',max:20000},{k:'detection_rule_lang',t:'str',max:60},{k:'detection_rule',t:'code',max:30000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50},{k:'seo_title',t:'bi',max:200},{k:'meta_description',t:'bi',max:500}]});
++ fields:[
++ {k:'g_overview',t:'group'},{k:'title',t:'bi',max:300},{k:'slug',t:'bi',max:120},{k:'summary',t:'bi',max:6000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'use_case',t:'bi',max:12000},
++ {k:'g_lab',t:'group'},{k:'lab_environment',t:'bi',max:12000},{k:'lab_components',t:'rows',max:30,cols:[{k:'host',t:'str'},{k:'role',t:'str'},{k:'os_tools',t:'str'},{k:'notes',t:'str'}]},
++ {k:'g_evidence',t:'group'},{k:'evidence_register',t:'rows',max:200,cols:[{k:'ref',t:'str'},{k:'name',t:'str'},{k:'type',t:'enum',values:['disk','memory','pcap','log','file','screenshot','other']},{k:'source',t:'str'},{k:'sha256',t:'sha256'},{k:'acquired_at',t:'str'},{k:'notes',t:'text'},{k:'url',t:'url'}]},{k:'evidence',t:'links',max:50},
++ {k:'g_timeline',t:'group'},{k:'timeline',t:'entries',max:200},
++ {k:'g_findings',t:'group'},{k:'analysis',t:'bi',max:20000},{k:'findings',t:'bi',max:20000},{k:'findings_list',t:'rows',max:50,cols:[{k:'title',t:'str'},{k:'severity',t:'enum',values:['info','low','medium','high','critical']},{k:'description',t:'text'},{k:'evidence_ref',t:'str'}]},{k:'root_cause',t:'bi',max:8000},
++ {k:'g_mitre',t:'group'},{k:'mitre_mapping',t:'rows',max:100,cols:[{k:'technique',t:'attack'},{k:'tactic',t:'enum',values:['','reconnaissance','resource-development','initial-access','execution','persistence','privilege-escalation','defense-evasion','credential-access','discovery','lateral-movement','collection','command-and-control','exfiltration','impact']},{k:'observation',t:'text'},{k:'detection_ref',t:'str'}]},
++ {k:'g_detection',t:'group'},{k:'detection_engineering',t:'bi',max:20000},{k:'detections',t:'rows',max:20,cols:[{k:'rule_id',t:'str'},{k:'title',t:'str'},{k:'status',t:'enum',values:['draft','tested','production']},{k:'severity',t:'enum',values:['low','medium','high','critical']},{k:'use_case',t:'text'},{k:'data_sources',t:'str'},{k:'sigma',t:'code'},{k:'spl',t:'code'},{k:'kql',t:'code'},{k:'other_lang',t:'str'},{k:'other_rule',t:'code'},{k:'false_positives',t:'text'},{k:'tuning',t:'text'},{k:'validation',t:'text'},{k:'attack',t:'attacklist'}]},
++ {k:'g_closing',t:'group'},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50},{k:'seo_title',t:'bi',max:200},{k:'meta_description',t:'bi',max:500}]});
+ </script>
+ </body>
+ </html>
+diff --git a/admin/players.html b/admin/players.html
+index ffc34e1..87a1427 100644
+--- a/admin/players.html
++++ b/admin/players.html
+@@ -34,7 +34,7 @@ A.boot().then(function(ok){
+    document.getElementById('pq').oninput=function(){q=this.value;paint();var el=document.getElementById('pq');el.focus();if(el.setSelectionRange)el.setSelectionRange(el.value.length,el.value.length)};document.getElementById('pst').onchange=function(){state=this.value;paint()};
+    c.querySelectorAll('[data-tgl]').forEach(function(b){b.onclick=function(){
+     var id=b.dataset.tgl,dis=b.dataset.on==='1';
+-    A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات.':'Disable this token? It will no longer submit.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
++    A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات، وسيختفي اسمه من قوائم الحالّين العامة.':'Disable this token? It can no longer submit and its name is hidden from the public solver lists.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
+      A.api('/admin/api/players/'+encodeURIComponent(id)+'/disabled',{method:'POST',body:{disabled:dis}}).then(function(r){
+       done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(A.t('failed'),'err');
+      }).catch(function(){done();A.toast(A.t('errNet'),'err')});
+diff --git a/deploy/DEPLOY.md b/deploy/DEPLOY.md
+index 0a8a55d..2b14fbf 100644
+--- a/deploy/DEPLOY.md
++++ b/deploy/DEPLOY.md
+@@ -51,3 +51,14 @@ ssh -L 8000:127.0.0.1:8000 user@SERVER
+ sudo tar czf ~/temple-backup-$(date +%F).tgz -C /opt/temple-of-records server/data content.js server/flags.json assets
+ ```
+ - [ ] متفتحش بورت 8000 في الـ firewall. افتح 80/443/22 بس.
++
++## 7) نقل المحتوى لأول مرة (store / الصور / الفلاجات)
++أول deploy على `TOR_DATA_DIR` فاضي بيعرض الموقع بدون محتوى. لنقل اللي عملته محليًا:
++```bash
++# على السيرفر، من نسخة الكود اللي فيها server/data بتاعتك:
++TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs            # ينسخ store.json والإعدادات والصور لو مش موجودة
++TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs --force    # يستبدل الموجود
++TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs --with-flags   # ينسخ كمان server/flags.json (هاشات الفلاجات)
++```
++السكربت بينقل المحتوى بس (مش بيلمس admin ولا اللاعبين ولا الحلول). **ما تعملش commit لـ `server/data/store.json` في ريبو Public** لو فيه تحقيقات خاصة أو مسودات؛ خلي الريبو Private أو ارفع الملف بـ `scp`.
++النسخ الاحتياطي: `node scripts/backup.cjs` بيكتب في `TOR_BACKUP_DIR` (على Render: `/var/data/backups`). ده على نفس الـ disk، فحمّل نسخة لجهازك من وقت للتاني.
+diff --git a/render.yaml b/render.yaml
+index 0467ba5..4428078 100644
+--- a/render.yaml
++++ b/render.yaml
+@@ -24,6 +24,10 @@ services:
+         value: /var/data
+       - key: TOR_FLAGS_FILE
+         value: /var/data/flags.json
++      - key: TOR_GATE_SOLUTIONS
++        value: "1"
++      - key: TOR_BACKUP_DIR
++        value: /var/data/backups
+       - key: ADMIN_USER
+         sync: false
+       - key: ADMIN_PASSWORD
+diff --git a/script.js b/script.js
+index 4eb64b2..d748a02 100644
+--- a/script.js
++++ b/script.js
+@@ -156,6 +156,7 @@ window.TOR = (function () {
+   function renderSection(sec, idx, counter) {
+     var t = sec.type, node;
+     if (t === 'heading') {
++      if (sec.level === 3) { node = el('h3', 'sub-h', L(sec)); node.id = 'sec-' + idx; return node; }
+       node = el('h2', null, L(sec));
+       node.id = 'sec-' + idx;
+       counter.headings.push({ id: node.id, text: L(sec) });
+@@ -166,9 +167,9 @@ window.TOR = (function () {
+     if(t==='link'){if(!TOR.urlOk(sec.url))return null;node=el('p');var a=el('a',null,L(sec)||sec.url);a.href=sec.url;a.target='_blank';a.rel='noopener noreferrer';node.appendChild(a);return node;}
+     if (t === 'quote') return renderInlineMd(el('blockquote'), L(sec));
+     if (t === 'table') {
+-      node=el('div','artifacts-wrap'); var tab=el('table','artifacts');
++      node=el('div','artifacts-wrap'); node.tabIndex=0; var tab=el('table','artifacts');
+       var hr=el('tr');(sec.headers||[]).forEach(function(x){hr.appendChild(el('th',null,L(x)))});tab.appendChild(hr);
+-      (sec.rows||[]).forEach(function(row){var tr=el('tr');row.forEach(function(x){tr.appendChild(el('td',null,L(x)))});tab.appendChild(tr)});node.appendChild(tab);return node;
++      (sec.rows||[]).forEach(function(row){var tr=el('tr');row.forEach(function(x){var td=el('td',x&&x.mono?'mono':null);renderInlineMd(td,L(x));tr.appendChild(td)});tab.appendChild(tr)});node.appendChild(tab);return node;
+     }
+     if (t === 'chips') return el('span', 'chips-inline', L(sec));
+     if (t === 'callout') {
+@@ -188,7 +189,7 @@ window.TOR = (function () {
+       btn.setAttribute('data-copied-label', copiedLabel);
+       head.appendChild(btn);
+       node.appendChild(head);
+-      var pre = el('pre'); pre.id = preId; pre.textContent = sec.code || '';
++      var pre = el('pre'); pre.id = preId; pre.tabIndex = 0; pre.textContent = sec.code || '';
+       node.appendChild(pre);
+       return node;
+     }
+@@ -349,7 +350,7 @@ window.TOR = (function () {
+     card.setAttribute('data-avail', c.availability === 'open' ? 'open' : 'soon');
+     var href = (lang === 'ar' ? 'challenge-ar.html' : 'challenge-en.html') + '?c=' + encodeURIComponent(c.id);
+     if (TOR.imgOk(c.image)) {
+-      var a0 = el('a', 'scene-link'); a0.href = href;
++      var a0 = el('a', 'scene-link'); a0.href = href; a0.tabIndex = -1; a0.setAttribute('aria-hidden', 'true');   // the title link below carries the name
+       var im = el('img', 'scene'); im.src = c.image; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+       a0.appendChild(im); card.appendChild(a0);
+     }
+@@ -562,7 +563,7 @@ window.TOR = (function () {
+             tr.appendChild(tdD);
+             tbl.appendChild(tr);
+           });
+-          var awrap = el('div', 'artifacts-wrap');
++          var awrap = el('div', 'artifacts-wrap'); awrap.tabIndex = 0;
+           awrap.appendChild(tbl);
+           artBox.appendChild(awrap);
+           artBox.appendChild(el('p', 'muted-note', lang === 'ar'
+@@ -617,7 +618,9 @@ window.TOR = (function () {
+     link.href = (lang === 'ar' ? 'investigation-ar.html' : 'investigation-en.html') + '?id=' + encodeURIComponent(it.id);
+     h3.appendChild(link); card.appendChild(h3);
+     if (L(it.summary)) card.appendChild(el('p', null, L(it.summary)));
+-    addMeta(card, 'foot', [invStatus(it.status), it.date, (it.tags || []).join(' · ')], '');
++    var nDet = (it.detections || []).length;
++    addMeta(card, 'foot', [invStatus(it.status), it.date, (it.tags || []).join(' · '),
++      nDet ? (lang === 'ar' ? nDet + ' قاعدة كشف' : nDet + ' detection rule' + (nDet > 1 ? 's' : '')) : ''], '');
+     return card;
+   }
+   if (page === 'investigations-ar' || page === 'investigations-en') {
+@@ -643,7 +646,11 @@ window.TOR = (function () {
+       if (invLabels) {
+         var invChips = [];
+         if (invStatus(inv.status)) invChips.push({ ar: invStatus(inv.status), en: invStatus(inv.status), gold: inv.status === 'open' });
+-        fillChips(invLabels, invChips, false, inv.attack);
++        var atkSeen = {}, atkAll = [];
++        (inv.attack || []).concat((inv.mitre_mapping || []).map(function (m) { return m && m.technique; }),
++          (inv.detections || []).reduce(function (acc, d) { return acc.concat(String((d && d.attack) || '').split(/[\s,;]+/)); }, []))
++          .forEach(function (x) { x = String(x || '').trim().toUpperCase(); if (x && !atkSeen[x]) { atkSeen[x] = 1; atkAll.push(x); } });
++        fillChips(invLabels, invChips, false, atkAll);
+       }
+       var invMetaLine = document.getElementById('item-meta');
+       if (invMetaLine) invMetaLine.textContent = metaJoin([inv.date, (inv.tags || []).join(' · ')], '');
+@@ -671,27 +678,101 @@ window.TOR = (function () {
+         secs.push({ type: 'heading', ar: arTitle, en: enTitle });
+         ok.forEach(function (x) { secs.push({ type: 'link', ar: x.label || x.url, en: x.label || x.url, url: x.url }); });
+       }
++      function plain(x) { return { ar: x, en: x }; }
++      function tableSec(headers, rows) {
++        secs.push({ type: 'table', headers: headers.map(function (h) { return { ar: h[0], en: h[1] }; }), rows: rows });
++      }
++      function cell(x, mono) { var v = String(x == null ? '' : x); return { ar: v, en: v, mono: !!mono }; }
++      var SEV = { info: ['معلومة', 'Info'], low: ['منخفضة', 'Low'], medium: ['متوسطة', 'Medium'], high: ['عالية', 'High'], critical: ['حرجة', 'Critical'] };
++      function sevLabel(k) { var p = SEV[k]; return p ? (lang === 'ar' ? p[0] : p[1]) : (k || ''); }
++      function tidy(k) { return String(k || '').replace(/-/g, ' ').replace(/\b\w/g, function (m) { return m.toUpperCase(); }); }
++      function mdBold(label, val) { return val && String(val).trim() ? { type: 'paragraph', ar: '**' + label + '** ' + String(val).trim(), en: '**' + label + '** ' + String(val).trim() } : null; }
++
+       invText('الملخص', 'Summary', inv.summary);
++      invText('حالة الاستخدام (Use Case)', 'Use Case', inv.use_case);
++
++      // Lab environment
++      var labRows = (inv.lab_components || []).filter(function (r) { return r && (r.host || r.role || r.os_tools || r.notes); });
++      if (L(inv.lab_environment || {}).trim() || labRows.length) {
++        invText('بيئة المعمل (Lab)', 'Lab Environment', inv.lab_environment);
++        if (labRows.length) {
++          if (!L(inv.lab_environment || {}).trim()) secs.push({ type: 'heading', ar: 'بيئة المعمل (Lab)', en: 'Lab Environment' });
++          tableSec([['الجهاز', 'Host'], ['الدور', 'Role'], ['النظام / الأدوات', 'OS / tools'], ['ملاحظات', 'Notes']],
++            labRows.map(function (r) { return [cell(r.host), cell(r.role), cell(r.os_tools), cell(r.notes)]; }));
++        }
++      }
++
++      // Evidence register (+ plain evidence links)
++      var evRows = (inv.evidence_register || []).filter(function (r) { return r && (r.ref || r.name || r.sha256 || r.source); });
++      if (evRows.length) {
++        secs.push({ type: 'heading', ar: 'سجل الأدلة (Evidence Register)', en: 'Evidence Register' });
++        tableSec([['المرجع', 'Ref'], ['العنصر', 'Item'], ['النوع', 'Type'], ['المصدر', 'Source'], ['SHA-256', 'SHA-256'], ['الاستحواذ', 'Acquired'], ['ملاحظات', 'Notes'], ['رابط', 'Link']],
++          evRows.map(function (r) {
++            return [cell(r.ref, true), cell(r.name), cell(tidy(r.type)), cell(r.source), cell(r.sha256, true), cell(r.acquired_at), cell(r.notes),
++              cell(TOR.urlOk(r.url) ? '[open](' + r.url + ')' : '')];
++          }));
++      }
+       invLinks('روابط الأدلة', 'Evidence links', inv.evidence);
++
++      // Timeline
+       var invRows = (inv.timeline || []).filter(function (e) { return e && (L(e) || e.ts); });
+       if (invRows.length) {
+         secs.push({ type: 'heading', ar: 'الخط الزمني', en: 'Timeline' });
+         secs.push({ type: 'timeline', rows: invRows.map(function (e) { return { t: e.ts || '', ar: e.ar, en: e.en }; }) });
+       }
++
++      // Analysis, findings, root cause
+       invText('التحليل', 'Investigation & analysis', inv.analysis);
+-      invText('النتائج', 'Findings', inv.findings);
++      var fl = (inv.findings_list || []).filter(function (f) { return f && (f.title || f.description); });
++      if (L(inv.findings || {}).trim() || fl.length) {
++        invText('النتائج', 'Findings', inv.findings);
++        if (fl.length) {
++          if (!L(inv.findings || {}).trim()) secs.push({ type: 'heading', ar: 'النتائج', en: 'Findings' });
++          fl.forEach(function (f, k) {
++            var body = String(f.description || '') + (f.evidence_ref ? '\n\n' + (lang === 'ar' ? 'الدليل: ' : 'Evidence: ') + f.evidence_ref : '');
++            secs.push({ type: 'callout', title_ar: 'F-' + (k + 1) + ' · ' + sevLabel(f.severity) + ' · ' + (f.title || ''),
++              title_en: 'F-' + (k + 1) + ' · ' + sevLabel(f.severity) + ' · ' + (f.title || ''), ar: body.trim() || '—', en: body.trim() || '—' });
++          });
++        }
++      }
+       invText('السبب الجذري', 'Root cause', inv.root_cause);
+-      invText('حالة الاستخدام (Use Case)', 'Use Case', inv.use_case);
+-      invText('هندسة الكشف (Detection Engineering)', 'Detection Engineering', inv.detection_engineering);
+-      if (inv.detection_rule && String(inv.detection_rule).trim()) {
+-        var ruleLang = String(inv.detection_rule_lang || '').trim();
+-        secs.push({ type: 'heading', ar: 'قاعدة الكشف (Detection Rule)', en: 'Detection Rule' });
+-        secs.push({
+-          type: 'code',
+-          label_ar: ruleLang || 'قاعدة الكشف',
+-          label_en: ruleLang || 'Detection Rule',
+-          code: String(inv.detection_rule)
++
++      // MITRE ATT&CK mapping
++      var mm = (inv.mitre_mapping || []).filter(function (m) { return m && m.technique; });
++      if (mm.length) {
++        secs.push({ type: 'heading', ar: 'ربط MITRE ATT&CK', en: 'MITRE ATT&CK Mapping' });
++        tableSec([['التقنية', 'Technique'], ['التكتيك', 'Tactic'], ['الملاحظة', 'Observation'], ['القاعدة', 'Detection']],
++          mm.map(function (m) {
++            var tid = String(m.technique).toUpperCase();
++            var url = 'https://attack.mitre.org/techniques/' + tid.replace('.', '/') + '/';
++            return [cell('[' + tid + '](' + url + ')', true), cell(tidy(m.tactic)), cell(m.observation), cell(m.detection_ref, true)];
++          }));
++      }
++
++      // Detection engineering
++      var dets = (inv.detections || []).filter(function (d) { return d && (d.title || d.sigma || d.spl || d.kql || d.other_rule || d.use_case); });
++      var legacyRule = inv.detection_rule && String(inv.detection_rule).trim();
++      if (L(inv.detection_engineering || {}).trim() || dets.length || legacyRule) {
++        invText('هندسة الكشف (Detection Engineering)', 'Detection Engineering', inv.detection_engineering);
++        if (!L(inv.detection_engineering || {}).trim()) secs.push({ type: 'heading', ar: 'هندسة الكشف (Detection Engineering)', en: 'Detection Engineering' });
++        dets.forEach(function (d, k) {
++          var title = (d.rule_id ? d.rule_id + ' · ' : '') + (d.title || ('Rule ' + (k + 1)));
++          secs.push({ type: 'heading', level: 3, ar: title, en: title });
++          var meta = [d.status ? tidy(d.status) : '', d.severity ? sevLabel(d.severity) : '', d.data_sources ? (lang === 'ar' ? 'المصادر: ' : 'Data sources: ') + d.data_sources : '',
++            d.attack ? 'ATT&CK: ' + d.attack : ''].filter(Boolean).join(' · ');
++          if (meta) secs.push({ type: 'paragraph', ar: meta, en: meta });
++          var p1 = mdBold(lang === 'ar' ? 'حالة الاستخدام:' : 'Use case:', d.use_case); if (p1) secs.push(p1);
++          [['sigma', 'Sigma'], ['spl', 'SPL'], ['kql', 'KQL']].forEach(function (pair) {
++            if (d[pair[0]] && String(d[pair[0]]).trim()) secs.push({ type: 'code', label_ar: pair[1], label_en: pair[1], code: String(d[pair[0]]) });
++          });
++          if (d.other_rule && String(d.other_rule).trim()) { var ol = d.other_lang || 'Rule'; secs.push({ type: 'code', label_ar: ol, label_en: ol, code: String(d.other_rule) }); }
++          [[lang === 'ar' ? 'الإيجابيات الكاذبة:' : 'False positives:', d.false_positives], [lang === 'ar' ? 'الضبط:' : 'Tuning:', d.tuning],
++            [lang === 'ar' ? 'التحقق:' : 'Validation:', d.validation]].forEach(function (pair) { var p = mdBold(pair[0], pair[1]); if (p) secs.push(p); });
+         });
++        if (legacyRule && !dets.length) {
++          var ruleLang = String(inv.detection_rule_lang || '').trim();
++          secs.push({ type: 'code', label_ar: ruleLang || 'قاعدة الكشف', label_en: ruleLang || 'Detection Rule', code: String(inv.detection_rule) });
++        }
+       }
+       invText('الدروس المستفادة', 'Lessons learned & remediation', inv.lessons_learned);
+       invLinks('روابط ذات صلة', 'Related links', inv.links);
+@@ -701,6 +782,14 @@ window.TOR = (function () {
+     }
+   }
+ 
++  // a11y: an accessible name must contain the visible text (WCAG 2.5.3 label-in-name)
++  (function () {
++    document.querySelectorAll('a.brand[aria-label]').forEach(function (a) { a.removeAttribute('aria-label'); });
++    document.querySelectorAll('a.pill-lang[aria-label]').forEach(function (a) {
++      var vis = a.textContent.trim(); a.setAttribute('aria-label', vis + ' — ' + a.getAttribute('aria-label'));
++    });
++  })();
++
+   // ---------- listings ----------
+   if (page === 'articles-ar' || page === 'articles-en') {
+     var box = document.getElementById('listing');
+diff --git a/scripts/backup.cjs b/scripts/backup.cjs
+index 2f46d1a..f4a2fbe 100644
+--- a/scripts/backup.cjs
++++ b/scripts/backup.cjs
+@@ -1,5 +1,7 @@
+ 'use strict';
+-// Backup script: copies TOR_DATA_DIR, TOR_FLAGS_FILE, and assets/ into backups/YYYYMMDD-HHMMSS/
++// Backup script: copies TOR_DATA_DIR (content, solves, uploaded images), TOR_FLAGS_FILE and assets/ into <backups>/YYYYMMDD-HHMMSS/
++// Backups go to TOR_BACKUP_DIR if set, else <TOR_DATA_DIR>/backups (persistent disk), else ./backups.
++// A backup on the same disk is NOT off-site: download a copy now and then (e.g. with scp / the host's shell).
+ // Usage: node scripts/backup.cjs [keepCount]
+ // Cron example (daily at 03:00): 0 3 * * * cd /opt/temple-of-records && node scripts/backup.cjs 7
+ const fs = require('node:fs');
+@@ -8,7 +10,8 @@ const path = require('node:path');
+ const root = path.resolve(__dirname, '..');
+ const dataDir = process.env.TOR_DATA_DIR ? path.resolve(process.env.TOR_DATA_DIR) : path.join(root, 'server', 'data');
+ const flagsFile = process.env.TOR_FLAGS_FILE ? path.resolve(process.env.TOR_FLAGS_FILE) : path.join(root, 'server', 'flags.json');
+-const backupsDir = path.join(root, 'backups');
++const backupsDir = process.env.TOR_BACKUP_DIR ? path.resolve(process.env.TOR_BACKUP_DIR)
++  : (process.env.TOR_DATA_DIR ? path.join(dataDir, 'backups') : path.join(root, 'backups'));
+ const keep = Math.max(1, parseInt(process.argv[2] || process.env.BACKUP_KEEP || '7', 10) || 7);
+ 
+ const now = new Date();
+@@ -17,7 +20,8 @@ const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate()
+ const dest = path.join(backupsDir, stamp);
+ 
+ fs.mkdirSync(dest, { recursive: true });
+-if (fs.existsSync(dataDir)) fs.cpSync(dataDir, path.join(dest, 'data'), { recursive: true });
++// never copy the backups folder into itself when it lives inside the data dir
++if (fs.existsSync(dataDir)) fs.cpSync(dataDir, path.join(dest, 'data'), { recursive: true, filter: src => !path.resolve(src).startsWith(backupsDir) });
+ if (fs.existsSync(flagsFile)) fs.copyFileSync(flagsFile, path.join(dest, 'flags.json'));
+ const assetsDir = path.join(root, 'assets');
+ if (fs.existsSync(assetsDir)) fs.cpSync(assetsDir, path.join(dest, 'assets'), { recursive: true });
+diff --git a/scripts/bootstrap-data.cjs b/scripts/bootstrap-data.cjs
+new file mode 100644
+index 0000000..3f3ec2c
+--- /dev/null
++++ b/scripts/bootstrap-data.cjs
+@@ -0,0 +1,39 @@
++'use strict';
++// First-deploy helper: copies your LOCAL content into the production data directory.
++//
++//   TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs            # copy only files that do not exist yet
++//   TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs --force    # overwrite existing content files
++//   TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs --with-flags   # also copy server/flags.json (scrypt/sha256 hashes)
++//
++// Copies ONLY content: store.json, site-settings.json, seo.json and uploaded images (assets/).
++// It never touches admin.json, sessions, solves, players, verified, submissions or audit logs.
++// Run it where the source files are (a checkout containing your server/data), against the target data dir.
++const fs = require('node:fs');
++const path = require('node:path');
++
++const root = path.resolve(__dirname, '..');
++const srcDir = process.env.TOR_SOURCE_DIR ? path.resolve(process.env.TOR_SOURCE_DIR) : path.join(root, 'server', 'data');
++const dstDir = process.env.TOR_DATA_DIR ? path.resolve(process.env.TOR_DATA_DIR) : null;
++const force = process.argv.includes('--force');
++const withFlags = process.argv.includes('--with-flags');
++
++if (!dstDir) { console.error('Set TOR_DATA_DIR to the production data directory (e.g. /var/data).'); process.exit(1); }
++if (path.resolve(srcDir) === dstDir) { console.error('Source and target are the same directory; nothing to do.'); process.exit(1); }
++fs.mkdirSync(dstDir, { recursive: true });
++
++let copied = 0, skipped = 0;
++function copyFile(from, to) {
++  if (!fs.existsSync(from)) return;
++  if (fs.existsSync(to) && !force) { console.log('skip (exists):', to); skipped++; return; }
++  fs.mkdirSync(path.dirname(to), { recursive: true });
++  fs.copyFileSync(from, to); console.log('copied       :', to); copied++;
++}
++for (const f of ['store.json', 'site-settings.json', 'seo.json']) copyFile(path.join(srcDir, f), path.join(dstDir, f));
++const imgs = path.join(srcDir, 'assets');
++if (fs.existsSync(imgs)) for (const f of fs.readdirSync(imgs)) if (/^[A-Za-z0-9._-]+\.(jpe?g|png|webp|gif|svg|avif)$/i.test(f)) copyFile(path.join(imgs, f), path.join(dstDir, 'assets', f));
++if (withFlags) {
++  const srcFlags = process.env.TOR_SOURCE_FLAGS ? path.resolve(process.env.TOR_SOURCE_FLAGS) : path.join(root, 'server', 'flags.json');
++  const dstFlags = process.env.TOR_FLAGS_FILE ? path.resolve(process.env.TOR_FLAGS_FILE) : path.join(dstDir, 'flags.json');
++  copyFile(srcFlags, dstFlags);
++}
++console.log(`done: ${copied} copied, ${skipped} skipped. Restart the service, then check the admin dashboard.`);
+diff --git a/scripts/run-tests.cjs b/scripts/run-tests.cjs
+index c20fc21..1514f8b 100644
+--- a/scripts/run-tests.cjs
++++ b/scripts/run-tests.cjs
+@@ -13,7 +13,8 @@ const TESTS = [
+   'tests/bugs-consistency.cjs',
+   'tests/features-phase6.cjs',
+   'tests/arabic-toggle.cjs',
+-  'tests/hardening-regression.cjs'
++  'tests/hardening-regression.cjs',
++  'tests/investigation-v2.cjs'
+ ];
+ 
+ const root = path.resolve(__dirname, '..');
+diff --git a/server/admin.js b/server/admin.js
+index eed8b63..387f3cc 100644
+--- a/server/admin.js
++++ b/server/admin.js
+@@ -7,7 +7,7 @@ const path = require('path');
+ const crypto = require('crypto');
+ const vm = require('vm');
+ 
+-const { readJsonCached, writeJsonAtomic } = require('./json-cache');
++const { readJsonCached, writeJsonAtomic, appendLogRotating } = require('./json-cache');
+ const TorAdmin = require('./validators');
+ const { isPlaceholder } = require('./placeholders');
+ const { isPublic, isPublicInvestigation, publicCollections } = require('./visibility');
+@@ -62,6 +62,7 @@ const SCHEMAS = {
+   },
+   investigations: {
+     fields: [
++      // --- overview ---
+       { k: 'title', t: 'bi', max: 300, required: true },
+       { k: 'slug', t: 'slug', max: 120 },
+       { k: 'summary', t: 'bi', max: 6000 },
+@@ -71,15 +72,49 @@ const SCHEMAS = {
+       { k: 'publish_at', t: 'str', max: 40 },
+       { k: 'tags', t: 'tags' },
+       { k: 'attack', t: 'tags' },
++      { k: 'use_case', t: 'bi', max: 12000 },
++      // --- lab environment ---
++      { k: 'lab_environment', t: 'bi', max: 12000 },
++      { k: 'lab_components', t: 'rows', max: 30, cols: [
++        { k: 'host', t: 'str', max: 120 }, { k: 'role', t: 'str', max: 160 },
++        { k: 'os_tools', t: 'str', max: 300 }, { k: 'notes', t: 'str', max: 600 }] },
++      // --- evidence register ---
++      { k: 'evidence_register', t: 'rows', max: 200, cols: [
++        { k: 'ref', t: 'str', max: 40 }, { k: 'name', t: 'str', max: 200 },
++        { k: 'type', t: 'enum', values: ['disk', 'memory', 'pcap', 'log', 'file', 'screenshot', 'other'] },
++        { k: 'source', t: 'str', max: 300 }, { k: 'sha256', t: 'sha256' },
++        { k: 'acquired_at', t: 'str', max: 60 }, { k: 'notes', t: 'text', max: 1000 }, { k: 'url', t: 'url' }] },
+       { k: 'evidence', t: 'links', max: 50 },
++      // --- timeline / analysis / findings ---
+       { k: 'timeline', t: 'entries', max: 200 },
+       { k: 'analysis', t: 'bi', max: 20000 },
+       { k: 'findings', t: 'bi', max: 20000 },
++      { k: 'findings_list', t: 'rows', max: 50, cols: [
++        { k: 'title', t: 'str', max: 200 },
++        { k: 'severity', t: 'enum', values: ['info', 'low', 'medium', 'high', 'critical'] },
++        { k: 'description', t: 'text', max: 3000 }, { k: 'evidence_ref', t: 'str', max: 200 }] },
+       { k: 'root_cause', t: 'bi', max: 8000 },
+-      { k: 'use_case', t: 'bi', max: 12000 },
++      // --- MITRE ATT&CK mapping ---
++      { k: 'mitre_mapping', t: 'rows', max: 100, cols: [
++        { k: 'technique', t: 'attack' },
++        { k: 'tactic', t: 'enum', values: ['', 'reconnaissance', 'resource-development', 'initial-access', 'execution', 'persistence',
++          'privilege-escalation', 'defense-evasion', 'credential-access', 'discovery', 'lateral-movement', 'collection',
++          'command-and-control', 'exfiltration', 'impact'] },
++        { k: 'observation', t: 'text', max: 1500 }, { k: 'detection_ref', t: 'str', max: 60 }] },
++      // --- detection engineering ---
+       { k: 'detection_engineering', t: 'bi', max: 20000 },
+-      { k: 'detection_rule_lang', t: 'str', max: 60 },
+-      { k: 'detection_rule', t: 'code', max: 30000 },
++      { k: 'detections', t: 'rows', max: 20, cols: [
++        { k: 'rule_id', t: 'str', max: 60 }, { k: 'title', t: 'str', max: 200 },
++        { k: 'status', t: 'enum', values: ['draft', 'tested', 'production'] },
++        { k: 'severity', t: 'enum', values: ['low', 'medium', 'high', 'critical'] },
++        { k: 'use_case', t: 'text', max: 4000 }, { k: 'data_sources', t: 'str', max: 400 },
++        { k: 'sigma', t: 'code', max: 12000 }, { k: 'spl', t: 'code', max: 12000 }, { k: 'kql', t: 'code', max: 12000 },
++        { k: 'other_lang', t: 'str', max: 40 }, { k: 'other_rule', t: 'code', max: 12000 },
++        { k: 'false_positives', t: 'text', max: 4000 }, { k: 'tuning', t: 'text', max: 4000 },
++        { k: 'validation', t: 'text', max: 4000 }, { k: 'attack', t: 'attacklist' }] },
++      { k: 'detection_rule_lang', t: 'str', max: 60 },   // legacy single rule (migrated into `detections` by the editor)
++      { k: 'detection_rule', t: 'code', max: 30000 },    // legacy single rule
++      // --- closing ---
+       { k: 'lessons_learned', t: 'bi', max: 10000 },
+       { k: 'links', t: 'links', max: 50 },
+       { k: 'seo_title', t: 'bi', max: 200 },
+@@ -93,7 +128,7 @@ const SCHEMAS = {
+ function readJson(f, dflt) { return readJsonCached(f, dflt); }
+ function readJsonMutable(f, dflt) { return structuredClone(readJsonCached(f, dflt)); }
+ function writeJson(f, obj) { writeJsonAtomic(f, obj); }
+-function appendLine(f, obj) { fs.appendFileSync(f, JSON.stringify(obj) + '\n'); }
++function appendLine(f, obj) { appendLogRotating(f, JSON.stringify(obj) + '\n'); }
+ 
+ const jsonLinesCache = new Map();
+ function readJsonLinesCached(f) {
+@@ -310,8 +345,10 @@ function formatFlagMeta(rec) {
+   return { configured: true, algo, sha256: display, hash: rec.scrypt || rec.sha256 || null };
+ }
+ 
++const ATTACK_ID_RE = /^T\d{4}(\.\d{3})?$/;
+ function cleanBySchema(schema, b, existing, opts) {
+   const arEnabled = !(opts && opts.arabicEnabled === false);
++  const fail = (msg) => { if (opts && Array.isArray(opts.errors)) opts.errors.push(msg); return null; };
+   const t = (x, n) => TorAdmin.cleanStr(String(x == null ? '' : x).slice(0, n || 1000), n || 1000) || '';
+   const bi = (o, m) => ({ ar: t(o && o.ar, m), en: t(o && o.en, m) });
+   const item = { id: existing || t(b.id, 60), hidden: !!b.hidden };
+@@ -348,8 +385,41 @@ function cleanBySchema(schema, b, existing, opts) {
+       item[f.k] = Array.isArray(v) ? v.slice(0, f.max).map(e => ({ ts: t(e && e.ts, 40), ar: t(e && e.ar, 2000), en: t(e && e.en, 2000) })) : [];
+     } else if (f.t === 'links') {
+       const ls = Array.isArray(v) ? v.slice(0, f.max).map(e => ({ label: t(e && e.label, 120), url: t(e && e.url, 500).trim() })) : [];
+-      if (ls.some(l => l.url && !TorAdmin.urlOk(l.url))) return null;
++      if (ls.some(l => l.url && !TorAdmin.urlOk(l.url))) return fail(f.k + ': link must be https://…');
+       item[f.k] = ls;
++    } else if (f.t === 'rows') {
++      const out = [];
++      const src = Array.isArray(v) ? v.slice(0, f.max || 50) : [];
++      for (let ri = 0; ri < src.length; ri++) {
++        const r = src[ri] || {};
++        const row = {};
++        for (const c of f.cols) {
++          const cv = r[c.k];
++          const where = f.k + ' #' + (ri + 1) + ' ' + c.k;
++          if (c.t === 'enum') row[c.k] = c.values.includes(cv) ? cv : c.values[0];
++          else if (c.t === 'url') {
++            const u = t(cv, 500).trim();
++            if (u && !TorAdmin.urlOk(u)) return fail(where + ': link must be https://…');
++            row[c.k] = u;
++          } else if (c.t === 'sha256') {
++            const h = t(cv, 140).trim().toLowerCase().replace(/^sha-?256\s*[:=]?\s*/, '');
++            if (h && !/^[a-f0-9]{64}$/.test(h)) return fail(where + ': SHA-256 must be 64 hex characters');
++            row[c.k] = h;
++          } else if (c.t === 'attack') {
++            const id = t(cv, 20).trim().toUpperCase();
++            if (id && !ATTACK_ID_RE.test(id)) return fail(where + ': technique must look like T1059 or T1059.001');
++            row[c.k] = id;
++          } else if (c.t === 'attacklist') {
++            const ids = t(cv, 200).split(/[\s,;]+/).map(x => x.trim().toUpperCase()).filter(Boolean);
++            const badId = ids.find(x => !ATTACK_ID_RE.test(x));
++            if (badId) return fail(where + ': "' + badId + '" is not a technique ID like T1059.001');
++            row[c.k] = ids.join(', ');
++          } else row[c.k] = t(cv, c.max || 500);     // str / text / code
++        }
++        // a row made only of defaults/blank cells is dropped
++        if (f.cols.some(c => c.t !== 'enum' && String(row[c.k] || '').trim())) out.push(row);
++      }
++      item[f.k] = out;
+     }
+     if (f.required && f.t === 'bi') {
+       if (!arEnabled && !item[f.k].en.trim()) return null;
+@@ -811,8 +881,9 @@ async function handle(req, res, url, ip) {
+       if (!body || typeof body !== 'object') return json(res, 400, { error: 'invalid' });
+       const arOn = isArabicEnabled();
+       const id = String(body.id || '').trim();
+-      const item = cleanBySchema(schema, body, id, { arabicEnabled: arOn });
+-      if (!item || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(item.id)) return json(res, 400, { error: 'invalid' });
++      const errs = [];
++      const item = cleanBySchema(schema, body, id, { arabicEnabled: arOn, errors: errs });
++      if (!item || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(item.id)) return json(res, 400, { error: 'invalid', details: errs });
+       const st4 = getStoreMutable();
+       st4.collections[col] = st4.collections[col] || [];
+       const list = st4.collections[col];
+@@ -840,8 +911,9 @@ async function handle(req, res, url, ip) {
+       }
+       if (mergedInput.hidden === undefined && it.hidden !== undefined) mergedInput.hidden = it.hidden;
+       const payload = arOn ? mergedInput : mergeArabic(mergedInput, it);
+-      const item = cleanBySchema(schema, payload, gcMatch[2], { arabicEnabled: arOn });
+-      if (!item) return json(res, 400, { error: 'invalid' });
++      const errs = [];
++      const item = cleanBySchema(schema, payload, gcMatch[2], { arabicEnabled: arOn, errors: errs });
++      if (!item) return json(res, 400, { error: 'invalid', details: errs });
+       if (col === 'investigations' && checkSlugConflict(list, item, it.id, arOn)) {
+         return json(res, 409, { error: 'duplicate_slug' });
+       }
+@@ -1073,7 +1145,7 @@ function publicContentScript() {
+     statSig(STORE_FILE),
+     statSig(SITE_SETTINGS_FILE),
+     process.env.TOR_SHOW_SAMPLES === '1' ? '1' : '0',
+-    process.env.TOR_GATE_SOLUTIONS === '1' ? '1' : '0'
++    require('./visibility').solutionsGated() ? '1' : '0'
+   ].join('|');
+   if (contentJsCache && contentJsCache.sig === sig && now < contentJsCache.nextPublishMs) {
+     return contentJsCache.script;
+diff --git a/server/json-cache.js b/server/json-cache.js
+index 7cef716..f385afc 100644
+--- a/server/json-cache.js
++++ b/server/json-cache.js
+@@ -50,4 +50,15 @@ function writeJsonAtomic(filePath, obj) {
+   }
+ }
+ 
+-module.exports = { readJsonCached, invalidateJsonCache, writeJsonAtomic };
++// Append-only log with a size cap: when the file passes maxBytes it is moved to <file>.1
++// (one generation kept), so submissions/audit logs can never fill the disk unnoticed.
++function appendLogRotating(filePath, line, maxBytes) {
++  const cap = maxBytes || 5 * 1024 * 1024;
++  try {
++    const st = fs.statSync(filePath);
++    if (st.size > cap) { try { fs.renameSync(filePath, filePath + '.1'); } catch { /* keep appending */ } }
++  } catch { /* file does not exist yet */ }
++  fs.appendFileSync(filePath, line);
++}
++
++module.exports = { readJsonCached, invalidateJsonCache, writeJsonAtomic, appendLogRotating };
+diff --git a/server/server.js b/server/server.js
+index 76564a2..d42205c 100644
+--- a/server/server.js
++++ b/server/server.js
+@@ -18,8 +18,8 @@ const fs = require('fs');
+ const path = require('path');
+ const crypto = require('crypto');
+ const zlib = require('zlib');
+-const { readJsonCached, writeJsonAtomic } = require('./json-cache');
+-const { publicCollections } = require('./visibility');
++const { readJsonCached, writeJsonAtomic, appendLogRotating } = require('./json-cache');
++const { publicCollections, solutionsGated } = require('./visibility');
+ const admin = require('./admin');
+ const seo = require('./seo');
+ 
+@@ -38,11 +38,20 @@ const VERIFIED_FILE = path.join(DATA_DIR, 'verified.json');
+ let verified = readJsonCached(VERIFIED_FILE, {});
+ function saveVerified() { writeJsonAtomic(VERIFIED_FILE, verified); }
+ function loadPlayerNames() { return readJsonCached(PLAYER_NAMES_FILE, {}); }
++// Public names are free text typed by strangers: strip control / bidi-override / zero-width
++// characters, drop URLs, collapse whitespace, cap at 50 chars. Applied on input AND on output
++// (so names stored before this check are sanitised too).
++const NAME_STRIP_RE = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
++function cleanName(raw) {
++  let n = String(raw == null ? '' : raw).replace(NAME_STRIP_RE, '');
++  n = n.replace(/(?:https?:\/\/|www\.)\S+/gi, '');
++  return n.replace(/\s+/g, ' ').trim().slice(0, 50).trim();
++}
+ function playerDisplayName(rec) {
+   if (!rec) return 'Anonymous';
+-  if (typeof rec === 'string') return rec || 'Anonymous';
++  if (typeof rec === 'string') return cleanName(rec) || 'Anonymous';
+   if (rec.hide) return 'Anonymous';
+-  return rec.name || 'Anonymous';
++  return cleanName(rec.name) || 'Anonymous';
+ }
+ function savePlayerName(identity, name) {
+   if (!identity || !name) return;
+@@ -190,10 +199,13 @@ function handleApi(req, res, url, ip) {
+     const challenge = url.searchParams.get('challenge');
+     const names = loadPlayerNames();
+     const publicSet = admin.getPublicChallengeIds();
++    const pst = readJsonCached(PLAYERS_STATE_FILE, {});
++    const hiddenIds = new Set(Array.isArray(pst.disabled) ? pst.disabled : []);   // disabled = removed from public lists
+     if (challenge) {
+       if (!publicSet.has(challenge)) return json(res, 404, { error: 'unknown_challenge' }, true);
+       const list = [];
+       Object.keys(solves).forEach(id => {
++        if (hiddenIds.has(id)) return;
+         if (solves[id] && solves[id][challenge]) {
+           list.push({
+             name: playerDisplayName(names[id]),
+@@ -206,6 +218,7 @@ function handleApi(req, res, url, ip) {
+     }
+     const all = {};
+     Object.keys(solves).forEach(id => {
++      if (hiddenIds.has(id)) return;
+       const pSolves = solves[id] || {};
+       Object.keys(pSolves).forEach(chId => {
+         if (!publicSet.has(chId)) return;
+@@ -232,7 +245,7 @@ function handleApi(req, res, url, ip) {
+     const ch = (cols.challenges || []).find(c => c.id === challenge);
+     if (!ch) return json(res, 404, { error: 'unknown_challenge' }, true);
+     const solved = !!(solves[identity] && solves[identity][challenge]) || !!(verified[identity] && verified[identity][challenge]);
+-    if (!solved && ch.solution_public !== true && process.env.TOR_GATE_SOLUTIONS === '1') {
++    if (!solved && ch.solution_public !== true && solutionsGated()) {
+       return json(res, 403, { error: 'solve_required' }, true);
+     }
+     const rawSol = (ch.sections || []).filter(s => s && s.published !== false && s.zone === 'solution');
+@@ -245,7 +258,7 @@ function handleApi(req, res, url, ip) {
+     readJsonBody(req, res, MAX_BODY, (data) => {
+       if (!data || typeof data !== 'object') return json(res, 400, { error: 'bad_json' }, true);
+       const identity = String(data.identity || '');
+-      const name = String(data.name || '').trim().slice(0, 50);
++      const name = cleanName(data.name);
+       const challenge = String(data.challenge || '');
+       if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
+       if (isDisabled(identity)) return json(res, 403, { error: 'player_disabled' }, true);
+@@ -270,7 +283,7 @@ function handleApi(req, res, url, ip) {
+         flag_masked: '(claimed)',
+         ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
+       };
+-      try { fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
++      try { appendLogRotating(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
+       return json(res, 200, { status: 'correct', ts, name }, true);
+     });
+     return;
+@@ -281,8 +294,8 @@ function handleApi(req, res, url, ip) {
+     readJsonBody(req, res, MAX_BODY, (data) => {
+       if (!data || typeof data !== 'object') return json(res, 400, { error: 'bad_json' }, true);
+       const identity = String(data.identity || '');
+-      const hasName = typeof data.name === 'string' && data.name.trim().length > 0;
+-      const name = hasName ? data.name.trim().slice(0, 50) : '';
++      const name = typeof data.name === 'string' ? cleanName(data.name) : '';
++      const hasName = name.length > 0;
+       const challenge = String(data.challenge || '');
+       const flag = String(data.flag || '').trim();
+       if (!ID_RE.test(identity)) return json(res, 400, { error: 'bad_identity' }, true);
+@@ -305,7 +318,7 @@ function handleApi(req, res, url, ip) {
+           flag_masked: flag.slice(0, 3) + '\u2026(' + flag.length + ')',
+           ip_hash: crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16)
+         };
+-        try { fs.appendFileSync(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
++        try { appendLogRotating(path.join(DATA_DIR, 'submissions.jsonl'), JSON.stringify(rec2) + '\n'); } catch (e) { console.error('submissions log failed:', e.message); }
+       };
+       solves[identity] = solves[identity] || {};
+       if (solves[identity][challenge]) {
+diff --git a/server/visibility.js b/server/visibility.js
+index 09de902..8789455 100644
+--- a/server/visibility.js
++++ b/server/visibility.js
+@@ -13,9 +13,20 @@ const INVESTIGATION_FIELDS = [
+   'id', 'slug', 'title', 'summary', 'status', 'date', 'tags', 'attack',
+   'evidence', 'timeline', 'analysis', 'findings', 'root_cause',
+   'use_case', 'detection_engineering', 'detection_rule_lang', 'detection_rule',
++  'lab_environment', 'lab_components', 'evidence_register', 'findings_list', 'mitre_mapping', 'detections',
+   'lessons_learned', 'links', 'seo_title', 'meta_description'
+ ];
+ 
++// Challenge walkthrough sections (zone: solution) are withheld from the public script until
++// the solver unlocks them through /api/solution. Default: ON in production-like environments
++// (NODE_ENV=production or a PaaS-provided PORT), OFF for local work. TOR_GATE_SOLUTIONS=1/0 overrides.
++function solutionsGated() {
++  const v = process.env.TOR_GATE_SOLUTIONS;
++  if (v === '1') return true;
++  if (v === '0') return false;
++  return process.env.NODE_ENV === 'production' || !!process.env.PORT;
++}
++
+ function isPublic(item, now = Date.now()) {
+   if (!item || item.hidden || item.published === false || item.private === true) return false;
+   if (item.sample === true && process.env.TOR_SHOW_SAMPLES !== '1') return false;
+@@ -49,7 +60,7 @@ function publicCollections(collections, now = Date.now()) {
+       if (Array.isArray(r.artifacts)) o.artifacts = r.artifacts.filter(a => a && a.visibility !== 'hidden');
+       if (Array.isArray(r.hints)) o.hints = r.hints.filter(h => h.published !== false).map(h => ({ ar: h.ar || '', en: h.en || '', published: h.published }));
+       if (Array.isArray(r.sections)) {
+-        const gateSol = key === 'challenges' && process.env.TOR_GATE_SOLUTIONS === '1' && r.solution_public !== true;
++        const gateSol = key === 'challenges' && solutionsGated() && r.solution_public !== true;
+         o.sections = r.sections.filter(s => s.published !== false && (!gateSol || s.zone !== 'solution'));
+       }
+       return o;
+@@ -57,4 +68,4 @@ function publicCollections(collections, now = Date.now()) {
+   }
+   return out;
+ }
+-module.exports = { isPublic, isPublicInvestigation, publicCollections, PUBLIC_KINDS };
++module.exports = { isPublic, isPublicInvestigation, publicCollections, solutionsGated, PUBLIC_KINDS };
+diff --git a/style.css b/style.css
+index 3de289b..e0847f1 100644
+--- a/style.css
++++ b/style.css
+@@ -965,3 +965,12 @@ body.ar .cv-skill-card h3 { text-transform: none; letter-spacing: 0; font-size:
+ .cv-entry ul { margin: 0; padding-inline-start: 18px; color: var(--text-dim); font-size: 13.5px; line-height: 1.65; }
+ .cv-entry p { margin: 6px 0 0; color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
+ .cv-stack { font-family: var(--mono); font-size: 12px; color: var(--gold-dim); margin-top: 8px; direction: ltr; unicode-bidi: isolate; text-align: start; }
++
++/* v13: investigation sub-headings, mono table cells, accessibility tweaks */
++.sub-h{font-size:1.05rem;margin:30px 0 10px;padding-top:14px;border-top:1px dashed rgba(60,45,20,.28)}
++.artifacts td.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.78rem;overflow-wrap:anywhere;min-width:7rem}
++main p a,main li a,main td a,main blockquote a,.callout a{text-decoration:underline;text-underline-offset:2px}
++.papyrus-reader .tl-t{color:#5b4a28}
++table.artifacts td a{color:#e8cf8f}
++nav.crumb a{text-decoration:underline;text-underline-offset:2px}
++.papyrus-reader .callout .callout-title{color:#5b4a28}
+diff --git a/tests/investigation-v2.cjs b/tests/investigation-v2.cjs
+new file mode 100644
+index 0000000..35fa4b1
+--- /dev/null
++++ b/tests/investigation-v2.cjs
+@@ -0,0 +1,157 @@
++'use strict';
++// Covers: investigation schema v2 (lab / evidence register / findings / MITRE / detections),
++// editor<->schema parity, public visibility of the new fields, solver-list moderation,
++// name sanitising, solution gating default, log rotation and the bootstrap script.
++const assert = require('assert');
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++const { spawn, spawnSync } = require('child_process');
++
++let passed = 0;
++const check = (c, m) => { assert(c, m); passed++; console.log('PASS', m); };
++
++(async () => {
++  // ---------- pure unit checks ----------
++  const adminSrc = fs.readFileSync(path.join(__dirname, '..', 'server', 'admin.js'), 'utf8');
++  const htmlSrc = fs.readFileSync(path.join(__dirname, '..', 'admin', 'investigations.html'), 'utf8');
++  const blockStart = adminSrc.indexOf('  investigations: {\n    fields: [');
++  const block = adminSrc.slice(blockStart, adminSrc.indexOf('\n    ]\n  }', blockStart));
++  const serverKeys = new Set([...block.matchAll(/\{ k: '([a-z_]+)', t: '([a-z0-9]+)'/g)].map(m => m[1]));
++  const fStart = htmlSrc.search(/fields:\[\s*\{k:'g_overview'/);
++  const fieldsHtml = htmlSrc.slice(fStart, htmlSrc.indexOf(']});', fStart));
++  const editorTop = [...fieldsHtml.matchAll(/\{k:'([a-z_]+)',t:'(group|bi|str|enum|tags|rows|entries|links|code)'/g)].filter(m => m[2] !== 'group').map(m => m[1]);
++  const editorKeys = new Set(editorTop.filter(k => serverKeys.has(k)));
++  const topLevelServer = ['title', 'slug', 'summary', 'status', 'visibility', 'date', 'tags', 'attack', 'use_case', 'lab_environment', 'lab_components',
++    'evidence_register', 'evidence', 'timeline', 'analysis', 'findings', 'findings_list', 'root_cause', 'mitre_mapping', 'detection_engineering', 'detections', 'lessons_learned', 'links'];
++  check(topLevelServer.every(k => serverKeys.has(k)), 'server schema declares every v2 investigation field');
++  check(topLevelServer.every(k => editorKeys.has(k)), 'admin editor exposes every v2 investigation field (schema parity)');
++
++  const { solutionsGated } = require('../server/visibility');
++  const keep = { ...process.env };
++  delete process.env.TOR_GATE_SOLUTIONS; delete process.env.NODE_ENV; delete process.env.PORT;
++  check(solutionsGated() === false, 'solutions are NOT gated for plain local runs');
++  process.env.NODE_ENV = 'production'; check(solutionsGated() === true, 'solutions are gated by default in production');
++  delete process.env.NODE_ENV; process.env.PORT = '10000'; check(solutionsGated() === true, 'solutions are gated by default on a PaaS PORT');
++  process.env.TOR_GATE_SOLUTIONS = '0'; check(solutionsGated() === false, 'TOR_GATE_SOLUTIONS=0 overrides the production default');
++  process.env.TOR_GATE_SOLUTIONS = '1'; delete process.env.PORT; check(solutionsGated() === true, 'TOR_GATE_SOLUTIONS=1 forces gating');
++  for (const k of ['TOR_GATE_SOLUTIONS', 'NODE_ENV', 'PORT']) { if (keep[k] === undefined) delete process.env[k]; else process.env[k] = keep[k]; }
++
++  const { appendLogRotating } = require('../server/json-cache');
++  const tmpLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tor-log-')), 'x.jsonl');
++  for (let i = 0; i < 30; i++) appendLogRotating(tmpLog, 'x'.repeat(40) + '\n', 500);
++  check(fs.existsSync(tmpLog + '.1') && fs.statSync(tmpLog).size <= 600, 'log files rotate to .1 once they pass the size cap');
++
++  // bootstrap script copies content only
++  const srcDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tor-src-')), dstDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tor-dst-'));
++  for (const f of ['store.json', 'site-settings.json', 'admin.json', 'solves.json', 'sessions.json']) fs.writeFileSync(path.join(srcDir, f), '{"k":1}');
++  fs.mkdirSync(path.join(srcDir, 'assets')); fs.writeFileSync(path.join(srcDir, 'assets', 'pic.png'), 'x'); fs.writeFileSync(path.join(srcDir, 'assets', 'evil.html'), 'x');
++  fs.writeFileSync(path.join(dstDir, 'store.json'), '{"keep":true}');
++  const run = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'bootstrap-data.cjs')], { env: { ...process.env, TOR_DATA_DIR: dstDir, TOR_SOURCE_DIR: srcDir }, encoding: 'utf8' });
++  check(run.status === 0, 'bootstrap script runs');
++  check(fs.readFileSync(path.join(dstDir, 'store.json'), 'utf8') === '{"keep":true}', 'bootstrap does not overwrite existing content without --force');
++  check(fs.existsSync(path.join(dstDir, 'site-settings.json')) && fs.existsSync(path.join(dstDir, 'assets', 'pic.png')), 'bootstrap copies settings and images');
++  check(!fs.existsSync(path.join(dstDir, 'admin.json')) && !fs.existsSync(path.join(dstDir, 'solves.json')) && !fs.existsSync(path.join(dstDir, 'sessions.json')) && !fs.existsSync(path.join(dstDir, 'assets', 'evil.html')),
++    'bootstrap never copies admin/solves/sessions or non-image files');
++
++  // ---------- server-level checks ----------
++  const port = 18000 + Math.floor(Math.random() * 15000);
++  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tor-inv2-'));
++  fs.cpSync(path.resolve(__dirname, '..'), root, { recursive: true, filter: s => !s.includes('.git') });
++  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tor-inv2-data-'));
++  const flagsFile = path.join(dataDir, 'flags.json');
++  fs.writeFileSync(flagsFile, '{"_policy":{"case_sensitive":true}}');
++  const env = { ...process.env, TOR_PORT: String(port), TOR_DATA_DIR: dataDir, TOR_FLAGS_FILE: flagsFile, ADMIN_USER: 'tester', ADMIN_PASSWORD: 'long-test-password-123' };
++  delete env.PORT; delete env.NODE_ENV; delete env.TOR_GATE_SOLUTIONS;
++  const proc = spawn(process.execPath, [path.join(root, 'server', 'server.js')], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
++  await new Promise((res, rej) => { const t = setTimeout(() => rej(new Error('server timeout')), 8000); proc.stdout.on('data', d => { if (String(d).includes('http://')) { clearTimeout(t); res(); } }); });
++  const base = 'http://127.0.0.1:' + port;
++  try {
++    let cookie = '', csrf = '';
++    const api = async (p, o = {}) => {
++      const h = { 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...(csrf ? { 'x-csrf-token': csrf } : {}) };
++      const r = await fetch(base + p, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body) });
++      let j = null; try { j = await r.json(); } catch {}
++      return { status: r.status, json: j, headers: r.headers };
++    };
++    let r = await api('/admin/api/login', { method: 'POST', body: { username: 'tester', password: 'long-test-password-123' } });
++    cookie = r.headers.get('set-cookie').split(';')[0]; csrf = r.json.csrf;
++
++    const hash = 'A'.repeat(64);
++    const inv = {
++      id: 'case-v2', title: { ar: 'ع', en: 'V2 case' }, summary: { ar: '', en: 'Sum' }, status: 'closed', visibility: 'public', date: '2026-11-25', tags: ['t'],
++      use_case: { ar: '', en: 'USECASE_TEXT' }, lab_environment: { ar: '', en: 'LAB_TEXT' },
++      lab_components: [{ host: 'WIN10-01', role: 'Victim', os_tools: 'Win10, Sysmon', notes: '' }, { host: '', role: '', os_tools: '', notes: '' }],
++      evidence_register: [{ ref: 'EV-001', name: 'Memory dump', type: 'memory', source: 'WIN10-01', sha256: 'SHA256: ' + hash, acquired_at: '2026-11-01 10:00', notes: 'n', url: '' }],
++      findings_list: [{ title: 'Persistence via Run key', severity: 'high', description: 'Found', evidence_ref: 'EV-001' }],
++      mitre_mapping: [{ technique: 't1547.001', tactic: 'persistence', observation: 'Run key', detection_ref: 'DET-001' }],
++      detections: [{ rule_id: 'DET-001', title: 'Run key persistence', status: 'tested', severity: 'high', use_case: 'UC', data_sources: 'Sysmon 13',
++        sigma: 'title: Run key\ndetection:\n  sel: {}\n  condition: sel', spl: 'index=win EventCode=13', kql: 'DeviceRegistryEvents | take 1', other_lang: '', other_rule: '',
++        false_positives: 'Installers', tuning: 'Exclude vendor paths', validation: 'Replayed in lab', attack: 't1547.001; T1112' }]
++    };
++    r = await api('/admin/api/collection/investigations', { method: 'POST', body: inv });
++    check(r.status === 200, 'investigation with the v2 sections is accepted');
++    r = await api('/admin/api/collection/investigations/case-v2');
++    const saved = r.json.item;
++    check(saved.lab_components.length === 1, 'empty rows are dropped');
++    check(saved.evidence_register[0].sha256 === hash.toLowerCase(), 'SHA-256 is normalised (prefix stripped, lowercased)');
++    check(saved.mitre_mapping[0].technique === 'T1547.001', 'ATT&CK technique id is normalised to upper case');
++    check(saved.detections[0].attack === 'T1547.001, T1112', 'ATT&CK list is normalised');
++    check(saved.detections[0].sigma.includes('condition: sel') && saved.detections[0].kql.startsWith('DeviceRegistryEvents'), 'Sigma / SPL / KQL bodies are kept verbatim');
++
++    const bad = async (patch, label, needle) => {
++      const x = await api('/admin/api/collection/investigations', { method: 'POST', body: { ...inv, id: 'case-bad', ...patch } });
++      check(x.status === 400 && (!needle || JSON.stringify(x.json.details || []).includes(needle)), label);
++    };
++    await bad({ evidence_register: [{ ref: 'x', name: 'y', type: 'log', sha256: 'zz', source: '', acquired_at: '', notes: '', url: '' }] }, 'invalid SHA-256 is rejected with a clear message', 'SHA-256');
++    await bad({ mitre_mapping: [{ technique: 'XSS', tactic: '', observation: '', detection_ref: '' }] }, 'invalid ATT&CK technique is rejected', 'T1059');
++    await bad({ evidence_register: [{ ref: 'x', name: 'y', type: 'log', sha256: '', source: '', acquired_at: '', notes: '', url: 'javascript:alert(1)' }] }, 'javascript: evidence link is rejected', 'https');
++    await bad({ detections: [{ ...inv.detections[0], attack: 'T1547.001, nonsense' }] }, 'bad technique inside a detection rule is rejected', 'NONSENSE');
++    const many = Array.from({ length: 60 }, (_, i) => ({ host: 'h' + i, role: '', os_tools: '', notes: '' }));
++    r = await api('/admin/api/collection/investigations', { method: 'POST', body: { ...inv, id: 'case-cap', visibility: 'private', lab_components: many } });
++    r = await api('/admin/api/collection/investigations/case-cap');
++    check(r.json.item.lab_components.length === 30, 'row count is capped (30 lab components)');
++
++    // public exposure
++    let js = await (await fetch(base + '/content.js')).text();
++    check(js.includes('Run key persistence') && js.includes('EV-001') && js.includes('USECASE_TEXT'), 'public content.js carries the v2 sections of a public investigation');
++    await api('/admin/api/collection/investigations/case-v2', { method: 'PUT', body: { ...saved, visibility: 'private' } });
++    js = await (await fetch(base + '/content.js')).text();
++    check(!js.includes('Run key persistence') && !js.includes('EV-001'), 'switching to private removes every v2 section from content.js');
++
++    // challenge + moderation + names
++    const ch = { id: 'c-mod', status: 'published', availability: 'open', title: { ar: 'ت', en: 'C' }, excerpt: { ar: 'م', en: 'b' }, category: { ar: '', en: 'DFIR' }, difficulty: { ar: '', en: 'Easy' }, date: '2026-11-25', tags: [],
++      sections: [{ type: 'paragraph', zone: 'main', ar: 'ن', en: 'text', published: true }, { type: 'paragraph', zone: 'solution', ar: 'ح', en: 'SOLUTION_SENTINEL', published: true }], hints: [], artifacts: [], chips: [] };
++    await api('/admin/api/challenges', { method: 'POST', body: ch });
++    await api('/admin/api/challenges/c-mod/flag', { method: 'PUT', body: { flag: 'TOR{mod-1}' } });
++    const ident = 'd'.repeat(32);
++    const sub = (body) => fetch(base + '/api/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(x => x.json());
++    const evil = '\u202eevil\u200b name  https://spam.example/x  \u0000ok';
++    const s1 = await sub({ identity: ident, challenge: 'c-mod', flag: 'TOR{mod-1}', name: evil });
++    check(s1.status === 'correct' && s1.name === 'evil name ok', 'names are sanitised (bidi/zero-width/control chars and URLs removed)');
++    let list = await (await fetch(base + '/api/solvers?challenge=c-mod')).json();
++    check(list.solvers.length === 1 && list.solvers[0].name === 'evil name ok', 'solver list shows the sanitised name');
++    await api('/admin/api/players/' + ident + '/disabled', { method: 'POST', body: { disabled: true } });
++    list = await (await fetch(base + '/api/solvers?challenge=c-mod')).json();
++    check(list.solvers.length === 0, 'a disabled player disappears from the public solver list');
++    const all = await (await fetch(base + '/api/solvers')).json();
++    check(JSON.stringify(all).indexOf('evil name ok') === -1, 'a disabled player is hidden from the all-challenges list too');
++    js = await (await fetch(base + '/content.js')).text();
++    check(js.includes('SOLUTION_SENTINEL'), 'local run (no production env): solution stays in content.js as before');
++  } finally { proc.kill(); }
++
++  // production-like env: solutions withheld by default
++  const port2 = port + 1;
++  const env2 = { ...env, TOR_PORT: String(port2), NODE_ENV: 'production' }; delete env2.TOR_GATE_SOLUTIONS;
++  const dataDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'tor-inv2-data2-'));
++  fs.copyFileSync(path.join(dataDir, 'store.json'), path.join(dataDir2, 'store.json')); fs.copyFileSync(flagsFile, path.join(dataDir2, 'flags.json'));
++  env2.TOR_DATA_DIR = dataDir2; env2.TOR_FLAGS_FILE = path.join(dataDir2, 'flags.json');
++  const proc2 = spawn(process.execPath, [path.join(root, 'server', 'server.js')], { cwd: root, env: env2, stdio: ['ignore', 'pipe', 'pipe'] });
++  await new Promise((res, rej) => { const t = setTimeout(() => rej(new Error('server2 timeout')), 8000); proc2.stdout.on('data', d => { if (String(d).includes('http://')) { clearTimeout(t); res(); } }); });
++  try {
++    const js2 = await (await fetch('http://127.0.0.1:' + port2 + '/content.js')).text();
++    check(!js2.includes('SOLUTION_SENTINEL'), 'production env: challenge solutions are withheld from the public script by default');
++  } finally { proc2.kill(); }
++
++  console.log('TOTAL ' + passed + ' investigation-v2 assertions passed');
++})().catch(e => { console.error('FAIL', e && e.stack || e); process.exit(1); });

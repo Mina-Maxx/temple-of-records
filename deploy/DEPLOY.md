@@ -51,3 +51,14 @@ ssh -L 8000:127.0.0.1:8000 user@SERVER
 sudo tar czf ~/temple-backup-$(date +%F).tgz -C /opt/temple-of-records server/data content.js server/flags.json assets
 ```
 - [ ] متفتحش بورت 8000 في الـ firewall. افتح 80/443/22 بس.
+
+## 7) نقل المحتوى لأول مرة (store / الصور / الفلاجات)
+أول deploy على `TOR_DATA_DIR` فاضي بيعرض الموقع بدون محتوى. لنقل اللي عملته محليًا:
+```bash
+# على السيرفر، من نسخة الكود اللي فيها server/data بتاعتك:
+TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs            # ينسخ store.json والإعدادات والصور لو مش موجودة
+TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs --force    # يستبدل الموجود
+TOR_DATA_DIR=/var/data node scripts/bootstrap-data.cjs --with-flags   # ينسخ كمان server/flags.json (هاشات الفلاجات)
+```
+السكربت بينقل المحتوى بس (مش بيلمس admin ولا اللاعبين ولا الحلول). **ما تعملش commit لـ `server/data/store.json` في ريبو Public** لو فيه تحقيقات خاصة أو مسودات؛ خلي الريبو Private أو ارفع الملف بـ `scp`.
+النسخ الاحتياطي: `node scripts/backup.cjs` بيكتب في `TOR_BACKUP_DIR` (على Render: `/var/data/backups`). ده على نفس الـ disk، فحمّل نسخة لجهازك من وقت للتاني.

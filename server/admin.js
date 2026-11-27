@@ -7,7 +7,7 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 
-const { readJsonCached, writeJsonAtomic } = require('./json-cache');
+const { readJsonCached, writeJsonAtomic, appendLogRotating } = require('./json-cache');
 const TorAdmin = require('./validators');
 const { isPlaceholder } = require('./placeholders');
 const { isPublic, isPublicInvestigation, publicCollections } = require('./visibility');
@@ -62,6 +62,7 @@ const SCHEMAS = {
   },
   investigations: {
     fields: [
+      // --- overview ---
       { k: 'title', t: 'bi', max: 300, required: true },
       { k: 'slug', t: 'slug', max: 120 },
       { k: 'summary', t: 'bi', max: 6000 },
@@ -71,15 +72,49 @@ const SCHEMAS = {
       { k: 'publish_at', t: 'str', max: 40 },
       { k: 'tags', t: 'tags' },
       { k: 'attack', t: 'tags' },
+      { k: 'use_case', t: 'bi', max: 12000 },
+      // --- lab environment ---
+      { k: 'lab_environment', t: 'bi', max: 12000 },
+      { k: 'lab_components', t: 'rows', max: 30, cols: [
+        { k: 'host', t: 'str', max: 120 }, { k: 'role', t: 'str', max: 160 },
+        { k: 'os_tools', t: 'str', max: 300 }, { k: 'notes', t: 'str', max: 600 }] },
+      // --- evidence register ---
+      { k: 'evidence_register', t: 'rows', max: 200, cols: [
+        { k: 'ref', t: 'str', max: 40 }, { k: 'name', t: 'str', max: 200 },
+        { k: 'type', t: 'enum', values: ['disk', 'memory', 'pcap', 'log', 'file', 'screenshot', 'other'] },
+        { k: 'source', t: 'str', max: 300 }, { k: 'sha256', t: 'sha256' },
+        { k: 'acquired_at', t: 'str', max: 60 }, { k: 'notes', t: 'text', max: 1000 }, { k: 'url', t: 'url' }] },
       { k: 'evidence', t: 'links', max: 50 },
+      // --- timeline / analysis / findings ---
       { k: 'timeline', t: 'entries', max: 200 },
       { k: 'analysis', t: 'bi', max: 20000 },
       { k: 'findings', t: 'bi', max: 20000 },
+      { k: 'findings_list', t: 'rows', max: 50, cols: [
+        { k: 'title', t: 'str', max: 200 },
+        { k: 'severity', t: 'enum', values: ['info', 'low', 'medium', 'high', 'critical'] },
+        { k: 'description', t: 'text', max: 3000 }, { k: 'evidence_ref', t: 'str', max: 200 }] },
       { k: 'root_cause', t: 'bi', max: 8000 },
-      { k: 'use_case', t: 'bi', max: 12000 },
+      // --- MITRE ATT&CK mapping ---
+      { k: 'mitre_mapping', t: 'rows', max: 100, cols: [
+        { k: 'technique', t: 'attack' },
+        { k: 'tactic', t: 'enum', values: ['', 'reconnaissance', 'resource-development', 'initial-access', 'execution', 'persistence',
+          'privilege-escalation', 'defense-evasion', 'credential-access', 'discovery', 'lateral-movement', 'collection',
+          'command-and-control', 'exfiltration', 'impact'] },
+        { k: 'observation', t: 'text', max: 1500 }, { k: 'detection_ref', t: 'str', max: 60 }] },
+      // --- detection engineering ---
       { k: 'detection_engineering', t: 'bi', max: 20000 },
-      { k: 'detection_rule_lang', t: 'str', max: 60 },
-      { k: 'detection_rule', t: 'code', max: 30000 },
+      { k: 'detections', t: 'rows', max: 20, cols: [
+        { k: 'rule_id', t: 'str', max: 60 }, { k: 'title', t: 'str', max: 200 },
+        { k: 'status', t: 'enum', values: ['draft', 'tested', 'production'] },
+        { k: 'severity', t: 'enum', values: ['low', 'medium', 'high', 'critical'] },
+        { k: 'use_case', t: 'text', max: 4000 }, { k: 'data_sources', t: 'str', max: 400 },
+        { k: 'sigma', t: 'code', max: 12000 }, { k: 'spl', t: 'code', max: 12000 }, { k: 'kql', t: 'code', max: 12000 },
+        { k: 'other_lang', t: 'str', max: 40 }, { k: 'other_rule', t: 'code', max: 12000 },
+        { k: 'false_positives', t: 'text', max: 4000 }, { k: 'tuning', t: 'text', max: 4000 },
+        { k: 'validation', t: 'text', max: 4000 }, { k: 'attack', t: 'attacklist' }] },
+      { k: 'detection_rule_lang', t: 'str', max: 60 },   // legacy single rule (migrated into `detections` by the editor)
+      { k: 'detection_rule', t: 'code', max: 30000 },    // legacy single rule
+      // --- closing ---
       { k: 'lessons_learned', t: 'bi', max: 10000 },
       { k: 'links', t: 'links', max: 50 },
       { k: 'seo_title', t: 'bi', max: 200 },
@@ -93,7 +128,7 @@ const SCHEMAS = {
 function readJson(f, dflt) { return readJsonCached(f, dflt); }
 function readJsonMutable(f, dflt) { return structuredClone(readJsonCached(f, dflt)); }
 function writeJson(f, obj) { writeJsonAtomic(f, obj); }
-function appendLine(f, obj) { fs.appendFileSync(f, JSON.stringify(obj) + '\n'); }
+function appendLine(f, obj) { appendLogRotating(f, JSON.stringify(obj) + '\n'); }
 
 const jsonLinesCache = new Map();
 function readJsonLinesCached(f) {
@@ -310,8 +345,10 @@ function formatFlagMeta(rec) {
   return { configured: true, algo, sha256: display, hash: rec.scrypt || rec.sha256 || null };
 }
 
+const ATTACK_ID_RE = /^T\d{4}(\.\d{3})?$/;
 function cleanBySchema(schema, b, existing, opts) {
   const arEnabled = !(opts && opts.arabicEnabled === false);
+  const fail = (msg) => { if (opts && Array.isArray(opts.errors)) opts.errors.push(msg); return null; };
   const t = (x, n) => TorAdmin.cleanStr(String(x == null ? '' : x).slice(0, n || 1000), n || 1000) || '';
   const bi = (o, m) => ({ ar: t(o && o.ar, m), en: t(o && o.en, m) });
   const item = { id: existing || t(b.id, 60), hidden: !!b.hidden };
@@ -348,8 +385,41 @@ function cleanBySchema(schema, b, existing, opts) {
       item[f.k] = Array.isArray(v) ? v.slice(0, f.max).map(e => ({ ts: t(e && e.ts, 40), ar: t(e && e.ar, 2000), en: t(e && e.en, 2000) })) : [];
     } else if (f.t === 'links') {
       const ls = Array.isArray(v) ? v.slice(0, f.max).map(e => ({ label: t(e && e.label, 120), url: t(e && e.url, 500).trim() })) : [];
-      if (ls.some(l => l.url && !TorAdmin.urlOk(l.url))) return null;
+      if (ls.some(l => l.url && !TorAdmin.urlOk(l.url))) return fail(f.k + ': link must be https://…');
       item[f.k] = ls;
+    } else if (f.t === 'rows') {
+      const out = [];
+      const src = Array.isArray(v) ? v.slice(0, f.max || 50) : [];
+      for (let ri = 0; ri < src.length; ri++) {
+        const r = src[ri] || {};
+        const row = {};
+        for (const c of f.cols) {
+          const cv = r[c.k];
+          const where = f.k + ' #' + (ri + 1) + ' ' + c.k;
+          if (c.t === 'enum') row[c.k] = c.values.includes(cv) ? cv : c.values[0];
+          else if (c.t === 'url') {
+            const u = t(cv, 500).trim();
+            if (u && !TorAdmin.urlOk(u)) return fail(where + ': link must be https://…');
+            row[c.k] = u;
+          } else if (c.t === 'sha256') {
+            const h = t(cv, 140).trim().toLowerCase().replace(/^sha-?256\s*[:=]?\s*/, '');
+            if (h && !/^[a-f0-9]{64}$/.test(h)) return fail(where + ': SHA-256 must be 64 hex characters');
+            row[c.k] = h;
+          } else if (c.t === 'attack') {
+            const id = t(cv, 20).trim().toUpperCase();
+            if (id && !ATTACK_ID_RE.test(id)) return fail(where + ': technique must look like T1059 or T1059.001');
+            row[c.k] = id;
+          } else if (c.t === 'attacklist') {
+            const ids = t(cv, 200).split(/[\s,;]+/).map(x => x.trim().toUpperCase()).filter(Boolean);
+            const badId = ids.find(x => !ATTACK_ID_RE.test(x));
+            if (badId) return fail(where + ': "' + badId + '" is not a technique ID like T1059.001');
+            row[c.k] = ids.join(', ');
+          } else row[c.k] = t(cv, c.max || 500);     // str / text / code
+        }
+        // a row made only of defaults/blank cells is dropped
+        if (f.cols.some(c => c.t !== 'enum' && String(row[c.k] || '').trim())) out.push(row);
+      }
+      item[f.k] = out;
     }
     if (f.required && f.t === 'bi') {
       if (!arEnabled && !item[f.k].en.trim()) return null;
@@ -811,8 +881,9 @@ async function handle(req, res, url, ip) {
       if (!body || typeof body !== 'object') return json(res, 400, { error: 'invalid' });
       const arOn = isArabicEnabled();
       const id = String(body.id || '').trim();
-      const item = cleanBySchema(schema, body, id, { arabicEnabled: arOn });
-      if (!item || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(item.id)) return json(res, 400, { error: 'invalid' });
+      const errs = [];
+      const item = cleanBySchema(schema, body, id, { arabicEnabled: arOn, errors: errs });
+      if (!item || !/^[a-z0-9][a-z0-9-]{1,59}$/.test(item.id)) return json(res, 400, { error: 'invalid', details: errs });
       const st4 = getStoreMutable();
       st4.collections[col] = st4.collections[col] || [];
       const list = st4.collections[col];
@@ -840,8 +911,9 @@ async function handle(req, res, url, ip) {
       }
       if (mergedInput.hidden === undefined && it.hidden !== undefined) mergedInput.hidden = it.hidden;
       const payload = arOn ? mergedInput : mergeArabic(mergedInput, it);
-      const item = cleanBySchema(schema, payload, gcMatch[2], { arabicEnabled: arOn });
-      if (!item) return json(res, 400, { error: 'invalid' });
+      const errs = [];
+      const item = cleanBySchema(schema, payload, gcMatch[2], { arabicEnabled: arOn, errors: errs });
+      if (!item) return json(res, 400, { error: 'invalid', details: errs });
       if (col === 'investigations' && checkSlugConflict(list, item, it.id, arOn)) {
         return json(res, 409, { error: 'duplicate_slug' });
       }
@@ -1073,7 +1145,7 @@ function publicContentScript() {
     statSig(STORE_FILE),
     statSig(SITE_SETTINGS_FILE),
     process.env.TOR_SHOW_SAMPLES === '1' ? '1' : '0',
-    process.env.TOR_GATE_SOLUTIONS === '1' ? '1' : '0'
+    require('./visibility').solutionsGated() ? '1' : '0'
   ].join('|');
   if (contentJsCache && contentJsCache.sig === sig && now < contentJsCache.nextPublishMs) {
     return contentJsCache.script;

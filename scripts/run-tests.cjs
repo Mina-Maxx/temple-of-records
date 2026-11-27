@@ -13,7 +13,8 @@ const TESTS = [
   'tests/bugs-consistency.cjs',
   'tests/features-phase6.cjs',
   'tests/arabic-toggle.cjs',
-  'tests/hardening-regression.cjs'
+  'tests/hardening-regression.cjs',
+  'tests/investigation-v2.cjs'
 ];
 
 const root = path.resolve(__dirname, '..');

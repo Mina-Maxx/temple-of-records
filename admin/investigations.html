@@ -11,6 +11,13 @@
 .sec-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
 .sec-row .head{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .sec-row .num{font-family:var(--mono);font-size:.75rem;color:var(--muted);min-width:26px}
+.grp{margin:34px 0 14px;padding-top:10px;border-top:1px solid var(--line);font-size:1.05rem}
+.jump{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.jump a{font-size:.78rem;padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);text-decoration:none}
+.rowgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.rowgrid .wide{grid-column:1/-1}
+.rowgrid .cell{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted)}
+@media(max-width:640px){.rowgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -19,7 +26,15 @@
 <script>
 TORCOL.run({col:'investigations',nav:'inv',t:'nInv',icon:'search',
  sub:function(){return TORADMIN.lang()==='ar'?'سجل تحقيقات متكامل: من الخط الزمني والتحليل والنتائج والسبب الجذري وصولاً إلى حالة الاستخدام وهندسة الكشف وقاعدة الكشف. الظهور «عام» + الحالة غير «مسودة» = ينشر على الموقع.':'End-to-end investigation writeups: timeline, analysis, findings, root cause, Use Case, Detection Engineering, and Detection Rule. Visibility "public" + non-draft publishes it.'},
- fields:[{k:'title',t:'bi',max:300},{k:'slug',t:'bi',max:120},{k:'summary',t:'bi',max:6000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'evidence',t:'links',max:50},{k:'timeline',t:'entries',max:200},{k:'analysis',t:'bi',max:20000},{k:'findings',t:'bi',max:20000},{k:'root_cause',t:'bi',max:8000},{k:'use_case',t:'bi',max:12000},{k:'detection_engineering',t:'bi',max:20000},{k:'detection_rule_lang',t:'str',max:60},{k:'detection_rule',t:'code',max:30000},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50},{k:'seo_title',t:'bi',max:200},{k:'meta_description',t:'bi',max:500}]});
+ fields:[
+ {k:'g_overview',t:'group'},{k:'title',t:'bi',max:300},{k:'slug',t:'bi',max:120},{k:'summary',t:'bi',max:6000},{k:'status',t:'enum',values:['open','closed','draft']},{k:'visibility',t:'enum',values:['private','public']},{k:'date',t:'str',max:40},{k:'publish_at',t:'str',max:40},{k:'tags',t:'tags'},{k:'attack',t:'tags'},{k:'use_case',t:'bi',max:12000},
+ {k:'g_lab',t:'group'},{k:'lab_environment',t:'bi',max:12000},{k:'lab_components',t:'rows',max:30,cols:[{k:'host',t:'str'},{k:'role',t:'str'},{k:'os_tools',t:'str'},{k:'notes',t:'str'}]},
+ {k:'g_evidence',t:'group'},{k:'evidence_register',t:'rows',max:200,cols:[{k:'ref',t:'str'},{k:'name',t:'str'},{k:'type',t:'enum',values:['disk','memory','pcap','log','file','screenshot','other']},{k:'source',t:'str'},{k:'sha256',t:'sha256'},{k:'acquired_at',t:'str'},{k:'notes',t:'text'},{k:'url',t:'url'}]},{k:'evidence',t:'links',max:50},
+ {k:'g_timeline',t:'group'},{k:'timeline',t:'entries',max:200},
+ {k:'g_findings',t:'group'},{k:'analysis',t:'bi',max:20000},{k:'findings',t:'bi',max:20000},{k:'findings_list',t:'rows',max:50,cols:[{k:'title',t:'str'},{k:'severity',t:'enum',values:['info','low','medium','high','critical']},{k:'description',t:'text'},{k:'evidence_ref',t:'str'}]},{k:'root_cause',t:'bi',max:8000},
+ {k:'g_mitre',t:'group'},{k:'mitre_mapping',t:'rows',max:100,cols:[{k:'technique',t:'attack'},{k:'tactic',t:'enum',values:['','reconnaissance','resource-development','initial-access','execution','persistence','privilege-escalation','defense-evasion','credential-access','discovery','lateral-movement','collection','command-and-control','exfiltration','impact']},{k:'observation',t:'text'},{k:'detection_ref',t:'str'}]},
+ {k:'g_detection',t:'group'},{k:'detection_engineering',t:'bi',max:20000},{k:'detections',t:'rows',max:20,cols:[{k:'rule_id',t:'str'},{k:'title',t:'str'},{k:'status',t:'enum',values:['draft','tested','production']},{k:'severity',t:'enum',values:['low','medium','high','critical']},{k:'use_case',t:'text'},{k:'data_sources',t:'str'},{k:'sigma',t:'code'},{k:'spl',t:'code'},{k:'kql',t:'code'},{k:'other_lang',t:'str'},{k:'other_rule',t:'code'},{k:'false_positives',t:'text'},{k:'tuning',t:'text'},{k:'validation',t:'text'},{k:'attack',t:'attacklist'}]},
+ {k:'g_closing',t:'group'},{k:'lessons_learned',t:'bi',max:10000},{k:'links',t:'links',max:50},{k:'seo_title',t:'bi',max:200},{k:'meta_description',t:'bi',max:500}]});
 </script>
 </body>
 </html>
