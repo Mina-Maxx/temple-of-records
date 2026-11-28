@@ -5,7 +5,7 @@
 <title>إدارة المعبد — سجل التدقيق</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -29,16 +29,17 @@ A.boot().then(function(ok){
     var pages=Math.max(1,Math.ceil(rows.length/PAGE));if(page>=pages)page=pages-1;
     var view=rows.slice(page*PAGE,(page+1)*PAGE);
     var acts=[...new Set(all.map(function(r){return r.action}))].sort();
-    c.innerHTML='<div class="page-head"><h1>'+A.t('nAudit')+'</h1><span class="sub">'+(ar?'كل إجراء إداري مسجّل: دخول ناجح وفاشل، إنشاء وتعديل وأرشفة، ضبط فلاجات.':'Every admin action is recorded: successful and failed logins, creates, updates, archives, flag changes.')+'</span></div>'+
-    '<div class="frow" style="margin-bottom:12px"><input class="input searchbar" id="q" placeholder="'+A.t('search')+'" value="'+A.esc(q)+'">'+
-    '<select id="f-act" class="input" style="max-width:220px"><option value="">'+(ar?'كل الإجراءات':'All actions')+'</option>'+acts.map(function(x){return '<option'+(x===fAct?' selected':'')+'>'+A.esc(x)+'</option>'}).join('')+'</select>'+
-    '<span class="small dim">'+rows.length+' / '+all.length+'</span></div>'+
-    '<div class="panel" style="padding:0;overflow:hidden">'+
-    (view.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+A.t('auditTs')+'</th><th>'+A.t('auditActor')+'</th><th>'+A.t('auditAction')+'</th><th>'+A.t('auditEntity')+'</th><th>'+A.t('auditRes')+'</th></tr></thead><tbody>'+
-     view.map(function(r){return '<tr><td class="small dim">'+A.fmtTs(r.ts)+'</td><td>'+A.esc(r.actor)+'</td><td>'+A.esc(A.actLabel(r.action))+'<div class="small dim mono" style="font-size:.68rem">'+A.esc(r.action)+'</div></td><td class="mono small">'+A.esc(r.entity)+'</td><td>'+(r.result==='ok'?A.badge(A.resLabel('ok'),'ok'):A.badge(A.resLabel(r.result),r.result==='failed'?'err':'info'))+'</td></tr>'}).join('')+
-    '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('list',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+
+    c.innerHTML='<div class="page-head"><div class="page-head-main"><h1>'+A.t('nAudit')+'</h1><span class="sub">'+(ar?'سجل كل الإجراءات الإدارية: تسجيل الدخول، الإنشاء والتعديل، الأرشفة، وتغيير الفلاجات.':'Every administrative event recorded on audit.jsonl: logins, edits, archives, and flag updates.')+'</span></div></div>'+
+    '<div class="frow">'+
+     '<input class="input searchbar" id="q" type="search" aria-label="'+A.esc(A.t('search'))+'" placeholder="'+A.esc(A.t('search'))+'" value="'+A.esc(q)+'">'+
+     '<select id="f-act" class="input" aria-label="'+A.esc(A.t('auditAction'))+'"><option value="">'+(ar?'كل الإجراءات':'All actions')+'</option>'+acts.map(function(x){return '<option value="'+A.esc(x)+'"'+(x===fAct?' selected':'')+'>'+A.esc(A.actLabel(x))+'</option>'}).join('')+'</select>'+
+     '<span class="count-pill">'+rows.length+' / '+all.length+'</span>'+
     '</div>'+
-    (pages>1?'<div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn sm ghost" id="pg-p" '+(page===0?'disabled':'')+'>‹</button><span class="small dim" style="align-self:center">'+(page+1)+' / '+pages+'</span><button class="btn sm ghost" id="pg-n" '+(page>=pages-1?'disabled':'')+'>›</button></div>':'');
+    '<div class="tbl-wrap">'+(view.length?'<table class="tbl"><thead><tr><th scope="col">'+A.t('auditTs')+'</th><th scope="col">'+A.t('auditActor')+'</th><th scope="col">'+A.t('auditAction')+'</th><th scope="col">'+A.t('auditEntity')+'</th><th scope="col">'+(ar?'تفاصيل':'Detail')+'</th><th scope="col">'+A.t('auditRes')+'</th></tr></thead><tbody>'+
+     view.map(function(r){var al=A.actLabel(r.action);return '<tr><td class="small dim">'+A.fmtTs(r.ts)+'</td><td>'+A.esc(r.actor)+'</td><td>'+A.esc(al)+(al!==r.action?'<div class="t-sub mono">'+A.esc(r.action)+'</div>':'')+'</td><td class="mono small">'+A.esc(r.entity)+'</td><td class="small dim">'+A.esc(r.detail||'—')+'</td><td>'+(r.result==='ok'?A.badge(A.resLabel('ok'),'ok'):A.badge(A.resLabel(r.result),r.result==='failed'?'err':'info'))+'</td></tr>'}).join('')+
+    '</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('list',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>'+
+    (pages>1?'<div class="pager"><button type="button" class="btn sm ghost" id="pg-p" '+(page===0?'disabled':'')+'>‹</button><span>'+(page+1)+' / '+pages+'</span><button type="button" class="btn sm ghost" id="pg-n" '+(page>=pages-1?'disabled':'')+'>›</button></div>':'');
+
     var qEl=document.getElementById('q');
     qEl.oninput=function(){q=this.value.toLowerCase();page=0;paint();var el=document.getElementById('q');el.focus();el.setSelectionRange(el.value.length,el.value.length)};
     document.getElementById('f-act').onchange=function(){fAct=this.value;page=0;paint()};
@@ -47,7 +48,7 @@ A.boot().then(function(ok){
     if(pn)pn.onclick=function(){page++;paint()};
    }
    paint();
-  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+  }).catch(function(){c.innerHTML='<div class="empty"><h3>'+A.t('errNet')+'</h3></div>'});
  });
 });
 })();

@@ -2,10 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إدارة المعبد — لوحة التحكم</title>
+<title>إدارة المعبد — نظرة عامة</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -13,70 +13,127 @@
 <script>
 (function(){
 var A=window.TORADMIN;
-A.boot().then(function(ok){
- if(!ok)return;
+A.boot().then(function(me){
+ if(!me)return;
  A.shell('dashboard','<b>'+A.t('nDash')+'</b>',function(c){
-  Promise.all([A.api('/admin/api/stats'),A.api('/admin/api/audit')]).then(function(rs){
-   var s=rs[0],au=(rs[1].audit||[]).slice(0,6);
-   var health=[];
-   health.push([A.t('stAvail')+': '+s.challenges_available+' / '+s.challenges,A.t('sChal')]);
-   health.push([s.demo_data?A.t('stDemo'):'',A.t('sampleData')]);
+  var ar=A.lang()==='ar';
+  var todayStr=new Date().toLocaleDateString(ar?'ar-EG-u-nu-latn':'en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  Promise.all([
+   A.api('/admin/api/stats'),
+   A.api('/admin/api/audit'),
+   A.api('/admin/api/content'),
+   A.api('/admin/api/submissions'),
+   fetch('/health').then(function(r){return r.ok?r.json():null}).catch(function(){return null})
+  ]).then(function(rs){
+   var s=rs[0],au=(rs[1].audit||[]).slice(0,8),cols=(rs[2]&&rs[2].collections)||{},subs=(rs[3].submissions||[]).slice(0,8),hlth=rs[4];
+   var sub14=(s.chart_days||[]).reduce(function(acc,d){return acc+(d.submissions||0)},0);
+   var allContent=[].concat(cols.challenges||[],cols.articles||[],cols.investigations||[]);
+   var nowMs=Date.now();
+   var counts={published:0,draft:0,scheduled:0,archived:0};
+   allContent.forEach(function(x){
+    if(x.hidden||x.status==='archived'||x.availability==='archived')counts.archived++;
+    else if(x.status==='draft')counts.draft++;
+    else if(x.publish_at&&Date.parse(x.publish_at)>nowMs)counts.scheduled++;
+    else counts.published++;
+   });
+   var hasSample=(cols.challenges||[]).some(function(ch){return ch.sample===true})||(cols.articles||[]).some(function(a){return a.sample===true});
+   var sf=document.getElementById('side-foot');
+   if(sf&&hasSample){var sp=document.createElement('span');sp.className='dim';sp.textContent=A.t('demoNote');sf.appendChild(sp)}
+
    c.innerHTML=
-   '<div class="page-head"><h1>'+A.t('nDash')+'</h1><span class="sub">'+A.t('dashWelcome')+'</span>'+
-   '<div class="acts"><a class="btn primary" href="challenge-edit.html">'+A.icon('flag',15)+(A.lang()==='ar'?A.t('create')+' '+A.t('sChal'):'Create challenge')+'</a></div></div>'+
-   '<div class="grid-stats">'+
-    stat(A.t('sChal'),s.challenges,A.t('sAvail')+': '+s.challenges_available)+
-    stat(A.lang()==='ar'?'تحديات منشورة':'Published challenges',s.challenges_published,'')+stat(A.t('sInv'),s.investigations||0,(A.lang()==='ar'?'منشور: ':'Public: ')+(s.investigations_public||0))+stat(A.t('sArt'),s.articles,'')+
-    stat(A.t('sSolves'),s.total_solves,'')+
-    stat(A.t('sSubs'),s.total_submissions,'')+
-    stat(A.lang()==='ar'?'قيد التحضير':'In preparation',s.challenges_preparation,'')+stat(A.lang()==='ar'?'ملفات الأدلة (خارجية)':'Evidence (external)',s.evidence_count,A.lang()==='ar'?'0 بايت مستضاف':'0 bytes hosted')+
+   '<div class="dash-welcome"><div>'+
+    '<div class="kicker">'+A.esc(A.t('brandSub'))+'</div>'+
+    '<h1>'+(ar?'مرحبًا، ':'Welcome, ')+A.esc(me.username||'admin')+'</h1>'+
+    '<div class="dash-date">'+A.esc(todayStr)+' · '+A.esc(A.t('dashWelcome'))+'</div>'+
    '</div>'+
-   '<div class="row2">'+
-   '<div class="panel"><h2>'+(A.lang()==='ar'?'المحاولات — آخر 14 يومًا':'Submissions — last 14 days')+'</h2>'+barChart(s.chart_days||[])+'</div>'+
-   '<div class="panel"><h2>'+(A.lang()==='ar'?'الحلول — آخر 14 يومًا':'Solves — last 14 days')+'</h2>'+barChart((s.chart_days||[]).map(d=>({day:d.day,submissions:d.solves})))+'</div><div class="panel"><h2>'+(A.lang()==='ar'?'الحلول لكل تحدٍّ':'Solves per challenge')+'</h2>'+solveChart(s.chart_solves||{})+
-   '<h2 style="margin-top:14px">'+(A.lang()==='ar'?'نتائج المحاولات':'Submission results')+'</h2>'+resultChart(s.chart_results||{})+'</div>'+
+   '<div class="acts">'+
+    '<a class="btn primary" href="investigations.html?edit=1">'+A.icon('search',15)+A.esc(A.t('qInv'))+'</a>'+
+    '<a class="btn ghost" href="challenge-edit.html">'+A.icon('flag',15)+A.esc(A.t('qChal'))+'</a>'+
+    '<a class="btn ghost" href="article-edit.html">'+A.icon('doc',15)+A.esc(A.t('qArt'))+'</a>'+
+   '</div></div>'+
+
+   '<section aria-label="KPIs" class="grid-stats">'+
+    stat(A.t('sInv'),s.investigations||0,(ar?'منشور: ':'Public: ')+(s.investigations_public||0))+
+    stat(A.t('sChal'),s.challenges||0,A.t('sAvail')+': '+(s.challenges_available||0))+
+    stat(A.t('sArt'),s.articles||0,(ar?'منشور بالمحتوى':'Editorial writeups'))+
+    stat(A.t('sSolves'),s.total_solves||0,(ar?'عبر ':'Across ')+(s.players||0)+' '+(ar?'لاعب':'players'))+
+    stat(A.t('sSubs'),sub14,(ar?'الإجمالي الكلي: ':'All-time total: ')+(s.total_submissions||0))+
+   '</section>'+
+
+   '<div class="dash-grid">'+
+    '<section class="panel"><h2>'+(ar?'حالة المحتوى':'Content overview by status')+'</h2><p class="sub">'+(ar?'توزيع التحديات والرايتبس والتحقيقات حسب النشر.':'Distribution across Challenges, Writeups, and Investigations.')+'</p>'+
+     '<div class="status-bars">'+
+      stBox(ar?'منشور':'Published',counts.published,'ok')+
+      stBox(ar?'مسودات':'Drafts',counts.draft,'info')+
+      stBox(ar?'مجدول':'Scheduled',counts.scheduled,'warn')+
+      stBox(ar?'مؤرشف':'Archived',counts.archived,'dim')+
+     '</div>'+
+     '<div class="mt-4"><h3 class="small dim mb-3">'+(ar?'نتائج المحاولات المسجلة':'Submission outcomes')+'</h3>'+resultChart(s.chart_results||{})+'</div>'+
+    '</section>'+
+    '<section class="panel"><h2>'+(ar?'المحاولات والحلول — آخر 14 يومًا':'Activity — last 14 days')+'</h2><p class="sub">'+(ar?'الذهبي للمحاولات والتيل للحلول الصحيحة.':'Gold bars show total attempts; teal shows solves.')+'</p>'+
+     dualChart(s.chart_days||[])+
+    '</section>'+
+    '<section class="panel"><h2>'+(ar?'الحلول لكل تحدٍّ':'Solves per challenge')+'</h2><p class="sub">'+(ar?'إجمالي الحلول المعتمدة لكل معمل.':'Accepted solves recorded per challenge ID.')+'</p>'+
+     solveChart(s.chart_solves||{})+
+    '</section>'+
+    '<section class="panel"><h2>'+A.t('health')+'</h2><p class="sub">'+(ar?'البيانات المباشرة من الخادم والمخزن.':'Live readings from /health and runtime store.')+'</p>'+
+     '<dl class="kv">'+
+      '<dt>/health</dt><dd>'+(hlth&&hlth.status==='ok'?A.badge('ok','ok')+' <span class="mono small dim">uptime '+fmtUptime(hlth.uptime||0)+'</span>':A.badge(ar?'غير متاح':'unreachable','err'))+'</dd>'+
+      '<dt>'+A.t('sChal')+'</dt><dd>'+(s.challenges_available||0)+' / '+(s.challenges||0)+' '+A.esc(A.t('stAvail'))+' ('+(s.challenges_preparation||0)+' '+A.esc(A.t('stPrep'))+')</dd>'+
+      '<dt>'+(ar?'بيانات تجريبية':'Sample records')+'</dt><dd>'+(hasSample?A.badge(A.t('stDemo'),'warn'):A.badge(ar?'لا يوجد':'None','ok'))+'</dd>'+
+      '<dt>'+(ar?'الأدلة الخارجية':'External evidence')+'</dt><dd class="mono">'+(s.evidence_count||0)+' '+(ar?'رابطًا (0 بايت مستضاف)':'links (0 hosted bytes)')+'</dd>'+
+      '<dt>'+A.t('nFlags')+'</dt><dd>'+A.badge('scrypt / SHA-256','info')+'</dd>'+
+     '</dl>'+
+    '</section>'+
    '</div>'+
-   '<div class="row2">'+
-   '<div class="panel"><h2>'+A.t('health')+'</h2><p class="sub">'+A.t('sampleData')+'</p>'+
-    '<div class="kv">'+
-    '<dt>'+A.t('sChal')+'</dt><dd>'+s.challenges_available+' / '+s.challenges+' '+A.t('stAvail')+'</dd>'+
-    '<dt>'+A.t('demoNote')+'</dt><dd>'+(s.demo_data?A.badge(A.t('stDemo'),'warn'):A.badge('OK','ok'))+'</dd>'+
-    '<dt>'+A.t('nFlags')+'</dt><dd>'+A.badge('SHA-256','info')+' <span class="small dim">server-side</span></dd>'+
-    '</div></div>'+
-   '<div class="panel"><h2>'+A.t('recentAct')+'</h2><p class="sub"></p>'+
-    (au.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>'+A.t('auditTs')+'</th><th>'+A.t('auditAction')+'</th><th>'+A.t('auditEntity')+'</th><th>'+A.t('auditRes')+'</th></tr></thead><tbody>'+
-     au.map(function(a){var al=A.actLabel(a.action),rl=A.resLabel(a.result);return '<tr><td class="small dim">'+A.fmtTs(a.ts)+'</td><td>'+A.esc(al)+'<div class="small dim mono" style="font-size:.68rem">'+A.esc(a.action)+'</div></td><td class="small">'+A.esc(a.entity)+'</td><td>'+(a.result==='ok'?A.badge(rl,'ok'):A.badge(rl,a.result==='failed'?'err':'info'))+'</td></tr>'}).join('')+
-    '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('list',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+
-   '</div></div>';
+
+   '<div class="dash-grid">'+
+    '<section>'+
+     '<div class="inline-acts mb-3" style="justify-content:space-between"><h2>'+A.t('recentAct')+'</h2><a class="small" href="audit.html">'+(ar?'عرض الكل ←':'View all →')+'</a></div>'+
+     '<div class="tbl-wrap">'+(au.length?'<table class="tbl"><thead><tr><th scope="col">'+A.t('auditTs')+'</th><th scope="col">'+A.t('auditAction')+'</th><th scope="col">'+A.t('auditEntity')+'</th><th scope="col">'+A.t('auditRes')+'</th></tr></thead><tbody>'+
+      au.map(function(a){var al=A.actLabel(a.action),rl=A.resLabel(a.result);return '<tr><td class="small dim">'+A.fmtTs(a.ts)+'</td><td>'+A.esc(al)+'</td><td class="mono small">'+A.esc(a.entity)+'</td><td>'+(a.result==='ok'?A.badge(rl,'ok'):A.badge(rl,a.result==='failed'?'err':'info'))+'</td></tr>'}).join('')+
+     '</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('list',20)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>'+
+    '</section>'+
+    '<section>'+
+     '<div class="inline-acts mb-3" style="justify-content:space-between"><h2>'+A.t('nSubs')+'</h2><a class="small" href="submissions.html">'+(ar?'عرض الكل ←':'View all →')+'</a></div>'+
+     '<div class="tbl-wrap">'+(subs.length?'<table class="tbl"><thead><tr><th scope="col">'+A.t('auditTs')+'</th><th scope="col">'+(ar?'اللاعب':'Player')+'</th><th scope="col">'+(ar?'التحدي':'Challenge')+'</th><th scope="col">'+A.t('auditRes')+'</th></tr></thead><tbody>'+
+      subs.map(function(r){return '<tr><td class="small dim">'+A.fmtTs(r.ts)+'</td><td>'+A.esc(r.name||(ar?'مجهول':'Anonymous'))+'</td><td class="mono small">'+A.esc(r.challenge)+'</td><td>'+(r.result==='correct'?A.badge(A.resLabel('correct'),'ok'):r.result==='already'?A.badge(A.resLabel('already'),'info'):r.result==='rate_limited'?A.badge(A.resLabel('rate_limited'),'warn'):A.badge(A.resLabel(r.result),'err'))+'</td></tr>'}).join('')+
+     '</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('send',20)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>'+
+    '</section>'+
+   '</div>';
   }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
  });
- function barChart(days){
-  var W=520,H=140,P=22,max=Math.max(1,Math.max.apply(null,days.map(function(d){return d.submissions})));
+ function stBox(lbl,n,kind){return '<div class="status-pill"><div class="n">'+n+'</div><div class="lbl">'+A.badge(lbl,kind)+'</div></div>'}
+ function stat(k,v,d){return '<div class="stat"><div class="k">'+A.esc(k)+'</div><div class="v">'+v+'</div>'+(d?'<div class="d">'+A.esc(d)+'</div>':'')+'</div>'}
+ function fmtUptime(sec){var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h?h+'h '+m+'m':m?m+'m '+s+'s':s+'s'}
+ function dualChart(days){
+  var W=520,H=150,P=34,max=Math.max(1,Math.max.apply(null,days.map(function(d){return Math.max(d.submissions||0,d.solves||0)})));
   if(!days.length)return '<div class="empty"><h3>'+A.t('empty')+'</h3></div>';
-  var bw=(W-P*2)/days.length;
+  var slot=(W-P*2)/days.length,bw=Math.max(3,slot*0.42);
   var bars=days.map(function(d,i){
-   var h=(d.submissions/max)*(H-P*2),x=P+i*bw+2,y=H-P-h;
-   return '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(bw-4).toFixed(1)+'" height="'+Math.max(0.5,h).toFixed(1)+'" rx="2" fill="#c9a45c"><title>'+d.day+': '+d.submissions+'</title></rect>';
+   var h1=((d.submissions||0)/max)*(H-P*2),x1=P+i*slot+1,y1=H-P-h1;
+   var h2=((d.solves||0)/max)*(H-P*2),x2=x1+bw+1,y2=H-P-h2;
+   return '<rect x="'+x1.toFixed(1)+'" y="'+y1.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1,h1).toFixed(1)+'" rx="2" fill="var(--gold)"><title>'+A.esc(d.day)+': '+(d.submissions||0)+'</title></rect>'+
+    (d.solves?'<rect x="'+x2.toFixed(1)+'" y="'+y2.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1,h2).toFixed(1)+'" rx="2" fill="var(--teal)"><title>'+A.esc(d.day)+': '+(d.solves||0)+'</title></rect>':'');
   }).join('');
-  var lbl='<text x="'+P+'" y="'+(H-6)+'" fill="#8a8577" font-size="9">'+days[0].day.slice(5)+'</text><text x="'+(W-P)+'" y="'+(H-6)+'" fill="#8a8577" font-size="9" text-anchor="end">'+days[days.length-1].day.slice(5)+'</text>';
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img"><line x1="'+P+'" y1="'+(H-P)+'" x2="'+(W-P)+'" y2="'+(H-P)+'" stroke="#2a2f33"/>'+bars+lbl+'</svg>';
+  var lbl='<text x="'+P+'" y="'+(H-8)+'" fill="var(--text-dim)" font-size="10" text-anchor="start">'+A.esc(days[0].day.slice(5))+'</text><text x="'+(W-P)+'" y="'+(H-8)+'" fill="var(--text-dim)" font-size="10" text-anchor="end">'+A.esc(days[days.length-1].day.slice(5))+'</text>';
+  return '<svg dir="ltr" viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img" aria-label="14-day submissions and solves"><line x1="'+P+'" y1="'+(H-P)+'" x2="'+(W-P)+'" y2="'+(H-P)+'" stroke="var(--hairline)"/>'+bars+lbl+'</svg>';
  }
  function solveChart(m){
-  var ks=Object.keys(m);if(!ks.length)return '<div class="empty" style="padding:14px"><h3>'+A.t('empty')+'</h3></div>';
-  var max=Math.max.apply(null,ks.map(function(k){return m[k]}));
-  return '<div style="display:grid;gap:8px;margin-top:6px">'+ks.map(function(k){
+  var ks=Object.keys(m);if(!ks.length)return '<div class="empty"><h3>'+A.t('empty')+'</h3></div>';
+  var max=Math.max.apply(null,ks.map(function(k){return m[k]}))||1;
+  return '<div class="chart-bars">'+ks.map(function(k){
    var pct=Math.round(m[k]/max*100);
-   return '<div><div class="small mono" style="margin-bottom:3px">'+A.esc(k)+' <span class="dim">'+m[k]+'</span></div><div style="height:8px;background:#1a1e22;border-radius:4px"><div style="height:8px;width:'+pct+'%;background:#c9a45c;border-radius:4px"></div></div></div>';
+   return '<div><div class="small mono mb-3">'+A.esc(k)+' <span class="dim">'+m[k]+'</span></div><div class="progress"><i style="width:'+pct+'%"></i></div></div>';
   }).join('')+'</div>';
  }
  function resultChart(m){
-  var ks=Object.keys(m);if(!ks.length)return '<div class="empty" style="padding:14px"><h3>'+A.t('empty')+'</h3></div>';
+  var ks=Object.keys(m);if(!ks.length)return '<p class="small dim">'+A.t('empty')+'</p>';
   var tot=ks.reduce(function(a,k){return a+m[k]},0)||1;
-  var colors={correct:'#5da875',wrong:'#c0655f',already:'#6d8fbf',rate_limited:'#c9a45c'};
-  return '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:6px">'+ks.map(function(k){return '<div style="width:'+(m[k]/tot*100)+'%;background:'+(colors[k]||'#555')+'" title="'+k+': '+m[k]+'"></div>'}).join('')+'</div>'+
-  '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px">'+ks.map(function(k){return '<span class="small"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+(colors[k]||'#555')+';margin-inline-end:5px"></span>'+A.esc(A.resLabel(k))+' <span class="dim mono">'+m[k]+'</span></span>'}).join('')+'</div>';
+  var colors={correct:'var(--ok)',wrong:'var(--err)',already:'var(--teal)',rate_limited:'var(--warn)'};
+  return '<div class="result-strip">'+ks.map(function(k){return '<div style="width:'+(m[k]/tot*100)+'%;background:'+(colors[k]||'var(--muted)')+'" title="'+A.esc(k)+': '+m[k]+'"></div>'}).join('')+'</div>'+
+  '<div class="result-legend">'+ks.map(function(k){return '<span class="small"><span class="dot" style="background:'+(colors[k]||'var(--muted)')+'"></span>'+A.esc(A.resLabel(k))+' <span class="dim mono">'+m[k]+'</span></span>'}).join('')+'</div>';
  }
- function stat(k,v,d){return '<div class="stat"><div class="k">'+A.esc(k)+'</div><div class="v">'+v+'</div>'+(d?'<div class="d">'+A.esc(d)+'</div>':'')+'</div>'}
 });
 })();
 </script>

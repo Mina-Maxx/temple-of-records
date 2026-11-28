@@ -5,7 +5,7 @@
 <title>إدارة المعبد — اللاعبون</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -17,41 +17,51 @@ A.boot().then(function(ok){
  if(!ok)return;
  A.shell('players','<b>'+A.t('nPlayers')+'</b>',function(c){
   A.api('/admin/api/players').then(function(j){
-   var all=j.players||[],q='',state='';var ar=A.lang()==='ar';
-   var subs=[];
+   var all=j.players||[],q='',state='',ar=A.lang()==='ar',subs=[];
    function paint(){
-   var rows=all.filter(p=>(!q||(p.identity||'').includes(q)||(p.name||'').toLowerCase().includes(q))&&(!state||(state==='disabled'?p.disabled:!p.disabled)));
-   c.innerHTML='<div class="page-head"><h1>'+A.t('nPlayers')+'</h1><span class="sub">'+(ar?'أسماء اللاعبين والحلول المسجلة — التعطيل يمنع الرمز من إرسال محاولات جديدة.':'Player names and recorded solves — disabling blocks new submissions.')+'</span></div>'+
-   '<div class="frow"><input class="input" id="pq" dir="ltr" placeholder="'+(ar?'بحث بالاسم أو الرمز':'Search name or identity')+'" value="'+A.esc(q)+'"><select class="input" id="pst"><option value="">'+(ar?'كل الحالات':'All states')+'</option><option value="active"'+(state==='active'?' selected':'')+'>'+(ar?'نشط':'Active')+'</option><option value="disabled"'+(state==='disabled'?' selected':'')+'>'+(ar?'معطّل':'Disabled')+'</option></select></div>'+
-   '<div class="panel" style="padding:0;overflow:hidden">'+
-   (rows.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+(ar?'الاسم':'Solver name')+'</th><th>'+(ar?'الرمز':'Identity')+'</th><th>'+(ar?'محاولات':'Attempts')+'</th><th>'+(ar?'التحديات المحلولة':'Challenges solved')+'</th><th>'+(ar?'أول نشاط':'First seen')+'</th><th>'+(ar?'آخر نشاط':'Last seen')+'</th><th></th></tr></thead><tbody>'+
-    rows.map(function(p){return '<tr><td><b>'+A.esc(p.name||(ar?'مجهول':'Anonymous'))+'</b></td><td class="mono dim small">'+A.esc((p.identity||'').slice(0,10))+'…</td><td class="mono">'+A.esc(p.submissions||0)+'</td><td>'+(p.solved||[]).map(function(s){return '<span class="tag mono">'+A.esc(s)+'</span>'}).join('')+'</td><td class="small dim">'+A.fmtTs(p.first)+'</td><td class="small dim">'+A.fmtTs(p.last)+'</td>'+
-    '<td style="white-space:nowrap">'+(p.disabled?A.badge((ar?'معطَّل':'Disabled'),'danger')+' ':'')+
-    '<button class="btn sm ghost" data-hist="'+A.esc(p.identity)+'">'+(ar?'السجل':'History')+'</button> '+
-    '<button class="btn sm '+(p.disabled?'ghost':'danger')+'" data-tgl="'+A.esc(p.identity)+'" data-on="'+(p.disabled?'0':'1')+'">'+(p.disabled?(ar?'تفعيل':'Enable'):(ar?'تعطيل':'Disable'))+'</button></td></tr>'}).join('')+
-   '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('users',22)+'</div><h3>'+A.t('empty')+'</h3><p>'+(ar?'يظهر اللاعبون بعد أول حل ناجح.':'Players appear after their first successful solve.')+'</p></div>')+
-   '</div>';
-   document.getElementById('pq').oninput=function(){q=this.value;paint();var el=document.getElementById('pq');el.focus();if(el.setSelectionRange)el.setSelectionRange(el.value.length,el.value.length)};document.getElementById('pst').onchange=function(){state=this.value;paint()};
-   c.querySelectorAll('[data-tgl]').forEach(function(b){b.onclick=function(){
-    var id=b.dataset.tgl,dis=b.dataset.on==='1';
-    A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات، وسيختفي اسمه من قوائم الحالّين العامة.':'Disable this token? It can no longer submit and its name is hidden from the public solver lists.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
-     A.api('/admin/api/players/'+encodeURIComponent(id)+'/disabled',{method:'POST',body:{disabled:dis}}).then(function(r){
-      done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(A.t('failed'),'err');
-     }).catch(function(){done();A.toast(A.t('errNet'),'err')});
+    var ql=q.toLowerCase();
+    var rows=all.filter(function(p){return (!ql||(p.identity||'').includes(ql)||(p.name||'').toLowerCase().includes(ql))&&(!state||(state==='disabled'?p.disabled:!p.disabled))});
+    c.innerHTML='<div class="page-head"><div class="page-head-main"><h1>'+A.t('nPlayers')+'</h1><span class="sub">'+(ar?'اللاعبون والحلول المسجّلة — تعطيل الرمز يمنعه من الإرسال ويخفي اسمه من قوائم الحالّين العامة.':'Recorded solver identities — disabling blocks submissions and hides the name from public solver lists.')+'</span></div></div>'+
+    '<div class="frow">'+
+     '<input class="input searchbar" id="pq" type="search" dir="ltr" aria-label="'+(ar?'بحث بالاسم أو الرمز':'Search name or identity')+'" placeholder="'+(ar?'بحث بالاسم أو الرمز':'Search name or identity')+'" value="'+A.esc(q)+'">'+
+     '<select class="input" id="pst" aria-label="'+(ar?'الحالة':'State')+'"><option value="">'+(ar?'كل الحالات':'All states')+'</option><option value="active"'+(state==='active'?' selected':'')+'>'+(ar?'نشط':'Active')+'</option><option value="disabled"'+(state==='disabled'?' selected':'')+'>'+(ar?'معطّل':'Disabled')+'</option></select>'+
+     '<span class="count-pill">'+rows.length+' / '+all.length+'</span>'+
+    '</div>'+
+    '<div class="tbl-wrap">'+(rows.length?'<table class="tbl"><thead><tr><th scope="col">'+(ar?'الاسم':'Solver name')+'</th><th scope="col">'+(ar?'الرمز':'Identity')+'</th><th scope="col">'+(ar?'محاولات':'Attempts')+'</th><th scope="col">'+(ar?'التحديات المحلولة':'Solved')+'</th><th scope="col">'+(ar?'أول نشاط':'First seen')+'</th><th scope="col">'+(ar?'آخر نشاط':'Last seen')+'</th><th scope="col">'+A.t('actions')+'</th></tr></thead><tbody>'+
+     rows.map(function(p){
+      return '<tr><td><b>'+A.esc(p.name||(ar?'مجهول':'Anonymous'))+'</b>'+(p.disabled?'<div>'+A.badge(ar?'معطّل':'Disabled','err')+'</div>':'')+'</td>'+
+      '<td class="mono dim small">'+A.esc((p.identity||'').slice(0,12))+'…</td>'+
+      '<td class="mono">'+A.esc(p.submissions||0)+'</td>'+
+      '<td>'+((p.solved||[]).map(function(s){return '<span class="tag mono">'+A.esc(s)+'</span>'}).join('')||'<span class="dim small">—</span>')+'</td>'+
+      '<td class="small dim">'+A.fmtTs(p.first)+'</td><td class="small dim">'+A.fmtTs(p.last)+'</td>'+
+      '<td class="acts-cell"><div class="inline-acts" style="justify-content:flex-end">'+
+       '<button type="button" class="btn sm ghost" data-hist="'+A.esc(p.identity)+'">'+(ar?'السجل':'History')+'</button>'+
+       '<button type="button" class="btn sm '+(p.disabled?'ghost':'danger')+'" data-tgl="'+A.esc(p.identity)+'" data-on="'+(p.disabled?'0':'1')+'">'+(p.disabled?(ar?'تفعيل':'Enable'):(ar?'تعطيل':'Disable'))+'</button>'+
+      '</div></td></tr>';
+     }).join('')+
+    '</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('users',22)+'</div><h3>'+A.t('empty')+'</h3><p>'+(ar?'يظهر اللاعبون بعد أول حل ناجح.':'Players appear after their first recorded activity.')+'</p></div>')+'</div>';
+
+    document.getElementById('pq').oninput=function(){q=this.value;paint();var el=document.getElementById('pq');el.focus();if(el.setSelectionRange)el.setSelectionRange(el.value.length,el.value.length)};
+    document.getElementById('pst').onchange=function(){state=this.value;paint()};
+    c.querySelectorAll('[data-tgl]').forEach(function(b){b.onclick=function(){
+     var id=b.dataset.tgl,dis=b.dataset.on==='1';
+     A.modal({title:A.t('confirm'),body:dis?(ar?'تعطيل هذا الرمز؟ لن يستطيع إرسال محاولات، وسيختفي اسمه من قوائم الحالّين العامة.':'Disable this token? It can no longer submit and its name is hidden from the public solver lists.'):(ar?'إعادة تفعيل الرمز؟':'Re-enable this token?'),danger:dis,onConfirm:function(done){
+      A.api('/admin/api/players/'+encodeURIComponent(id)+'/disabled',{method:'POST',body:{disabled:dis}}).then(function(r){
+       done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(r.error||A.t('failed'),'err');
+      }).catch(function(){done();A.toast(A.t('errNet'),'err')});
+     }});
     }});
-   }});
-   c.querySelectorAll('[data-hist]').forEach(function(b){b.onclick=function(){
-    var id=b.dataset.hist;
-    var mine=subs.filter(function(x){return x.identity===id}).slice().reverse();
-    A.modal({title:(ar?'سجل المحاولات':'Submission history')+' — '+id.slice(0,12)+'…',html:true,body:mine.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>'+(ar?'الوقت':'Time')+'</th><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'النتيجة':'Result')+'</th></tr></thead><tbody>'+mine.map(function(x){return '<tr><td class="small dim">'+A.fmtTs(x.ts)+'</td><td class="mono">'+A.esc(x.challenge)+'</td><td>'+A.badge(x.result,x.result==='correct'?'ok':x.result==='wrong'?'danger':'dim')+'</td></tr>'}).join('')+'</tbody></table></div>':A.t('empty'),onConfirm:function(d){d()}});
-   }});
+    c.querySelectorAll('[data-hist]').forEach(function(b){b.onclick=function(){
+     var id=b.dataset.hist;
+     var mine=subs.filter(function(x){return x.identity===id}).slice().reverse();
+     A.modal({title:(ar?'سجل المحاولات':'Submission history')+' — '+id.slice(0,12)+'…',html:true,body:mine.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">'+(ar?'الوقت':'Time')+'</th><th scope="col">'+(ar?'التحدي':'Challenge')+'</th><th scope="col">'+(ar?'النتيجة':'Result')+'</th></tr></thead><tbody>'+mine.map(function(x){return '<tr><td class="small dim">'+A.fmtTs(x.ts)+'</td><td class="mono">'+A.esc(x.challenge)+'</td><td>'+A.badge(A.resLabel(x.result),x.result==='correct'?'ok':x.result==='wrong'?'err':'dim')+'</td></tr>'}).join('')+'</tbody></table></div>':A.t('empty'),confirmLabel:ar?'إغلاق':'Close',onConfirm:function(d){d()}});
+    }});
    }
    A.api('/admin/api/submissions').then(function(sj){subs=sj.submissions||[];paint()}).catch(function(){paint()});
-  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+  }).catch(function(){c.innerHTML='<div class="empty"><h3>'+A.t('errNet')+'</h3></div>'});
  });
 });
 })();
 </script>
-
 </body>
 </html>

@@ -2,10 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إدارة المعبد — المحاولات</title>
+<title>إدارة المعبد — المحاولات والحلول</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -21,45 +21,58 @@ A.boot().then(function(ok){
    var ar=A.lang()==='ar';
    var fCh='',fRes='',fPlayer='',fFrom='',fTo='',PAGE=25,page=0;
    function paint(){
-    var rows=all.filter(function(r){return (!fCh||r.challenge===fCh)&&(!fRes||r.result===fRes)&&(!fPlayer||(r.identity||'').includes(fPlayer)||(r.name||'').toLowerCase().includes(fPlayer.toLowerCase()))&&(!fFrom||String(r.ts).slice(0,10)>=fFrom)&&(!fTo||String(r.ts).slice(0,10)<=fTo)});
+    var rows=all.filter(function(r){
+     return (!fCh||r.challenge===fCh)&&(!fRes||r.result===fRes)&&(!fPlayer||(r.identity||'').includes(fPlayer)||(r.name||'').toLowerCase().includes(fPlayer.toLowerCase()))&&(!fFrom||String(r.ts).slice(0,10)>=fFrom)&&(!fTo||String(r.ts).slice(0,10)<=fTo);
+    });
     var pages=Math.max(1,Math.ceil(rows.length/PAGE));if(page>=pages)page=pages-1;
     var view=rows.slice(page*PAGE,(page+1)*PAGE);
     var chs=[...new Set(all.map(function(r){return r.challenge}))];
-    c.innerHTML='<div class="page-head"><h1>'+A.t('nSubs')+'</h1><span class="sub">'+(ar?'كل محاولات الفلاج — نصوص الفلاجات مقنّعة دائمًا، وعناوين IP مُهشّمة.':'Every flag attempt — flag text always masked, IPs hashed.')+'</span></div>'+
-    '<div class="frow" style="margin-bottom:12px"><select id="f-ch" class="input" style="max-width:260px"><option value="">'+(ar?'كل التحديات':'All challenges')+'</option>'+chs.map(function(x){return '<option'+(x===fCh?' selected':'')+'>'+A.esc(x)+'</option>'}).join('')+'</select>'+
-    '<select id="f-res" class="input" style="max-width:200px"><option value="">'+(ar?'كل النتائج':'All results')+'</option>'+['correct','wrong','already','rate_limited'].map(function(x){return '<option value="'+x+'"'+(x===fRes?' selected':'')+'>'+A.esc(A.resLabel(x))+'</option>'}).join('')+'</select>'+
-    '<input class="input" id="f-player" dir="ltr" value="'+A.esc(fPlayer)+'" placeholder="'+(ar?'اسم اللاعب أو المعرّف':'Player name or ID')+'"><input class="input" type="date" id="f-from" value="'+A.esc(fFrom)+'" aria-label="From date"><input class="input" type="date" id="f-to" value="'+A.esc(fTo)+'" aria-label="To date">'+
-    '<span class="small dim">'+rows.length+' / '+all.length+'</span></div>'+
-    '<div class="panel" style="padding:0;overflow:hidden">'+
-    (view.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+A.t('auditTs')+'</th><th>'+(ar?'اللاعب':'Player')+'</th><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'الفلاج (مقنّع)':'Flag (masked)')+'</th><th>'+A.t('auditRes')+'</th><th>IP</th></tr></thead><tbody>'+
-     view.map(function(r,ri){return '<tr data-sub="'+(page*PAGE+ri)+'" style="cursor:pointer"><td class="small dim">'+A.fmtTs(r.ts)+'</td><td><b>'+A.esc(r.name||(ar?'مجهول':'Anonymous'))+'</b><div class="mono dim small" style="font-size:.68rem">'+A.esc((r.identity||'').slice(0,8))+'…</div></td><td class="mono">'+A.esc(r.challenge)+'</td><td class="mono">'+A.esc(r.flag_masked)+'</td><td>'+(r.result==='correct'?A.badge(A.resLabel('correct'),'ok'):r.result==='already'?A.badge(A.resLabel('already'),'info'):r.result==='rate_limited'?A.badge(A.resLabel('rate_limited'),'warn'):A.badge(A.resLabel(r.result),'err'))+'</td><td class="mono dim">'+A.esc((r.ip_hash||'').slice(0,10))+'…</td></tr>'}).join('')+
-    '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('send',22)+'</div><h3>'+A.t('empty')+'</h3><p>'+(ar?'ستظهر المحاولات هنا فور وصولها.':'Attempts appear here as they arrive.')+'</p></div>')+
+    c.innerHTML='<div class="page-head"><div class="page-head-main"><h1>'+A.t('nSubs')+'</h1><span class="sub">'+(ar?'كل محاولات الفلاج — النصوص مقنّعة دائمًا وعناوين IP مُهشّمة. اضغط على أي صف للتفاصيل.':'Every flag attempt — flag text always masked, IPs hashed. Select a row for details.')+'</span></div></div>'+
+    '<div class="frow">'+
+     '<select id="f-ch" class="input" aria-label="'+(ar?'التحدي':'Challenge')+'"><option value="">'+(ar?'كل التحديات':'All challenges')+'</option>'+chs.map(function(x){return '<option'+(x===fCh?' selected':'')+'>'+A.esc(x)+'</option>'}).join('')+'</select>'+
+     '<select id="f-res" class="input" aria-label="'+A.esc(A.t('auditRes'))+'"><option value="">'+(ar?'كل النتائج':'All results')+'</option>'+['correct','wrong','already','rate_limited'].map(function(x){return '<option value="'+x+'"'+(x===fRes?' selected':'')+'>'+A.esc(A.resLabel(x))+'</option>'}).join('')+'</select>'+
+     '<input class="input" id="f-player" dir="ltr" value="'+A.esc(fPlayer)+'" aria-label="'+(ar?'اللاعب':'Player')+'" placeholder="'+(ar?'اسم اللاعب أو المعرّف':'Player name or ID')+'">'+
+     '<input class="input" type="date" id="f-from" value="'+A.esc(fFrom)+'" aria-label="From date">'+
+     '<input class="input" type="date" id="f-to" value="'+A.esc(fTo)+'" aria-label="To date">'+
+     '<span class="count-pill">'+rows.length+' / '+all.length+'</span>'+
     '</div>'+
-    (pages>1?'<div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn sm ghost" id="pg-p" '+(page===0?'disabled':'')+'>‹</button><span class="small dim" style="align-self:center">'+(page+1)+' / '+pages+'</span><button class="btn sm ghost" id="pg-n" '+(page>=pages-1?'disabled':'')+'>›</button></div>':'');
+    '<div class="tbl-wrap">'+(view.length?'<table class="tbl"><thead><tr><th scope="col">'+A.t('auditTs')+'</th><th scope="col">'+(ar?'اللاعب':'Player')+'</th><th scope="col">'+(ar?'التحدي':'Challenge')+'</th><th scope="col">'+(ar?'الفلاج (مقنّع)':'Flag (masked)')+'</th><th scope="col">'+A.t('auditRes')+'</th><th scope="col">IP</th></tr></thead><tbody>'+
+     view.map(function(r,ri){
+      return '<tr class="clickable" tabindex="0" data-sub="'+(page*PAGE+ri)+'"><td class="small dim">'+A.fmtTs(r.ts)+'</td><td><b>'+A.esc(r.name||(ar?'مجهول':'Anonymous'))+'</b><div class="t-sub mono">'+A.esc((r.identity||'').slice(0,10))+'…</div></td><td class="mono">'+A.esc(r.challenge)+'</td><td class="mono">'+A.esc(r.flag_masked)+'</td><td>'+(r.result==='correct'?A.badge(A.resLabel('correct'),'ok'):r.result==='already'?A.badge(A.resLabel('already'),'info'):r.result==='rate_limited'?A.badge(A.resLabel('rate_limited'),'warn'):A.badge(A.resLabel(r.result),'err'))+'</td><td class="mono dim">'+A.esc((r.ip_hash||'').slice(0,10))+'…</td></tr>';
+     }).join('')+
+    '</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('send',22)+'</div><h3>'+A.t('empty')+'</h3><p>'+(ar?'ستظهر المحاولات هنا فور وصولها.':'Attempts appear here as they arrive.')+'</p></div>')+'</div>'+
+    (pages>1?'<div class="pager"><button type="button" class="btn sm ghost" id="pg-p" '+(page===0?'disabled':'')+'>‹</button><span>'+(page+1)+' / '+pages+'</span><button type="button" class="btn sm ghost" id="pg-n" '+(page>=pages-1?'disabled':'')+'>›</button></div>':'');
+
     ['f-player','f-from','f-to'].forEach(function(id){document.getElementById(id).onchange=function(){fPlayer=document.getElementById('f-player').value;fFrom=document.getElementById('f-from').value;fTo=document.getElementById('f-to').value;page=0;paint()}});
     document.getElementById('f-ch').onchange=function(){fCh=this.value;page=0;paint()};
     document.getElementById('f-res').onchange=function(){fRes=this.value;page=0;paint()};
     var pp=document.getElementById('pg-p'),pn=document.getElementById('pg-n');
     if(pp)pp.onclick=function(){page--;paint()};
     if(pn)pn.onclick=function(){page++;paint()};
-    c.querySelectorAll('[data-sub]').forEach(function(tr){tr.onclick=function(){
+    function openSub(tr){
      var r=rows[+tr.dataset.sub];if(!r)return;
-     var lbl=function(k,v,mono){return '<div class="kv" style="display:grid;grid-template-columns:130px 1fr;gap:6px 12px;margin-bottom:4px"><dt class="small dim">'+k+'</dt><dd class="'+(mono?'mono small':'small')+'" style="margin:0;word-break:break-all">'+v+'</dd></div>'};
+     var lbl=function(k,v,mono){return '<dt>'+k+'</dt><dd class="'+(mono?'mono small':'small')+'">'+v+'</dd>'};
      A.modal({title:(ar?'تفاصيل المحاولة':'Submission details'),html:true,body:
-      lbl(ar?'المعرّف':'ID','<span class="mono">'+A.esc(r.id||'—')+'</span>')+
+      '<dl class="kv mb-3">'+
+      lbl(ar?'المعرّف':'ID',A.esc(r.id||'—'),true)+
       lbl(ar?'الوقت':'Time',A.esc(/^[0-9]+$/.test(String(r.ts||''))?A.fmtTs(+r.ts):(r.ts||'—')))+
       lbl(ar?'الاسم':'Player name','<b>'+A.esc(r.name||(ar?'مجهول':'Anonymous'))+'</b>')+
-      lbl(ar?'الرمز':'Identity','<span class="mono">'+A.esc(r.identity||'—')+'</span>',true)+
-      lbl(ar?'التحدي':'Challenge','<span class="mono">'+A.esc(r.challenge||'—')+'</span>',true)+
-      lbl(ar?'الفلاج (مقنّع)':'Flag (masked)','<span class="mono">'+A.esc(r.flag_masked||'—')+'</span>',true)+
-      lbl(ar?'النتيجة':'Result',A.badge(A.resLabel(r.result),r.result==='correct'?'ok':r.result==='wrong'?'danger':'info'))+
-      lbl('IP (hashed)','<span class="mono">'+A.esc(r.ip_hash||'—')+'</span>',true)+
-      '<div class="small dim" style="margin-top:8px">'+(ar?'نص الفلاج الكامل لا يُخزَّن أبدًا — يُحتفظ بأول 3 أحرف والطول فقط، وعنوان IP مُهشّم بلا رجعة.':'Full flag text is never stored — only the first 3 characters and length are kept, and the IP is irreversibly hashed.')+'</div>',
+      lbl(ar?'الرمز':'Identity',A.esc(r.identity||'—'),true)+
+      lbl(ar?'التحدي':'Challenge',A.esc(r.challenge||'—'),true)+
+      lbl(ar?'الفلاج (مقنّع)':'Flag (masked)',A.esc(r.flag_masked||'—'),true)+
+      lbl(ar?'النتيجة':'Result',A.badge(A.resLabel(r.result),r.result==='correct'?'ok':r.result==='wrong'?'err':'info'))+
+      lbl('IP (hashed)',A.esc(r.ip_hash||'—'),true)+
+      '</dl><p class="small dim">'+(ar?'نص الفلاج الكامل لا يُخزَّن أبدًا — يُحتفظ بأول 3 أحرف والطول فقط، وعنوان IP مُهشّم بلا رجعة.':'Full flag text is never stored — only the first 3 characters and length are retained, and IPs are one-way hashed.')+'</p>',
+      confirmLabel:ar?'إغلاق':'Close',
       onConfirm:function(d){d()}});
-    }});
+    }
+    c.querySelectorAll('[data-sub]').forEach(function(tr){
+     tr.onclick=function(){openSub(tr)};
+     tr.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openSub(tr)}};
+    });
    }
    paint();
-  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+  }).catch(function(){c.innerHTML='<div class="empty"><h3>'+A.t('errNet')+'</h3></div>'});
  });
 });
 })();

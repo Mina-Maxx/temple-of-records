@@ -2,10 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إدارة المعبد — مستودع الأدلة</title>
+<title>إدارة المعبد — الأدلة</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -20,22 +20,45 @@ A.boot().then(function(ok){
   A.api('/admin/api/content').then(function(j){
    var items=j.collections.challenges||[];
    var rows=[];items.forEach(function(it){(it.artifacts||[]).forEach(function(a){rows.push({ch:it,art:a})})});
-   function paint(q,ty,ch){var shown=rows.filter(function(r){return (!q||(r.art.name+' '+r.art.desc_ar+' '+r.art.desc_en).toLowerCase().includes(q))&&(!ty||r.art.type===ty)&&(!ch||r.ch.id===ch)});
-   c.innerHTML='<div class="page-head"><h1>'+A.t('nEvidence')+'</h1><span class="sub">'+(ar?'كل الأدلة عبر التحديات. روابط https خارجية فقط — لا تُستضاف ملفات على هذا الخادم. الحجم والبصمة كما يوفرها المؤلف.':'All evidence across challenges. External https URLs only — no files hosted on this server. Size/hash as provided by the author.')+'</span></div>'+
-   '<div class="filter-bar"><input class="input" id="eq" placeholder="'+(ar?'بحث الملفات':'Search files')+'" value="'+A.esc(q||'')+'"><select class="input" id="et"><option value="">'+(ar?'كل الأنواع':'All types')+'</option>'+[...new Set(rows.map(r=>r.art.type))].filter(Boolean).map(t=>'<option'+(t===ty?' selected':'')+'>'+A.esc(t)+'</option>').join('')+'</select><select class="input" id="ec"><option value="">'+(ar?'كل التحديات':'All challenges')+'</option>'+items.map(i=>'<option value="'+A.esc(i.id)+'"'+(i.id===ch?' selected':'')+'>'+A.esc(i.id)+'</option>').join('')+'</select></div>'+
-   '<div class="panel" style="padding:0;overflow:hidden">'+
-   (shown.length?'<div class="tbl-wrap" style="border:0"><table class="tbl"><thead><tr><th>'+(ar?'الملف':'File')+'</th><th>'+(ar?'التحدي':'Challenge')+'</th><th>'+(ar?'النوع':'Type')+'</th><th>'+(ar?'الحجم':'Size')+'</th><th>SHA-256</th><th>'+(ar?'الرابط':'Link')+'</th></tr></thead><tbody>'+
-    shown.map(function(r){
-     var a=r.art,url=a.url||'';
-     var chTitle=(r.ch.title&&((ar&&A.arabicEnabled())?(r.ch.title.ar||r.ch.title.en):(r.ch.title.en||(A.arabicEnabled()&&r.ch.title.ar))))||r.ch.title_en||r.ch.id;
-     return '<tr><td class="mono">'+A.esc(a.name||'')+'</td><td class="small">'+'<a href="challenge-edit.html?id='+encodeURIComponent(r.ch.id)+'">'+A.esc(chTitle)+'</a>'+'</td><td><span class="tag mono">'+A.esc(a.type||'')+'</span></td><td class="mono small">'+A.esc(a.size||'—')+'</td><td class="mono small dim" title="'+A.esc(a.sha256||'')+'">'+A.esc((a.sha256||'').slice(0,12))+'…</td><td>'+(url?('<a class="mono small" href="'+A.esc(url)+'" target="_blank" rel="noopener noreferrer">'+A.esc(url.slice(0,38))+'…</a>'):A.badge(ar?'يُضاف لاحقًا':'to be added','dim'))+'</td></tr>';
-    }).join('')+
-   '</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('box',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+
-   '</div>'+
-   '<p class="small muted">'+A.icon('box',13)+' '+(ar?'إضافة/تعديل الأدلة يتم من محرر التحدي ← تبويب «الأدلة».':'Add or edit evidence from the challenge editor, Evidence tab.')+'</p>';
-   ['eq','et','ec'].forEach(function(id){document.getElementById(id).oninput=function(){var val=this.value;var q1=document.getElementById('eq').value.toLowerCase(),t1=document.getElementById('et').value,c1=document.getElementById('ec').value;paint(q1,t1,c1);var inp=document.getElementById(id);inp.focus();if(inp.setSelectionRange)inp.setSelectionRange(val.length,val.length)}});
-   }paint('','','');
-  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+   var q='',ty='',ch='';
+   function paint(){
+    var ql=q.toLowerCase();
+    var shown=rows.filter(function(r){
+     return (!ql||(String(r.art.name||'')+' '+String(r.art.desc_ar||'')+' '+String(r.art.desc_en||'')+' '+String(r.art.sha256||'')).toLowerCase().includes(ql))&&(!ty||r.art.type===ty)&&(!ch||r.ch.id===ch);
+    });
+    c.innerHTML='<div class="page-head"><div class="page-head-main"><h1>'+A.t('nEvidence')+'</h1><span class="sub">'+(ar?'كل الأدلة عبر التحديات. روابط https خارجية فقط — التعديل والإضافة من تبويب الأدلة في محرر التحدي.':'External artifact links across challenges (no hosted binaries). Edit entries in the Challenge Editor.')+'</span></div></div>'+
+    '<div class="filter-bar">'+
+     '<input class="input searchbar" id="eq" type="search" aria-label="'+(ar?'بحث الملفات':'Search artifacts')+'" placeholder="'+(ar?'بحث بالاسم أو الوصف أو SHA-256':'Search file, description, or SHA-256')+'" value="'+A.esc(q)+'">'+
+     '<select class="input" id="et" aria-label="'+(ar?'النوع':'Type')+'"><option value="">'+(ar?'كل الأنواع':'All types')+'</option>'+[...new Set(rows.map(function(r){return r.art.type}))].filter(Boolean).map(function(t){return '<option'+(t===ty?' selected':'')+'>'+A.esc(t)+'</option>'}).join('')+'</select>'+
+     '<select class="input" id="ec" aria-label="'+(ar?'التحدي':'Challenge')+'"><option value="">'+(ar?'كل التحديات':'All challenges')+'</option>'+items.map(function(i){return '<option value="'+A.esc(i.id)+'"'+(i.id===ch?' selected':'')+'>'+A.esc(i.id)+'</option>'}).join('')+'</select>'+
+     '<span class="count-pill">'+shown.length+' / '+rows.length+'</span>'+
+    '</div>'+
+    '<div class="tbl-wrap">'+(shown.length?'<table class="tbl"><thead><tr><th scope="col">'+(ar?'الملف':'File')+'</th><th scope="col">'+(ar?'التحدي':'Challenge')+'</th><th scope="col">'+(ar?'النوع':'Type')+'</th><th scope="col">'+(ar?'الحجم':'Size')+'</th><th scope="col">SHA-256</th><th scope="col">'+(ar?'الحالة':'Visibility')+'</th><th scope="col">'+(ar?'الرابط':'Link')+'</th></tr></thead><tbody>'+
+     shown.map(function(r){
+      var a=r.art,url=a.url||'',sha=a.sha256||'';
+      var chTitle=(r.ch.title&&((ar&&A.arabicEnabled())?(r.ch.title.ar||r.ch.title.en):(r.ch.title.en||(A.arabicEnabled()&&r.ch.title.ar))))||r.ch.title_en||r.ch.id;
+      return '<tr><td class="mono">'+A.esc(a.name||'—')+'</td><td class="small"><a href="challenge-edit.html?id='+encodeURIComponent(r.ch.id)+'">'+A.esc(chTitle)+'</a></td>'+
+      '<td><span class="tag mono">'+A.esc(a.type||'—')+'</span></td><td class="mono small dim">'+A.esc(a.size||'—')+'</td>'+
+      '<td>'+(sha?'<div class="inline-acts"><span class="hash-pill" title="'+A.esc(sha)+'">'+A.esc(sha.slice(0,16))+'…</span><button type="button" class="btn sm ghost" data-copy-sha="'+A.esc(sha)+'">'+(ar?'نسخ':'Copy')+'</button></div>':'<span class="dim small">—</span>')+'</td>'+
+      '<td>'+(a.visibility==='hidden'?A.badge(ar?'مخفي':'Hidden','dim'):A.badge(ar?'عام':'Public','ok'))+'</td>'+
+      '<td>'+(url?('<a class="btn sm ghost" href="'+A.esc(url)+'" target="_blank" rel="noopener noreferrer">'+(ar?'فتح':'Open')+' '+A.icon('ext',13)+'</a>'):A.badge(ar?'غير مضاف':'Pending','dim'))+'</td></tr>';
+     }).join('')+
+    '</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('box',22)+'</div><h3>'+A.t('empty')+'</h3><p>'+(ar?'أضف الأدلة من تبويب الأدلة داخل محرر التحدي.':'Add artifacts inside any Challenge Editor.')+'</p></div>')+'</div>';
+
+    ['eq','et','ec'].forEach(function(id){
+     var el=document.getElementById(id);
+     var handler=function(){
+      q=document.getElementById('eq').value;ty=document.getElementById('et').value;ch=document.getElementById('ec').value;
+      paint();var focused=document.getElementById(id);focused.focus();if(focused.setSelectionRange)focused.setSelectionRange(q.length,q.length);
+     };
+     if(id==='eq')el.oninput=handler;else el.onchange=handler;
+    });
+    c.querySelectorAll('[data-copy-sha]').forEach(function(b){
+     b.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copySha);A.toast('SHA-256 '+(ar?'نُسخ':'copied'),'ok')};
+    });
+   }
+   paint();
+  }).catch(function(){c.innerHTML='<div class="empty"><h3>'+A.t('errNet')+'</h3></div>'});
  });
 });
 })();

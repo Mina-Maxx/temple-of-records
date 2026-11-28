@@ -2,25 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إدارة المعبد — محرر التحدي</title>
+<title>إدارة المعبد — استوديو التحديات (تحرير)</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
-<style>
-.sec-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
-.sec-row .head{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-.sec-row .head select{max-width:150px}
-.sec-row .num{font-family:var(--mono);font-size:.75rem;color:var(--muted);min-width:26px}
-.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.art-row{display:grid;grid-template-columns:1fr 1fr 1.6fr auto;gap:10px;margin-bottom:10px;align-items:end}
-.hint-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end}
-@media(max-width:760px){.mini-grid,.art-row,.hint-row{grid-template-columns:1fr}}
-.errlist{display:none;background:rgba(232,143,143,.1);border:1px solid rgba(232,143,143,.4);border-radius:8px;padding:12px 16px;font-size:.83rem;color:var(--err);margin-bottom:16px}
-.errlist.on{display:block}
-.flagbox{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.hash-pill{font-family:var(--mono);font-size:.72rem;direction:ltr;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--dim);word-break:break-all}
-</style>
 </head>
 <body>
 <script src="app.js"></script>
@@ -43,10 +29,12 @@ A.boot().then(function(ok){
    start();
   });
  } else {item=blank();start()}
+
  function F(label,inner,cls){return '<div class="field'+(cls?' '+cls:'')+'"><label>'+label+'</label>'+inner+'</div>'}
  function bi2(name,obj,ta){obj=obj||{ar:'',en:''};return '<div class="mini-grid">'+
-   F('العربية',ta?'<textarea class="input" data-f="'+name+'.ar" rows="3">'+A.esc(obj.ar||'')+'</textarea>':'<input class="input" data-f="'+name+'.ar" value="'+A.esc(obj.ar||'')+'">','ar-only')+
-   F('English',ta?'<textarea class="input" data-f="'+name+'.en" rows="3" dir="ltr">'+A.esc(obj.en||'')+'</textarea>':'<input class="input" data-f="'+name+'.en" dir="ltr" value="'+A.esc(obj.en||'')+'">')+'</div>'}
+  F('العربية',ta?'<textarea class="input" data-f="'+name+'.ar" rows="3">'+A.esc(obj.ar||'')+'</textarea>':'<input class="input" data-f="'+name+'.ar" value="'+A.esc(obj.ar||'')+'">','ar-only')+
+  F('English',ta?'<textarea class="input" data-f="'+name+'.en" rows="3" dir="ltr">'+A.esc(obj.en||'')+'</textarea>':'<input class="input" data-f="'+name+'.en" dir="ltr" value="'+A.esc(obj.en||'')+'">')+'</div>'}
+
  function render(c){
   var isNew=!id,ar=A.lang()==='ar',arOn=A.arabicEnabled();
   A.api('/admin/api/content').then(function(j){
@@ -55,138 +43,191 @@ A.boot().then(function(ok){
    if(la)la.innerHTML=cats.map(function(g){return '<option value="'+A.esc((g.name&&g.name.ar)||'')+'">'}).join('');
    if(le)le.innerHTML=cats.map(function(g){return '<option value="'+A.esc((g.name&&g.name.en)||'')+'">'}).join('');
   }).catch(function(){});
-  c.innerHTML=
-  '<div class="page-head"><h1>'+(isNew?A.t('create'):((ar&&arOn)?A.esc((item.title&&item.title.ar)||(item.title&&item.title.en)||item.id):A.esc((item.title&&item.title.en)||item.id)))+'</h1>'+
-  '<span class="sub mono">'+A.esc(item.id||'new')+'</span>'+
-  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=challenge&amp;lang='+(arOn?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(ar?' معاينة':' Preview')+'</a>')+
-  '<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
-  '<div class="errlist" id="errs" role="alert"></div>'+
-  '<div class="tabs" role="tablist">'+
-   '<button class="on" data-tab="basics">'+(ar?'البيانات':'Basics')+'</button>'+
-   '<button data-tab="sections">'+(ar?'الأقسام':'Sections')+'</button>'+
-   '<button data-tab="hints">'+(ar?'التلميحات':'Hints')+'</button>'+
-   '<button data-tab="artifacts">'+(ar?'الأدلة':'Evidence')+'</button>'+
-   (isNew?'':'<button data-tab="flag">'+(ar?'الفلاج':'Flag')+'</button>')+
-  '</div>'+
-  '<div class="tabpane on" data-pane="basics"><div class="panel">'+
-   (isNew?F('ID (a-z0-9-)','<input class="input mono" id="f-id" dir="ltr" value="">'):'')+
-   F((ar?'العنوان':'Title'),bi2('title',item.title))+
-   F(arOn?'Slug (AR / EN)':'Slug (EN)',bi2('slug',item.slug))+
-   F(ar?'حالة النشر':'Publication status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:ar?'مسودة':'Draft',published:ar?'منشور':'Published',archived:ar?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
 
-   F((ar?'الملخص':'Excerpt'),bi2('excerpt',item.excerpt,true))+
-   F(ar?(arOn?'صيغة الفلاج المعروضة (عربي/إنجليزي)':'صيغة الفلاج المعروضة (إنجليزي)'):(arOn?'Displayed flag format (AR/EN)':'Displayed flag format (EN)'),bi2('flag', {ar:(item.flag||{}).format_ar||'',en:(item.flag||{}).format_en||''}).replace('data-f="flag.ar"','data-f="flag.format_ar"').replace('data-f="flag.en"','data-f="flag.format_en"'))+
-   '<label class="check"><input type="checkbox" data-f="featured"'+(item.featured?' checked':'')+'> '+(ar?'تحدٍّ مميز في الرئيسية':'Featured on home')+'</label>'+
-   '<label class="check"><input type="checkbox" data-f="solution_public"'+(item.solution_public?' checked':'')+'> '+(ar?'إتاحة الحل للجميع حتى مع تفعيل القفل (TOR_GATE_SOLUTIONS)':'Keep walkthrough public even if solutions are gated')+'</label>'+
-   [['scenario','السيناريو','Scenario'],['objectives','أهداف التحقيق','Investigation objectives'],['required_skills','المهارات المطلوبة','Required skills'],['tools','الأدوات المطلوبة','Tools required'],['instructions','التعليمات','Instructions']].map(function(x){return F(ar?x[1]:x[2],bi2(x[0],item[x[0]],true))}).join('')+
-   '<div class="row2">'+
-    F((ar?'الفئة':'Category'),bi2('category',item.category).replace('data-f="category.ar"','data-f="category.ar" list="catlist-ar"').replace('data-f="category.en"','data-f="category.en" list="catlist-en"')+'<datalist id="catlist-ar"></datalist><datalist id="catlist-en"></datalist>')+
-    F((ar?'الصعوبة':'Difficulty'),bi2('difficulty',item.difficulty))+
+  var rail=[
+   ['sec-basics',ar?'الأساسيات':'Basics'],
+   ['sec-scenario',ar?'السيناريو والأهداف':'Scenario & objectives'],
+   ['sec-evidence',ar?'الأدلة والروابط':'Evidence'],
+   ['sec-instructions',ar?'التعليمات والأقسام':'Instructions & sections'],
+   ['sec-hints',ar?'التلميحات':'Hints'],
+   ['sec-flag',ar?'إعداد الفلاج':'Flag'],
+   ['sec-walkthrough',ar?'الحل الكامل (Spoiler)':'Walkthrough'],
+   ['sec-publish',ar?'المعاينة والنشر':'Preview & publish']
+  ];
+
+  c.innerHTML=
+  '<div class="page-head"><div class="page-head-main"><h1>'+(isNew?A.t('create'):((ar&&arOn)?A.esc((item.title&&item.title.ar)||(item.title&&item.title.en)||item.id):A.esc((item.title&&item.title.en)||item.id)))+'</h1>'+
+  '<span class="sub mono">'+A.esc(item.id||'new')+(isNew?'':' · '+(ar?'المعاينة تعرض النسخة المحفوظة':'Preview shows last saved version'))+'</span></div>'+
+  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=challenge&amp;lang='+(arOn?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(ar?' معاينة (المحفوظ)':' Preview (saved)')+'</a>')+
+  '<button type="button" class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
+  '<div class="errlist" id="errs" role="alert"></div>'+
+  '<div class="studio-layout">'+
+   '<nav class="studio-rail" aria-label="Challenge editor sections">'+rail.map(function(r,idx){return '<a href="#'+r[0]+'" class="'+(idx===0?'on':'')+'" data-rail="'+r[0]+'">'+A.esc(r[1])+'</a>'}).join('')+'</nav>'+
+   '<div class="studio-main" data-pane="studio">'+
+
+    '<section class="panel" id="sec-basics"><h2>'+(ar?'الأساسيات والتصنيف':'Basics & classification')+'</h2><p class="sub">'+(ar?'المعرّف والعناوين والروابط المختصرة والتصنيف.':'Challenge identifier, bilingual titles, slugs, difficulty, and time estimate.')+'</p>'+
+     (isNew?F('ID (a-z0-9-)','<input class="input mono" id="f-id" dir="ltr" value="">'):'')+
+     F((ar?'العنوان':'Title'),bi2('title',item.title))+
+     F(arOn?'Slug (AR / EN)':'Slug (EN)',bi2('slug',item.slug))+
+     '<div class="row2">'+
+      F((ar?'الفئة':'Category'),bi2('category',item.category).replace('data-f="category.ar"','data-f="category.ar" list="catlist-ar"').replace('data-f="category.en"','data-f="category.en" list="catlist-en"')+'<datalist id="catlist-ar"></datalist><datalist id="catlist-en"></datalist>')+
+      F((ar?'الصعوبة':'Difficulty'),bi2('difficulty',item.difficulty))+
+     '</div>'+
+     '<div class="row3">'+
+      F((ar?'المدة التقديرية':'Estimated time'),bi2('est_time',item.est_time||{ar:'',en:''}))+
+      F((ar?'الوسوم (مفصولة بفواصل)':'Tags (comma-sep)'),'<input class="input" data-f="tags" value="'+A.esc((item.tags||[]).join(', '))+'">')+
+      F((ar?'تقنيات MITRE ATT&CK':'MITRE ATT&CK IDs'),'<input class="input mono" dir="ltr" data-f="attack" placeholder="T1059.001" value="'+A.esc((item.attack||[]).join(', '))+'">')+
+     '</div>'+
+     '<div class="field"><label>'+(ar?'الصورة (مسار نسبي)':'Cover image (relative path)')+'</label><div class="inline-acts"><input class="input mono" dir="ltr" data-f="image" value="'+A.esc(item.image||'')+'" placeholder="assets/challenge.jpg" style="flex:1"><button type="button" class="btn ghost sm" id="pick-img">'+(ar?'اختر من الوسائط':'Pick media')+'</button></div></div>'+
+    '</section>'+
+
+    '<section class="panel" id="sec-scenario"><h2>'+(ar?'السيناريو وأهداف التعلم':'Scenario & learning objectives')+'</h2><p class="sub">'+(ar?'سرد الحادثة والأهداف والمهارات والأدوات.':'Briefing narrative, investigation objectives, prerequisite skills, and tools.')+'</p>'+
+     [['excerpt','الملخص','Excerpt'],['scenario','السيناريو','Scenario'],['objectives','أهداف التعلم والتحقيق','Learning & investigation objectives'],['required_skills','المهارات المطلوبة','Required skills'],['tools','الأدوات المطلوبة','Tools required']].map(function(x){return F(ar?x[1]:x[2],bi2(x[0],item[x[0]],true))}).join('')+
+    '</section>'+
+
+    '<section class="panel" id="sec-evidence"><h2>'+(ar?'الأدلة (روابط خارجية فقط)':'Evidence (external artifacts)')+'</h2><p class="sub">'+(ar?'روابط https خارجية فقط — لا تُستضاف ملفات تنفيذية أو أدلة على هذا الخادم.':'External https URLs only — no artifact binaries hosted on this server.')+'</p>'+
+     '<div id="arts"></div><button type="button" class="btn ghost sm" id="add-art">+ '+(ar?'دليل':'Add artifact')+'</button>'+
+    '</section>'+
+
+    '<section class="panel" id="sec-instructions"><h2>'+(ar?'التعليمات وأقسام المحتوى':'Instructions & briefing sections')+'</h2><p class="sub">'+(ar?'التعليمات العامة بالإضافة إلى أقسام المنطقة الرئيسية.':'Task instructions plus ordered main-zone sections.')+'</p>'+
+     F((ar?'التعليمات':'Instructions'),bi2('instructions',item.instructions,true))+
+     '<div id="secs"></div><button type="button" class="btn ghost sm" id="add-sec">+ '+(ar?'قسم رئيسي':'Add main section')+'</button>'+
+    '</section>'+
+
+    '<section class="panel" id="sec-hints"><h2>'+(ar?'التلميحات':'Hints')+'</h2><p class="sub">'+(ar?'تظهر للاعب بالترتيب مع التحكم في النشر.':'Ordered hints revealed on demand; toggle publication per hint.')+'</p>'+
+     '<div id="hints"></div><button type="button" class="btn ghost sm" id="add-hint">+ '+(ar?'تلميح':'Add hint')+'</button>'+
+    '</section>'+
+
+    '<section class="panel" id="sec-flag"><h2>'+(ar?'إعداد الفلاج':'Flag configuration')+'</h2><p class="sub">'+(ar?'صيغة الفلاج المعروضة وحالة التجزئة على الخادم (لا يظهر النص الصريح أبدًا).':'Displayed flag format hint and server-side hash status (plaintext is never shown).')+'</p>'+
+     F(ar?(arOn?'صيغة الفلاج المعروضة (AR/EN)':'صيغة الفلاج المعروضة (EN)'):(arOn?'Displayed flag format (AR/EN)':'Displayed flag format (EN)'),bi2('flag',{ar:(item.flag||{}).format_ar||'',en:(item.flag||{}).format_en||''}).replace('data-f="flag.ar"','data-f="flag.format_ar"').replace('data-f="flag.en"','data-f="flag.format_en"'))+
+     '<div id="flagbox"></div>'+
+    '</section>'+
+
+    '<section class="panel spoiler-zone" id="sec-walkthrough"><span class="spoiler-tag">'+A.icon('key',13)+' '+(ar?'منطقة الحل (Spoiler)':'Walkthrough — Spoiler Zone')+'</span><h2>'+(ar?'الحل الكامل (Walkthrough)':'Walkthrough (solution zone)')+'</h2><p class="sub">'+(ar?'تُحجب تلقائيًا في الإنتاج حتى حل التحدي ما لم تفعّل الإتاحة العامة أدناه.':'Withheld behind /api/solution in production unless explicitly overridden below.')+'</p>'+
+     '<label class="check mb-4"><input type="checkbox" data-f="solution_public"'+(item.solution_public?' checked':'')+'> <span>'+(ar?'إتاحة الحل للجميع حتى مع تفعيل القفل (TOR_GATE_SOLUTIONS)':'Keep walkthrough public even when solutions are gated')+'</span></label>'+
+     '<div id="secs-sol"></div><button type="button" class="btn ghost sm" id="add-sol">+ '+(ar?'قسم حل':'Add solution section')+'</button>'+
+    '</section>'+
+
+    '<section class="panel" id="sec-publish"><h2>'+(ar?'النشر والجدولة والظهور':'Publication, schedule & preview')+'</h2><p class="sub">'+(ar?'تحكم في الحالة والتوفر والجدولة الزمنية.':'Publication status, solver availability, scheduled release, and flags.')+'</p>'+
+     '<div class="row3">'+
+      F(ar?'حالة النشر':'Publication status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:ar?'مسودة':'Draft',published:ar?'منشور':'Published',archived:ar?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
+      F((ar?'التوفر':'Availability'),'<select class="input" data-f="availability">'+['open','soon','archived'].map(function(v){return '<option value="'+v+'"'+(item.availability===v?' selected':'')+'>'+(v==='open'?A.t('stAvail'):v==='soon'?A.t('stPrep'):A.t('stArch'))+'</option>'}).join('')+'</select>')+
+      F((ar?'موعد النشر المجدول (ISO)':'Scheduled publish_at (ISO)'),'<input class="input mono" dir="ltr" data-f="publish_at" placeholder="2026-12-01T00:00:00Z" value="'+A.esc(item.publish_at||'')+'">')+
+     '</div>'+
+     '<div class="inline-acts mt-2">'+
+      '<label class="check"><input type="checkbox" data-f="featured"'+(item.featured?' checked':'')+'> <span>'+(ar?'تحدٍّ مميز في الرئيسية':'Featured on home')+'</span></label>'+
+      '<label class="check"><input type="checkbox" data-f="sample"'+(item.sample?' checked':'')+'> <span>'+(ar?'وسم «تجريبي» (sample)':'Mark as demo (sample)')+'</span></label>'+
+     '</div>'+
+    '</section>'+
+
+    '<div class="savebar on"><span class="small dim mono">'+A.esc(item.id||'new challenge')+'</span><span style="flex:1"></span>'+(isNew?'':'<a class="btn ghost sm" href="preview.html?kind=challenge&amp;lang='+(arOn?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+' '+(ar?'معاينة (المحفوظ)':'Preview (saved)')+'</a>')+'<button type="button" class="btn primary" id="save-bot">'+A.t('save')+'</button></div>'+
+
    '</div>'+
-   '<div class="row2">'+
-    F((ar?'الحالة':'Status'),'<select class="input" data-f="availability">'+
-      ['open','soon','archived'].map(function(v){return '<option value="'+v+'"'+(item.availability===v?' selected':'')+'>'+(v==='open'?A.t('stAvail'):v==='soon'?A.t('stPrep'):A.t('stArch'))+'</option>'}).join('')+'</select>')+
-    F((ar?'الوسوم (مفصولة بفواصل)':'Tags (comma-sep)'),'<input class="input" data-f="tags" value="'+A.esc((item.tags||[]).join(', '))+'">')+
-   '</div>'+
-   '<div class="row2">'+
-    F((ar?'تقنيات MITRE ATT&CK (مفصولة بفواصل)':'MITRE ATT&CK IDs (comma-sep, e.g. T1059.001)'),'<input class="input mono" dir="ltr" data-f="attack" value="'+A.esc((item.attack||[]).join(', '))+'">')+
-    F((ar?'موعد النشر المجدول (ISO اختياري)':'Scheduled publish_at (optional ISO)'),'<input class="input mono" dir="ltr" data-f="publish_at" placeholder="2026-12-01T00:00:00Z" value="'+A.esc(item.publish_at||'')+'">')+
-   '</div>'+
-   '<div class="row2">'+
-    F((ar?'المدة التقديرية':'Estimated time'),bi2('est_time',item.est_time||{ar:'',en:''}))+
-    '<div>'+F((ar?'الصورة (مسار نسبي)':'Image (relative path)'),'<input class="input mono" dir="ltr" data-f="image" value="'+A.esc(item.image||'')+'" placeholder="assets/challenge.jpg">')+
-    '<label class="check"><input type="checkbox" data-f="sample"'+(item.sample?' checked':'')+'> <span>'+(ar?'وسم «تجريبي»':'Mark as demo')+'</span></label></div>'+
-   '</div>'+
-  '</div></div>'+
-  '<div class="tabpane" data-pane="sections"><div class="panel"><h2>'+(A.lang()==='ar'?'أقسام المحتوى':'Content sections')+'</h2><p class="sub">'+(A.lang()==='ar'?'تُعرض بالترتيب في صفحة التحدي.':'Rendered in order on the challenge page.')+'</p><div id="secs"></div>'+
-   '<button class="btn ghost" id="add-sec">+ '+(A.lang()==='ar'?'قسم':'Section')+'</button></div></div>'+
-  '<div class="tabpane" data-pane="hints"><div class="panel"><h2>'+(A.lang()==='ar'?'التلميحات':'Hints')+'</h2><p class="sub">'+(A.lang()==='ar'?'تظهر للاعب عند الطلب، بالترتيب.':'Revealed to the player on request, in order.')+'</p><div id="hints"></div>'+
-   '<button class="btn ghost" id="add-hint">+ '+(A.lang()==='ar'?'تلميح':'Hint')+'</button></div></div>'+
-  '<div class="tabpane" data-pane="artifacts"><div class="panel"><h2>'+(A.lang()==='ar'?'الأدلة (روابط خارجية فقط)':'Evidence (external links only)')+'</h2><p class="sub">'+(A.lang()==='ar'?'روابط https خارجية فقط — لا تُستضاف ملفات على هذا الخادم. الحجم والبصمة كما يوفرها المؤلف.':'External https URLs only — no files hosted on this server. Size/hash as provided by the author.')+'</p>'+
-   '<div id="arts"></div><button class="btn ghost" id="add-art">+ '+(A.lang()==='ar'?'دليل':'Artifact')+'</button></div></div>'+
-  (isNew?'':'<div class="tabpane" data-pane="flag"><div class="panel"><h2>'+(A.lang()==='ar'?'إعداد الفلاج':'Flag configuration')+'</h2><p class="sub">'+(A.lang()==='ar'?'الفلاج يعيش على الخادم فقط (هاش SHA-256 مملّح). لا يظهر نصه هنا أبدًا.':'The flag lives server-side only (salted SHA-256). Its text is never shown here.')+'</p><div id="flagbox"></div></div></div>');
-  bindTabs(); paintSecs(); paintHints(); paintArts(); if(!isNew)paintFlag();
-  document.getElementById('save').onclick=save;
- }
- function bindTabs(){
-  document.querySelectorAll('.tabs button').forEach(function(b){
-   b.onclick=function(){
-    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on')});
-    document.querySelectorAll('.tabpane').forEach(function(x){x.classList.remove('on')});
-    b.classList.add('on');document.querySelector('[data-pane="'+b.dataset.tab+'"]').classList.add('on');
-   };
+  '</div>';
+
+  c.querySelectorAll('[data-rail]').forEach(function(a){
+   a.onclick=function(){c.querySelectorAll('[data-rail]').forEach(function(x){x.classList.remove('on')});a.classList.add('on')};
   });
+  document.getElementById('pick-img').onclick=function(){
+   A.api('/admin/api/media').then(function(j){
+    var imgs=(j.media||[]).filter(function(m){return m.kind==='image'});
+    if(!imgs.length){A.toast(ar?'لا توجد صور':'No images','err');return}
+    var b='<div class="mgrid">'+imgs.map(function(m){return '<button type="button" class="mcard" data-pick-ch="assets/'+A.esc(m.name)+'"><span class="pv"><img src="../assets/'+A.esc(m.name)+'" alt=""></span><span class="meta"><span class="nm">'+A.esc(m.name)+'</span></span></button>'}).join('')+'</div>';
+    A.modal({title:ar?'اختيار صورة التحدي':'Choose cover image',html:true,body:b,confirmLabel:ar?'إغلاق':'Close',onConfirm:function(d){d()}});
+    setTimeout(function(){document.querySelectorAll('[data-pick-ch]').forEach(function(btn){btn.onclick=function(){var inp=document.querySelector('[data-f="image"]');if(inp){inp.value=btn.dataset.pickCh;inp.dispatchEvent(new Event('input',{bubbles:true}))}var ok=document.querySelector('.modal [data-ok]');if(ok)ok.click()}})},30);
+   }).catch(function(){A.toast(A.t('errNet'),'err')});
+  };
+  paintSecs();paintHints();paintArts();paintFlag();
+  document.getElementById('save').onclick=save;
+  document.getElementById('save-bot').onclick=save;
  }
- function secRow(s,i){
-  var el=document.createElement('div');el.className='sec-row';
-  el.innerHTML='<div class="head"><span class="num">'+(i+1)+'</span>'+
+
+ function secRow(s,realIdx,listInZone,zPos){
+  var isSol=s.zone==='solution';
+  var el=document.createElement('div');el.className='sec-row'+(isSol?' is-solution':'');
+  el.innerHTML='<div class="head"><span class="num">'+(zPos+1)+'</span>'+
    '<select class="input" data-s="type">'+SEC_TYPES.map(function(t){return '<option'+(s.type===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'+
    '<select class="input" data-s="zone"><option value="main"'+(s.zone!=='solution'?' selected':'')+'>'+(A.lang()==='ar'?'رئيسي':'main')+'</option><option value="solution"'+(s.zone==='solution'?' selected':'')+'>'+(A.lang()==='ar'?'الحل':'solution')+'</option></select>'+
-   '<span style="flex:1"></span><button class="btn sm ghost" data-up>↑</button><button class="btn sm ghost" data-dn>↓</button><button class="btn sm danger" data-del>×</button></div>'+
+   '<span style="flex:1"></span><button type="button" class="btn sm ghost" data-up>↑</button><button type="button" class="btn sm ghost" data-dn>↓</button><button type="button" class="btn sm danger" data-del>×</button></div>'+
    '<div class="mini-grid"><textarea class="input ar-only" data-s="ar" rows="2" placeholder="العربية">'+A.esc(s.ar||'')+'</textarea>'+
    '<textarea class="input" data-s="en" rows="2" dir="ltr" placeholder="English">'+A.esc(s.en||'')+'</textarea></div>'+
-   (s.type==='code'?'<input class="input mono" dir="ltr" style="margin-top:10px" data-s="code" placeholder="code" value="'+A.esc(s.code||'')+'">':'');
+   (s.type==='code'?'<textarea class="input mono mt-2" dir="ltr" rows="4" data-s="code" placeholder="code">'+A.esc(s.code||'')+'</textarea>':'');
   el.querySelector('[data-s=type]').onchange=function(){s.type=this.value;paintSecs()};
-  el.querySelector('[data-s=zone]').onchange=function(){s.zone=this.value};
+  el.querySelector('[data-s=zone]').onchange=function(){s.zone=this.value;paintSecs()};
   el.querySelector('[data-s=ar]').oninput=function(){s.ar=this.value};
   el.querySelector('[data-s=en]').oninput=function(){s.en=this.value};
   var codeIn=el.querySelector('[data-s=code]');if(codeIn)codeIn.oninput=function(){s.code=this.value};
-  el.querySelector('[data-del]').onclick=function(){item.sections.splice(i,1);paintSecs()};
-  el.querySelector('[data-up]').onclick=function(){if(i>0){item.sections.splice(i-1,0,item.sections.splice(i,1)[0]);paintSecs()}};
-  el.querySelector('[data-dn]').onclick=function(){if(i<item.sections.length-1){item.sections.splice(i+1,0,item.sections.splice(i,1)[0]);paintSecs()}};
+  el.querySelector('[data-del]').onclick=function(){item.sections.splice(realIdx,1);paintSecs()};
+  el.querySelector('[data-up]').onclick=function(){if(zPos>0){var prevReal=item.sections.indexOf(listInZone[zPos-1]);item.sections[realIdx]=item.sections[prevReal];item.sections[prevReal]=s;paintSecs()}};
+  el.querySelector('[data-dn]').onclick=function(){if(zPos<listInZone.length-1){var nextReal=item.sections.indexOf(listInZone[zPos+1]);item.sections[realIdx]=item.sections[nextReal];item.sections[nextReal]=s;paintSecs()}};
   A.sectionFields(el,s);
   return el;
  }
- function paintSecs(){var w=document.getElementById('secs');w.innerHTML='';(item.sections||[]).forEach(function(s,i){w.appendChild(secRow(s,i))});
+ function paintSecs(){
+  var wMain=document.getElementById('secs'),wSol=document.getElementById('secs-sol');
+  wMain.innerHTML='';wSol.innerHTML='';
+  var all=item.sections||[];
+  var mains=all.filter(function(s){return s.zone!=='solution'});
+  var sols=all.filter(function(s){return s.zone==='solution'});
+  mains.forEach(function(s,pos){wMain.appendChild(secRow(s,all.indexOf(s),mains,pos))});
+  sols.forEach(function(s,pos){wSol.appendChild(secRow(s,all.indexOf(s),sols,pos))});
   document.getElementById('add-sec').onclick=function(){item.sections.push({zone:'main',type:'paragraph',ar:'',en:''});paintSecs()};
+  document.getElementById('add-sol').onclick=function(){item.sections.push({zone:'solution',type:'paragraph',ar:'',en:''});paintSecs()};
  }
- function paintHints(){var w=document.getElementById('hints');w.innerHTML='';(item.hints||[]).forEach(function(h,i){
-  var el=document.createElement('div');el.className='hint-row';
-  el.innerHTML='<textarea class="input ar-only" rows="2" placeholder="العربية">'+A.esc(h.ar||'')+'</textarea><textarea class="input" rows="2" dir="ltr" placeholder="English">'+A.esc(h.en||'')+'</textarea><button class="btn sm danger">×</button>';
-  var tas=el.querySelectorAll('textarea');tas[0].oninput=function(){h.ar=this.value};tas[1].oninput=function(){h.en=this.value};
-  var rm=el.querySelector('button');rm.onclick=function(){item.hints.splice(i,1);paintHints()};
-  var ctrl=document.createElement('div');ctrl.innerHTML='<button class="btn sm ghost" data-hup>↑</button><button class="btn sm ghost" data-hdn>↓</button><label class="check"><input type="checkbox"'+(h.published!==false?' checked':'')+'> '+(A.lang()==='ar'?'منشور':'Published')+'</label>';
-  ctrl.querySelector('input').onchange=function(){h.published=this.checked};
-  ctrl.querySelector('[data-hup]').onclick=function(){if(i){item.hints.splice(i-1,0,item.hints.splice(i,1)[0]);paintHints()}};
-  ctrl.querySelector('[data-hdn]').onclick=function(){if(i<item.hints.length-1){item.hints.splice(i+1,0,item.hints.splice(i,1)[0]);paintHints()}};el.appendChild(ctrl);
-  w.appendChild(el);
- });
+ function paintHints(){
+  var w=document.getElementById('hints');w.innerHTML='';
+  (item.hints||[]).forEach(function(h,i){
+   var el=document.createElement('div');el.className='hint-row sec-row';
+   el.innerHTML='<textarea class="input ar-only" rows="2" placeholder="العربية">'+A.esc(h.ar||'')+'</textarea><textarea class="input" rows="2" dir="ltr" placeholder="English">'+A.esc(h.en||'')+'</textarea>'+
+    '<div class="inline-acts"><button type="button" class="btn sm ghost" data-hup>↑</button><button type="button" class="btn sm ghost" data-hdn>↓</button><button type="button" class="btn sm danger">×</button></div>';
+   var tas=el.querySelectorAll('textarea');tas[0].oninput=function(){h.ar=this.value};tas[1].oninput=function(){h.en=this.value};
+   el.querySelector('.btn.danger').onclick=function(){item.hints.splice(i,1);paintHints()};
+   var pub=document.createElement('label');pub.className='check mt-2';pub.style.gridColumn='1/-1';
+   pub.innerHTML='<input type="checkbox"'+(h.published!==false?' checked':'')+'> <span>'+(A.lang()==='ar'?'منشور':'Published')+'</span>';
+   pub.querySelector('input').onchange=function(){h.published=this.checked};
+   el.querySelector('[data-hup]').onclick=function(){if(i){item.hints.splice(i-1,0,item.hints.splice(i,1)[0]);paintHints()}};
+   el.querySelector('[data-hdn]').onclick=function(){if(i<item.hints.length-1){item.hints.splice(i+1,0,item.hints.splice(i,1)[0]);paintHints()}};
+   el.appendChild(pub);w.appendChild(el);
+  });
   document.getElementById('add-hint').onclick=function(){item.hints.push({ar:'',en:''});paintHints()};
  }
- function paintArts(){var w=document.getElementById('arts');w.innerHTML='';(item.artifacts||[]).forEach(function(a,i){
-  var el=document.createElement('div');el.className='art-row';
-  function fld(l,v,mono,ph,cls){return '<div class="field'+(cls?' '+cls:'')+'"><label>'+l+'</label><input class="input'+(mono?' mono':'')+'"'+(mono?' dir="ltr"':'')+' value="'+A.esc(v||'')+'"'+(ph?' placeholder="'+ph+'"':'')+'></div>'}
-  var ar=A.lang()==='ar';
-  el.innerHTML=fld(ar?'اسم الملف':'File name',a.name||a.label_ar,0)+fld(ar?'النوع (EVTX, PCAP, LOG…)':'Type (EVTX, PCAP, LOG…)',a.type||'log',1)+
-   fld(ar?'الحجم':'Size',a.size,1,'12.4 MB')+fld('SHA-256',a.sha256,1,'64 hex')+
-   fld('URL (https)',a.url,1,'https://…')+fld(ar?'رابط بديل (اختياري، https)':'Mirror URL (optional, https)',a.mirror,1,'https://…')+
-   fld(ar?'الوصف (عربي)':'Description (Arabic)',a.desc_ar,0,'','ar-only')+fld(ar?'الوصف (إنجليزي)':'Description (English)',a.desc_en,0)+
-   '<div class="field"><label>'+(ar?'ظهور التحميل':'Download visibility')+'</label><select class="input"><option value="public">'+(ar?'عام':'Public')+'</option><option value="hidden">'+(ar?'مخفي':'Hidden')+'</option></select></div>'+
-   '<div class="field"><label>'+(ar?'حالة التوفر':'Availability')+'</label><select class="input"><option value="available">'+(ar?'متاح':'Available')+'</option><option value="unavailable">'+(ar?'غير متاح':'Unavailable')+'</option><option value="planned">'+(ar?'مخطَّط':'Planned')+'</option></select></div>'+
-   '<button class="btn sm danger">×</button>';
-  var ins=el.querySelectorAll('input'),sels=el.querySelectorAll('select');
-  ['name','type','size','sha256','url','mirror','desc_ar','desc_en'].forEach(function(k,ix){ins[ix].oninput=function(){a[k]=this.value.trim()}});
-  sels[0].value=a.visibility||'public';sels[0].onchange=function(){a.visibility=this.value};
-  sels[1].value=a.status||'available';sels[1].onchange=function(){a.status=this.value};
-  el.querySelector('button').onclick=function(){item.artifacts.splice(i,1);paintArts()};
-  w.appendChild(el);
- });
+ function paintArts(){
+  var w=document.getElementById('arts');w.innerHTML='';
+  (item.artifacts||[]).forEach(function(a,i){
+   var el=document.createElement('div');el.className='art-row';
+   function fld(l,v,mono,ph,cls){return '<div class="field'+(cls?' '+cls:'')+'"><label>'+l+'</label><input class="input'+(mono?' mono':'')+'"'+(mono?' dir="ltr"':'')+' value="'+A.esc(v||'')+'"'+(ph?' placeholder="'+ph+'"':'')+'></div>'}
+   var ar=A.lang()==='ar';
+   el.innerHTML=fld(ar?'اسم الملف':'File name',a.name||a.label_ar,0)+fld(ar?'النوع (EVTX, PCAP, LOG…)':'Type (EVTX, PCAP, LOG…)',a.type||'log',1)+
+    fld(ar?'الحجم':'Size',a.size,1,'12.4 MB')+fld('SHA-256',a.sha256,1,'64 hex')+
+    fld('URL (https)',a.url,1,'https://…')+fld(ar?'رابط بديل (https اختياري)':'Mirror URL (optional https)',a.mirror,1,'https://…')+
+    fld(ar?'الوصف (عربي)':'Description (Arabic)',a.desc_ar,0,'','ar-only')+fld(ar?'الوصف (إنجليزي)':'Description (English)',a.desc_en,0)+
+    '<div class="field"><label>'+(ar?'ظهور التحميل':'Visibility')+'</label><select class="input"><option value="public">'+(ar?'عام':'Public')+'</option><option value="hidden">'+(ar?'مخفي':'Hidden')+'</option></select></div>'+
+    '<div class="field"><label>'+(ar?'التوفر':'Status')+'</label><select class="input"><option value="available">'+(ar?'متاح':'Available')+'</option><option value="unavailable">'+(ar?'غير متاح':'Unavailable')+'</option><option value="planned">'+(ar?'مخطَّط':'Planned')+'</option></select></div>'+
+    '<div class="inline-acts"><button type="button" class="btn sm ghost" data-cp-sha>'+(ar?'نسخ SHA':'Copy SHA')+'</button><button type="button" class="btn sm danger" data-rm-art>×</button></div>';
+   var ins=el.querySelectorAll('input'),sels=el.querySelectorAll('select');
+   ['name','type','size','sha256','url','mirror','desc_ar','desc_en'].forEach(function(k,ix){ins[ix].oninput=function(){a[k]=this.value.trim()}});
+   sels[0].value=a.visibility||'public';sels[0].onchange=function(){a.visibility=this.value};
+   sels[1].value=a.status||'available';sels[1].onchange=function(){a.status=this.value};
+   el.querySelector('[data-cp-sha]').onclick=function(){if(a.sha256&&navigator.clipboard){navigator.clipboard.writeText(a.sha256);A.toast('SHA-256 copied','ok')}};
+   el.querySelector('[data-rm-art]').onclick=function(){item.artifacts.splice(i,1);paintArts()};
+   w.appendChild(el);
+  });
   document.getElementById('add-art').onclick=function(){item.artifacts.push({name:'',type:'log',url:''});paintArts()};
  }
  function paintFlag(){
   var w=document.getElementById('flagbox');if(!w)return;
+  var ar=A.lang()==='ar';
+  if(!id){w.innerHTML='<p class="small dim">'+(ar?'احفظ التحدي أولًا ثم اضبط تجزئة الفلاج السري.':'Save the challenge first to configure the server-side flag hash.')+'</p>';return}
   A.api('/admin/api/challenges/'+encodeURIComponent(id)+'/flag').then(function(f){
-   w.innerHTML='<div class="kv" style="margin-bottom:18px"><dt>'+(A.lang()==='ar'?'الحالة':'State')+'</dt><dd>'+(f.configured?A.badge('configured','ok'):A.badge('not set','warn'))+'</dd>'+
-   '<dt>SHA-256</dt><dd><span class="hash-pill">'+A.esc(f.sha256||'—')+'</span></dd></div>'+
-   '<div class="flagbox"><input class="input mono" dir="ltr" id="newflag" placeholder="TOR{…}" style="max-width:320px"><button class="btn danger" id="setflag">'+(A.lang()==='ar'?'استبدال الفلاج':'Replace flag')+'</button></div>'+
-   '<p class="hint small muted" style="margin-top:8px">'+(A.lang()==='ar'?'الاستبدال يبطل حلول مَن حلّ بالفلاج القديم؟ لا — الحلول السابقة تبقى مسجلة. يتطلب تأكيدًا.':'Replacing requires confirmation; previous solves stay recorded.')+'</p>';
+   w.innerHTML='<dl class="kv mb-4"><dt>'+(ar?'الحالة':'State')+'</dt><dd>'+(f.configured?A.badge(ar?'مضبوط':'configured','ok'):A.badge(ar?'غير مضبوط':'not set','warn'))+'</dd>'+
+   '<dt>'+(ar?'الخوارزمية والهاش':'Algorithm & digest')+'</dt><dd><span class="hash-pill">'+A.esc(f.sha256||'—')+'</span></dd></dl>'+
+   '<div class="flagbox"><input class="input mono" dir="ltr" id="newflag" placeholder="TOR{…}" style="max-width:340px"><button type="button" class="btn danger" id="setflag">'+(f.configured?(ar?'استبدال الفلاج':'Replace flag'):(ar?'تعيين الفلاج':'Set flag'))+'</button></div>'+
+   '<p class="hint small muted mt-2">'+(ar?'التجزئة تتم عبر scrypt وتُحفظ على الخادم فقط. الحلول السابقة تبقى مسجلة.':'Hashed with scrypt on the server; existing player solves remain intact.')+'</p>';
    document.getElementById('setflag').onclick=function(){
-    var v=document.getElementById('newflag').value.trim();
-    if(!v)return;
-    A.modal({title:A.lang()==='ar'?'استبدال الفلاج؟':'Replace flag?',body:A.lang()==='ar'?'سيُستبدل فلاج هذا التحدي فورًا. التحقق الجديد سيتطلب الفلاج الجديد.':'The flag for this challenge will be replaced immediately. New verification requires the new flag.',danger:true,onConfirm:function(done){
+    var v=document.getElementById('newflag').value.trim();if(!v)return;
+    A.modal({title:ar?'حفظ الفلاج؟':'Save flag?',body:ar?'سيتم تحديث فلاج التحدي فورًا على الخادم.':'Updates the challenge flag hash immediately on the server.',danger:true,onConfirm:function(done){
      A.api('/admin/api/challenges/'+encodeURIComponent(id)+'/flag',{method:'PUT',body:{flag:v,confirm_replace:true}}).then(function(r){
-      done();
-      if(r._code===200){A.toast(A.t('updated'),'ok');paintFlag()}else A.toast(r.error||A.t('failed'),'err');
+      done();if(r._code===200){A.toast(A.t('updated'),'ok');paintFlag()}else A.toast(r.detail||r.error||A.t('failed'),'err');
      }).catch(function(){done();A.toast(A.t('errNet'),'err')});
     }});
    };
@@ -209,14 +250,11 @@ A.boot().then(function(ok){
  }
  function save(){
   var bad=document.querySelector('textarea:invalid,input:invalid');if(bad){bad.reportValidity();A.toast(A.lang()==='ar'?'صحّح الحقول غير الصالحة':'Fix invalid fields','err');return}
-
   var errs=document.getElementById('errs');errs.className='errlist';
   var body=collect();
-  var method=id?'PUT':'POST';
-  var path=id?'/admin/api/challenges/'+encodeURIComponent(id):'/admin/api/challenges';
-  A.api(path,{method:method,body:body}).then(function(r){
+  A.api(id?'/admin/api/challenges/'+encodeURIComponent(id):'/admin/api/challenges',{method:id?'PUT':'POST',body:body}).then(function(r){
    if(r._code===200){A.toast(A.t('saved'),'ok');if(!id)setTimeout(function(){location.replace('challenge-edit.html?id='+encodeURIComponent(r.id))},500)}
-   else{errs.innerHTML='<b>'+A.t('failed')+'</b><ul style="margin:6px 18px 0">'+(r.details||[r.error||'?']).map(function(d){return '<li>'+A.esc(d)+'</li>'}).join('')+'</ul>';errs.className='errlist on';window.scrollTo(0,0)}
+   else{errs.innerHTML='<b>'+A.t('failed')+'</b><ul>'+(r.details||[r.error||'?']).map(function(d){return '<li>'+A.esc(d)+'</li>'}).join('')+'</ul>';errs.className='errlist on';window.scrollTo(0,0)}
   }).catch(function(){A.toast(A.t('errNet'),'err')});
  }
 });

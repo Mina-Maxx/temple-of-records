@@ -1,1 +1,58 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>استعادة الوصول | Account recovery</title><link rel="stylesheet" href="app.css"></head><body><div class="login-wrap"><main class="login-card"><h1>استعادة الوصول</h1><h2>Account recovery</h2><p>لا يوجد استرداد بالبريد أو خدمة حسابات خارجية في النسخة المحلية. لا ترسل كلمة مرورك لأحد.</p><p>There is no email reset or external account service in this local build. Never send your password to anyone.</p><p>إذا كنت ما زلت مسجّل الدخول، يمكنك تغيير كلمة المرور من الإعدادات باستخدام الكلمة الحالية.</p><p>If still signed in, change it in Settings using the current password.</p><p>إذا فقدت الوصول: أوقف الخادم، احتفظ بنسخة احتياطية خاصة، ثم شغّل الأمر المحلي أدناه وأعد تشغيل الخادم. سيُنشئ الملف حسابا جديدا من شاشة الإعداد الأول دون حذف المحتوى.</p><p>If locked out: stop the server, keep a private backup, run the command below locally, then restart. Create a new admin from first-run setup. Content stays unchanged.</p><pre dir="ltr">node server/reset-admin.cjs --confirm-local-reset</pre><p>هذا الأمر يحذف اعتماد الأدمن والجلسات المحلية فقط. لا يرسل بريدا ولا يرفع أي بيانات.</p><p>It removes only the local admin credential and sessions. It sends no email and uploads nothing.</p><a class="btn primary" href="login.html">تسجيل الدخول / Sign in</a></main></div></body></html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>استعادة الوصول | Account recovery</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="login-wrap">
+ <main class="login-card recovery-card">
+  <div class="login-frieze" aria-hidden="true"></div>
+  <div class="login-mark" id="mark"></div>
+  <h1 id="ttl">استعادة الوصول</h1>
+  <p class="login-sub" id="sub">Account recovery</p>
+  <section id="copy-ar">
+   <h2>استعادة كلمة مرور المدير</h2>
+   <p>لا يوجد استرداد بالبريد أو خدمة حسابات خارجية في هذا الخادم. لا ترسل كلمة مرورك لأحد.</p>
+   <p>إذا كنت ما زلت مسجّل الدخول، يمكنك تغيير كلمة المرور من الإعدادات باستخدام الكلمة الحالية.</p>
+   <p>إذا فقدت الوصول: أوقف الخادم، احتفظ بنسخة احتياطية خاصة، ثم شغّل الأمر المحلي أدناه وأعد تشغيل الخادم لإنشاء حساب جديد دون حذف المحتوى.</p>
+   <pre class="recovery-pre" dir="ltr">node server/reset-admin.cjs --confirm-local-reset</pre>
+   <p>هذا الأمر يحذف اعتماد الأدمن والجلسات المحلية فقط، ولا يرسل أي بيانات للخارج.</p>
+  </section>
+  <section id="copy-en">
+   <h2>Local administrator recovery</h2>
+   <p>There is no email reset or external account service on this server. Never share your credentials.</p>
+   <p>If you are still signed in, update your password in Settings using the current password.</p>
+   <p>If locked out: stop the server, keep an offline backup, run the command below locally, then restart and complete first-run setup. Content and solves stay untouched.</p>
+   <pre class="recovery-pre" dir="ltr">node server/reset-admin.cjs --confirm-local-reset</pre>
+   <p>This removes only the local admin credential and session hashes.</p>
+  </section>
+  <div class="login-actions">
+   <span class="lang-sw" role="group" aria-label="Language"><button type="button" id="lar">ع</button><button type="button" id="len">EN</button></span>
+   <a class="btn primary" id="back" href="login.html">تسجيل الدخول / Sign in</a>
+  </div>
+ </main>
+</div>
+<script src="app.js"></script>
+<script>
+(function(){
+var A=window.TORADMIN,ar=A.lang()==='ar';
+document.documentElement.lang=A.lang();document.documentElement.dir=ar?'rtl':'ltr';document.body.classList.toggle('en',!ar);
+document.getElementById('mark').innerHTML=A.icon('key',22);
+document.getElementById('ttl').textContent=ar?'استعادة الوصول':'Account Recovery';
+document.getElementById('sub').textContent=ar?'إدارة المعبد — إجراء استعادة محلي':'Temple Admin — local recovery procedure';
+document.getElementById('copy-ar').hidden=!ar;
+document.getElementById('copy-en').hidden=ar;
+document.getElementById('back').textContent=A.t('login');
+document.getElementById('lar').className=ar?'on':'';
+document.getElementById('len').className=!ar?'on':'';
+document.getElementById('lar').onclick=function(){A.setLang('ar')};
+document.getElementById('len').onclick=function(){A.setLang('en')};
+})();
+</script>
+</body>
+</html>

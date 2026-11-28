@@ -5,7 +5,7 @@
 <title>إدارة المعبد — التصنيفات والوسوم</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -19,7 +19,7 @@ A.boot().then(function(ok){
   var ar=A.lang()==='ar',arOn=A.arabicEnabled();
   A.api('/admin/api/content').then(function(j){
    var cols=j.collections||{};
-   var managed=cols.categories||[];var managedTags=cols.tags||[];
+   var managed=cols.categories||[],managedTags=cols.tags||[];
    var tags={},cats={};
    Object.keys(cols).forEach(function(col){(cols[col]||[]).forEach(function(it){
     (it.tags||[]).forEach(function(t){(tags[t]=tags[t]||[]).push(col+':'+it.id)});
@@ -27,66 +27,82 @@ A.boot().then(function(ok){
     if(cat)(cats[cat]=cats[cat]||[]).push(col+':'+it.id);
    })});
    function row(name,uses,extra){
-    return '<tr><td><span class="tag" style="font-size:.85rem">'+A.esc(name)+'</span></td><td class="mono">'+uses.length+'</td><td class="small dim">'+uses.map(function(u){return '<span class="mono" style="margin-inline-end:8px">'+A.esc(u)+'</span>'}).join('')+'</td><td>'+(extra||'')+'</td></tr>';
+    return '<tr><td><span class="tag">'+A.esc(name)+'</span></td><td class="mono">'+uses.length+'</td><td class="small dim">'+uses.map(function(u){return '<span class="mono" style="margin-inline-end:8px">'+A.esc(u)+'</span>'}).join('')+'</td><td class="acts-cell">'+(extra||'')+'</td></tr>';
    }
-   var tagRows=Object.keys(tags).sort().map(function(t){return row(t,tags[t],'<button class="btn sm ghost" data-rn="'+A.esc(t)+'">'+(ar?'إعادة تسمية':'Rename')+'</button>')}).join('');
-   var catRows=Object.keys(cats).sort().map(function(t){return row(t,cats[t],'<span class="small muted">'+(ar?'تُدار من محرر التحدي':'Managed in the challenge editor')+'</span>')}).join('');
-   var mgRows=managed.filter(g=>!g.hidden).map(function(g){
+   var tagRows=Object.keys(tags).sort().map(function(t){return row(t,tags[t],'<button type="button" class="btn sm ghost" data-rn="'+A.esc(t)+'">'+(ar?'إعادة تسمية':'Rename')+'</button>')}).join('');
+   var catRows=Object.keys(cats).sort().map(function(t){return row(t,cats[t],'<span class="small muted">'+(ar?'تُعدَّل من المحرر':'Edited per item')+'</span>')}).join('');
+   var mgRows=managed.filter(function(g){return !g.hidden}).map(function(g){
     var slugDisp=arOn?(A.esc((g.slug&&g.slug.ar)||'')+' / '+A.esc((g.slug&&g.slug.en)||'')):A.esc((g.slug&&g.slug.en)||'');
     var descDisp=(ar&&arOn)?((g.description&&g.description.ar)||''):((g.description&&g.description.en)||'');
-    return '<tr><td class="mono">'+A.esc(g.id)+'<div class="t-sub">'+A.esc(g.kind||'challenge')+'</div><div class="t-sub">'+slugDisp+'</div></td><td class="ar-only">'+A.esc((g.name&&g.name.ar)||'')+'</td><td dir="ltr" style="text-align:start">'+A.esc((g.name&&g.name.en)||'')+'</td><td class="small dim">'+A.esc(descDisp)+'</td><td style="white-space:nowrap"><button class="btn sm ghost" data-ced="'+A.esc(g.id)+'">'+A.t('edit')+'</button> <button class="btn sm danger" data-cdel="'+A.esc(g.id)+'">'+A.t('del')+'</button></td></tr>';
+    return '<tr><td class="mono">'+A.esc(g.id)+'<div class="t-sub">'+A.esc(g.kind||'challenge')+' · '+slugDisp+'</div></td><td class="ar-only">'+A.esc((g.name&&g.name.ar)||'')+'</td><td dir="ltr">'+A.esc((g.name&&g.name.en)||'')+'</td><td class="small dim">'+A.esc(descDisp||'—')+'</td><td class="acts-cell"><div class="inline-acts" style="justify-content:flex-end"><button type="button" class="btn sm ghost" data-ced="'+A.esc(g.id)+'">'+A.t('edit')+'</button><button type="button" class="btn sm danger" data-cdel="'+A.esc(g.id)+'">'+A.t('del')+'</button></div></td></tr>';
    }).join('');
-   var managedTagRows=managedTags.filter(g=>!g.hidden).map(function(g){
-    var slugDisp=arOn?(A.esc(g.slug&&g.slug.ar||'')+' / '+A.esc(g.slug&&g.slug.en||'')):A.esc(g.slug&&g.slug.en||'');
-    return '<tr><td class="mono">'+A.esc(g.id)+'</td><td class="ar-only">'+A.esc(g.name&&g.name.ar||'')+'</td><td>'+A.esc(g.name&&g.name.en||'')+'</td><td>'+slugDisp+'</td><td><button class="btn sm ghost" data-ted="'+A.esc(g.id)+'">'+A.t('edit')+'</button> <button class="btn sm danger" data-tdel="'+A.esc(g.id)+'">'+A.t('del')+'</button></td></tr>';
+   var managedTagRows=managedTags.filter(function(g){return !g.hidden}).map(function(g){
+    var slugDisp=arOn?(A.esc((g.slug&&g.slug.ar)||'')+' / '+A.esc((g.slug&&g.slug.en)||'')):A.esc((g.slug&&g.slug.en)||'');
+    return '<tr><td class="mono">'+A.esc(g.id)+'</td><td class="ar-only">'+A.esc((g.name&&g.name.ar)||'')+'</td><td dir="ltr">'+A.esc((g.name&&g.name.en)||'')+'</td><td class="small dim">'+slugDisp+'</td><td class="acts-cell"><div class="inline-acts" style="justify-content:flex-end"><button type="button" class="btn sm ghost" data-ted="'+A.esc(g.id)+'">'+A.t('edit')+'</button><button type="button" class="btn sm danger" data-tdel="'+A.esc(g.id)+'">'+A.t('del')+'</button></div></td></tr>';
    }).join('');
-   c.innerHTML='<div class="page-head"><h1>'+A.t('nCats')+'</h1><span class="sub">'+(ar?'الوسوم مستخدمة عبر كل المجموعات؛ إعادة التسمية تكتب عبر كل العناصر فورًا. الفئات وتُعدّل لكل تحدٍّ من محرره.':'Tags span every collection; renaming writes across all items immediately. Categories are edited per challenge in its editor.')+'</span></div>'+
-   '<div class="panel"><h2>'+(ar?(arOn?'الفئات المُدارة (ثنائية اللغة)':'الفئات المُدارة'):(arOn?'Managed categories (bilingual)':'Managed categories'))+'</h2>'+
-   '<p class="sub">'+(ar?(arOn?'فئات بمعرّف (slug) واسم ووصف باللغتين. تظهر كاقتراحات في محرر التحدي.':'فئات بمعرّف (slug) واسم ووصف. تظهر كاقتراحات في محرر التحدي.'):(arOn?'Categories with a slug and bilingual name/description. Offered as suggestions in the challenge editor.':'Categories with a slug and name/description. Offered as suggestions in the challenge editor.'))+'</p>'+
-   (mgRows?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>slug</th><th class="ar-only">'+(ar?'الاسم (عربي)':'Name (AR)')+'</th><th>'+(ar?'الاسم (إنجليزي)':'Name (EN)')+'</th><th>'+(ar?'الوصف':'Description')+'</th><th></th></tr></thead><tbody>'+mgRows+'</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('tags',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+
-   '<div style="margin-top:12px"><button class="btn primary sm" id="cat-new">'+A.t('create')+'</button></div></div>'+
-   '<div class="panel"><h2>'+(ar?(arOn?'قاموس الوسوم باللغتين':'قاموس الوسوم'):(arOn?'Bilingual tag library':'Tag library'))+'</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ID</th><th class="ar-only">AR</th><th>EN</th><th>'+(arOn?'Slugs AR / EN':'Slug EN')+'</th><th></th></tr></thead><tbody>'+managedTagRows+'</tbody></table></div><button class="btn primary sm" id="tag-new" style="margin-top:12px">'+A.t('create')+'</button></div>'+
-   '<div class="panel"><h2>'+(ar?'الوسوم المستخدمة':'Tags in use')+'</h2>'+
-   (tagRows?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>'+(ar?'الوسم':'Tag')+'</th><th>'+(ar?'الاستخدام':'Uses')+'</th><th>'+(ar?'العناصر':'Items')+'</th><th></th></tr></thead><tbody>'+tagRows+'</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('tags',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>'+
-   '<div class="panel"><h2>'+(ar?'الفئات (التحديات)':'Categories (challenges)')+'</h2>'+
-   (catRows?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>'+(ar?'الفئة':'Category')+'</th><th>'+(ar?'الاستخدام':'Uses')+'</th><th>'+(ar?'العناصر':'Items')+'</th><th></th></tr></thead><tbody>'+catRows+'</tbody></table></div>':'<div class="empty"><div class="ic">'+A.icon('tags',22)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div>';
-   function catForm(g,col){col=col||'categories';
+
+   c.innerHTML='<div class="page-head"><div class="page-head-main"><h1>'+A.t('nCats')+'</h1><span class="sub">'+(ar?'تعريف الفئات وقاموس الوسوم وإعادة التسمية الجماعية عبر المجموعات.':'Manage structured categories, tag library entries, and bulk tag renames across collections.')+'</span></div>'+
+   '<div class="acts"><button type="button" class="btn primary" id="cat-new">+ '+(ar?'فئة جديدة':'New category')+'</button><button type="button" class="btn ghost" id="tag-new">+ '+(ar?'وسم جديد':'New tag')+'</button></div></div>'+
+   '<section class="mb-4"><h2 class="mb-3">'+(ar?'الفئات المُدارة':'Managed categories')+'</h2>'+
+   '<div class="tbl-wrap">'+(mgRows?'<table class="tbl"><thead><tr><th scope="col">ID / Kind</th><th scope="col" class="ar-only">'+(ar?'الاسم (عربي)':'Name (AR)')+'</th><th scope="col">'+(ar?'الاسم (إنجليزي)':'Name (EN)')+'</th><th scope="col">'+(ar?'الوصف':'Description')+'</th><th scope="col">'+A.t('actions')+'</th></tr></thead><tbody>'+mgRows+'</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('tags',20)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div></section>'+
+   '<section class="mb-4"><h2 class="mb-3">'+(ar?'قاموس الوسوم':'Tag library')+'</h2>'+
+   '<div class="tbl-wrap">'+(managedTagRows?'<table class="tbl"><thead><tr><th scope="col">ID</th><th scope="col" class="ar-only">AR</th><th scope="col">EN</th><th scope="col">Slug</th><th scope="col">'+A.t('actions')+'</th></tr></thead><tbody>'+managedTagRows+'</tbody></table>':'<div class="empty"><div class="ic">'+A.icon('tags',20)+'</div><h3>'+A.t('empty')+'</h3></div>')+'</div></section>'+
+   '<div class="dash-grid">'+
+    '<section><h2 class="mb-3">'+(ar?'الوسوم المستخدمة':'Tags in use')+'</h2><div class="tbl-wrap">'+(tagRows?'<table class="tbl"><thead><tr><th scope="col">'+(ar?'الوسم':'Tag')+'</th><th scope="col">'+(ar?'العدد':'Uses')+'</th><th scope="col">'+(ar?'العناصر':'Items')+'</th><th scope="col">'+A.t('actions')+'</th></tr></thead><tbody>'+tagRows+'</tbody></table>':'<div class="empty"><h3>'+A.t('empty')+'</h3></div>')+'</div></section>'+
+    '<section><h2 class="mb-3">'+(ar?'الفئات المستخدمة في المحتوى':'Categories in use')+'</h2><div class="tbl-wrap">'+(catRows?'<table class="tbl"><thead><tr><th scope="col">'+(ar?'الفئة':'Category')+'</th><th scope="col">'+(ar?'العدد':'Uses')+'</th><th scope="col">'+(ar?'العناصر':'Items')+'</th><th scope="col"></th></tr></thead><tbody>'+catRows+'</tbody></table>':'<div class="empty"><h3>'+A.t('empty')+'</h3></div>')+'</div></section>'+
+   '</div>';
+
+   function catForm(g,col){
+    col=col||'categories';
     var isNew=!g;g=g||{id:'',name:{ar:'',en:''},description:{ar:'',en:''}};g.slug=g.slug||{};
-    var body='<div class="field"><label>slug</label><input class="input mono" id="cf-id" dir="ltr" value="'+A.esc(g.id)+'" '+(isNew?'':'disabled')+' placeholder="log-analysis"></div>'+
-    '<div class="frow"><div class="fcol ar-only"><label>'+(ar?'الاسم (عربي)':'Name (AR)')+'</label><input class="input" id="cf-nar" value="'+A.esc(g.name.ar||'')+'"></div>'+
-    '<div class="fcol"><label>'+(ar?'الاسم (إنجليزي)':'Name (EN)')+'</label><input class="input" id="cf-nen" dir="ltr" value="'+A.esc(g.name.en||'')+'"></div></div>'+
-    '<div class="frow"><div class="fcol ar-only"><label>'+(ar?'وصف (عربي، اختياري)':'Description (AR, optional)')+'</label><input class="input" id="cf-dar" value="'+A.esc(g.description.ar||'')+'"></div>'+
-    '<div class="fcol"><label>'+(ar?'وصف (إنجليزي، اختياري)':'Description (EN, optional)')+'</label><input class="input" id="cf-den" dir="ltr" value="'+A.esc(g.description.en||'')+'"></div></div>';
-    body+='<div class="field"><label>'+(ar?'نوع الفئة':'Category type')+'</label><select class="input" id="cf-kind">'+['challenge','article','investigation'].map(function(k){return '<option value="'+k+'"'+((g.kind||'challenge')===k?' selected':'')+'>'+({challenge:ar?'التحديات':'Challenges',article:ar?'الرايتبس':'Writeups',investigation:ar?'التحقيقات':'Investigations'})[k]+'</option>'}).join('')+'</select></div><div class="frow"><div class="fcol ar-only"><label>Slug AR</label><input class="input" id="cf-sar" value="'+A.esc(g.slug.ar||'')+'"></div><div class="fcol"><label>Slug EN</label><input class="input" dir="ltr" id="cf-sen" value="'+A.esc(g.slug.en||'')+'"></div></div>';
-    A.modal({title:isNew?(ar?'فئة جديدة':'New category'):(ar?'تعديل فئة':'Edit category'),html:true,body:body,onConfirm:function(done){
+    var body='<div class="field"><label for="cf-id">slug / ID</label><input class="input mono" id="cf-id" dir="ltr" value="'+A.esc(g.id)+'" '+(isNew?'':'disabled')+' placeholder="log-analysis"></div>'+
+    '<div class="frow"><div class="fcol ar-only"><label for="cf-nar">'+(ar?'الاسم (عربي)':'Name (AR)')+'</label><input class="input" id="cf-nar" value="'+A.esc(g.name.ar||'')+'"></div>'+
+    '<div class="fcol"><label for="cf-nen">'+(ar?'الاسم (إنجليزي)':'Name (EN)')+'</label><input class="input" id="cf-nen" dir="ltr" value="'+A.esc(g.name.en||'')+'"></div></div>'+
+    '<div class="frow"><div class="fcol ar-only"><label for="cf-dar">'+(ar?'وصف (عربي)':'Description (AR)')+'</label><input class="input" id="cf-dar" value="'+A.esc(g.description.ar||'')+'"></div>'+
+    '<div class="fcol"><label for="cf-den">'+(ar?'وصف (إنجليزي)':'Description (EN)')+'</label><input class="input" id="cf-den" dir="ltr" value="'+A.esc(g.description.en||'')+'"></div></div>'+
+    '<div class="field"><label for="cf-kind">'+(ar?'النوع':'Type')+'</label><select class="input" id="cf-kind">'+['challenge','article','investigation'].map(function(k){return '<option value="'+k+'"'+((g.kind||'challenge')===k?' selected':'')+'>'+({challenge:ar?'التحديات':'Challenges',article:ar?'الرايتبس':'Writeups',investigation:ar?'التحقيقات':'Investigations'})[k]+'</option>'}).join('')+'</select></div>'+
+    '<div class="frow"><div class="fcol ar-only"><label for="cf-sar">Slug AR</label><input class="input" id="cf-sar" value="'+A.esc(g.slug.ar||'')+'"></div><div class="fcol"><label for="cf-sen">Slug EN</label><input class="input mono" dir="ltr" id="cf-sen" value="'+A.esc(g.slug.en||'')+'"></div></div>';
+    A.modal({title:isNew?(col==='tags'?(ar?'وسم جديد':'New tag'):(ar?'فئة جديدة':'New category')):(col==='tags'?(ar?'تعديل وسم':'Edit tag'):(ar?'تعديل فئة':'Edit category')),html:true,body:body,onConfirm:function(done){
      var item={kind:document.getElementById('cf-kind').value,slug:{ar:document.getElementById('cf-sar').value,en:document.getElementById('cf-sen').value},id:document.getElementById('cf-id').value.trim(),name:{ar:document.getElementById('cf-nar').value,en:document.getElementById('cf-nen').value},description:{ar:document.getElementById('cf-dar').value,en:document.getElementById('cf-den').value}};
      var req=isNew?A.api('/admin/api/collection/'+col,{method:'POST',body:item}):A.api('/admin/api/collection/'+col+'/'+encodeURIComponent(g.id),{method:'PUT',body:item});
-     req.then(function(r){done();if(r._code===200){A.toast(A.t('saved'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(r.error||A.t('failed'),'err')}).catch(function(){done();A.toast(A.t('errNet'),'err')});
+     req.then(function(r){done();if(r._code===200){A.toast(A.t('saved'),'ok');setTimeout(function(){location.reload()},350)}else A.toast(r.error||A.t('failed'),'err')}).catch(function(){done();A.toast(A.t('errNet'),'err')});
     }});
    }
-   document.getElementById('cat-new').onclick=function(){catForm(null)};document.getElementById('tag-new').onclick=function(){catForm(null,'tags')};c.querySelectorAll('[data-ted]').forEach(b=>b.onclick=function(){catForm(managedTags.find(x=>x.id===b.dataset.ted),'tags')});c.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=function(){A.modal({title:A.t('del'),body:ar?'أرشفة تعريف الوسم فقط، لا تمسح استخداماته من المحتوى.':'Archive the tag definition only. Content usages remain.',danger:true,onConfirm:function(done){A.api('/admin/api/collection/tags/'+encodeURIComponent(b.dataset.tdel),{method:'DELETE'}).then(function(r){done();if(r._code===200)location.reload();else A.toast(r.error||A.t('failed'),'err')})}})});
-   c.querySelectorAll('[data-ced]').forEach(function(b){b.onclick=function(){catForm(managed.filter(function(x){return x.id===b.dataset.ced})[0])}});
+   document.getElementById('cat-new').onclick=function(){catForm(null,'categories')};
+   document.getElementById('tag-new').onclick=function(){catForm(null,'tags')};
+   c.querySelectorAll('[data-ted]').forEach(function(b){b.onclick=function(){catForm(managedTags.find(function(x){return x.id===b.dataset.ted}),'tags')}});
+   c.querySelectorAll('[data-tdel]').forEach(function(b){b.onclick=function(){
+    A.modal({title:A.t('del'),body:ar?'أرشفة تعريف الوسم فقط، ولا تُحذف استخداماته من المحتوى.':'Archives the tag library definition only; item usages stay unchanged.',danger:true,onConfirm:function(done){
+     A.api('/admin/api/collection/tags/'+encodeURIComponent(b.dataset.tdel),{method:'DELETE'}).then(function(r){done();if(r._code===200)location.reload();else A.toast(r.error||A.t('failed'),'err')});
+    }});
+   }});
+   c.querySelectorAll('[data-ced]').forEach(function(b){b.onclick=function(){catForm(managed.filter(function(x){return x.id===b.dataset.ced})[0],'categories')}});
    c.querySelectorAll('[data-cdel]').forEach(function(b){b.onclick=function(){
     var id=b.dataset.cdel;
     A.modal({title:A.t('del')+' — '+id,body:A.t('confirmDel'),danger:true,onConfirm:function(done){
      A.api('/admin/api/collection/categories/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){
-      done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},400)}else A.toast(r.error||A.t('failed'),'err');
+      done();if(r._code===200){A.toast(A.t('updated'),'ok');setTimeout(function(){location.reload()},350)}else A.toast(r.error||A.t('failed'),'err');
      }).catch(function(){done();A.toast(A.t('errNet'),'err')});
     }});
    }});
    c.querySelectorAll('[data-rn]').forEach(function(b){
     b.onclick=function(){
      var from=b.dataset.rn;
-     var to=prompt((ar?'إعادة تسمية «'+from+'» إلى:':'Rename "'+from+'" to:'),from);
-     if(!to||to.trim()===from)return;
-     A.modal({title:(ar?'إعادة تسمية وسم':'Rename tag'),body:(ar?'سيُعاد تسمية «'+from+'» إلى «'+to.trim()+'» في '+tags[from].length+' عنصر.':'"'+from+'" becomes "'+to.trim()+'" in '+tags[from].length+' item(s).'),onConfirm:function(done){
-      A.api('/admin/api/content/rename-tag',{method:'POST',body:{from:from,to:to.trim()}}).then(function(r){
-       done();if(r._code===200){A.toast(A.t('updated')+' ('+r.touched+')','ok');setTimeout(function(){location.reload()},400)}else A.toast(r.error||A.t('failed'),'err');
-      }).catch(function(){done();A.toast(A.t('errNet'),'err')});
-     }});
+     A.modal({
+      title:(ar?'إعادة تسمية وسم':'Rename tag'),
+      html:true,
+      body:'<p class="small dim mb-3">'+(ar?'سيُستبدل «'+A.esc(from)+'» في '+tags[from].length+' عنصر.':'Replaces "'+A.esc(from)+'" across '+tags[from].length+' item(s).')+'</p><div class="field"><label for="rn-new">'+(ar?'الاسم الجديد':'New tag name')+'</label><input class="input" id="rn-new" value="'+A.esc(from)+'"></div>',
+      onConfirm:function(done){
+       var to=(document.getElementById('rn-new').value||'').trim();
+       if(!to||to===from){done();return}
+       A.api('/admin/api/content/rename-tag',{method:'POST',body:{from:from,to:to}}).then(function(r){
+        done();if(r._code===200){A.toast(A.t('updated')+' ('+r.touched+')','ok');setTimeout(function(){location.reload()},350)}else A.toast(r.error||A.t('failed'),'err');
+       }).catch(function(){done();A.toast(A.t('errNet'),'err')});
+      }
+     });
     };
    });
-  }).catch(function(){c.innerHTML='<div class="panel"><div class="empty"><h3>'+A.t('errNet')+'</h3></div></div>'});
+  }).catch(function(){c.innerHTML='<div class="empty"><h3>'+A.t('errNet')+'</h3></div>'});
  });
 });
 })();

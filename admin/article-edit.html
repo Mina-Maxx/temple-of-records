@@ -2,21 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إدارة المعبد — محرر المقال</title>
+<title>إدارة المعبد — محرر الرايتب</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel+Decorative:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
-<style>
-.sec-row{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
-.sec-row .head{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-.sec-row .head select{max-width:150px}
-.sec-row .num{font-family:var(--mono);font-size:.75rem;color:var(--muted);min-width:26px}
-.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:760px){.mini-grid{grid-template-columns:1fr}}
-.errlist{display:none;background:rgba(232,143,143,.1);border:1px solid rgba(232,143,143,.4);border-radius:8px;padding:12px 16px;font-size:.83rem;color:var(--err);margin-bottom:16px}
-.errlist.on{display:block}
-</style>
 </head>
 <body>
 <script src="app.js"></script>
@@ -37,61 +27,83 @@ A.boot().then(function(ok){
    start();
   });
  } else {item=blank();start()}
+
  function F(label,inner,cls){return '<div class="field'+(cls?' '+cls:'')+'"><label>'+label+'</label>'+inner+'</div>'}
  function bi2(name,obj,ta){obj=obj||{ar:'',en:''};return '<div class="mini-grid">'+
-   F('العربية',ta?'<textarea class="input" data-f="'+name+'.ar" rows="4">'+A.esc(obj.ar||'')+'</textarea>':'<input class="input" data-f="'+name+'.ar" value="'+A.esc(obj.ar||'')+'">','ar-only')+
-   F('English',ta?'<textarea class="input" data-f="'+name+'.en" rows="4" dir="ltr">'+A.esc(obj.en||'')+'</textarea>':'<input class="input" data-f="'+name+'.en" dir="ltr" value="'+A.esc(obj.en||'')+'">')+'</div>'}
+  F('العربية',ta?'<textarea class="input" data-f="'+name+'.ar" rows="4">'+A.esc(obj.ar||'')+'</textarea>':'<input class="input" data-f="'+name+'.ar" value="'+A.esc(obj.ar||'')+'">','ar-only')+
+  F('English',ta?'<textarea class="input" data-f="'+name+'.en" rows="4" dir="ltr">'+A.esc(obj.en||'')+'</textarea>':'<input class="input" data-f="'+name+'.en" dir="ltr" value="'+A.esc(obj.en||'')+'">')+'</div>'}
+
  function render(c){
   var isNew=!id,ar=A.lang()==='ar',arOn=A.arabicEnabled();
   c.innerHTML=
-  '<div class="page-head"><h1>'+(isNew?A.t('create'):((ar&&arOn)?A.esc((item.title&&item.title.ar)||(item.title&&item.title.en)||item.id):A.esc((item.title&&item.title.en)||item.id)))+'</h1>'+
-  '<span class="sub mono">'+A.esc(item.id||'new')+'</span>'+
-  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=article&amp;lang='+(arOn?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+(ar?' معاينة':' Preview')+'</a>')+
-  '<button class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
+  '<div class="page-head"><div class="page-head-main"><h1>'+(isNew?A.t('create'):((ar&&arOn)?A.esc((item.title&&item.title.ar)||(item.title&&item.title.en)||item.id):A.esc((item.title&&item.title.en)||item.id)))+'</h1>'+
+  '<span class="sub mono">'+A.esc(item.id||'new')+(isNew?'':' · '+(ar?'المعاينة تعرض النسخة المحفوظة — احفظ أولًا':'Preview renders last saved version — save first'))+'</span></div>'+
+  '<div class="acts">'+(isNew?'':'<a class="btn ghost" href="preview.html?kind=article&amp;lang='+(arOn?A.lang():'en')+'&amp;id='+encodeURIComponent(item.id)+'" target="_blank" rel="noopener">'+A.icon('eye',14)+' '+(ar?'معاينة (المحفوظ)':'Preview (saved)')+'</a>')+
+  '<button type="button" class="btn primary" id="save">'+A.t('save')+'</button></div></div>'+
   '<div class="errlist" id="errs" role="alert"></div>'+
-  '<div class="tabs" role="tablist"><button class="on" data-tab="basics">'+(ar?'البيانات':'Basics')+'</button><button data-tab="sections">'+(ar?'الأقسام':'Sections')+'</button></div>'+
-  '<div class="tabpane on" data-pane="basics"><div class="panel">'+
-   (isNew?F('ID (a-z0-9-)','<input class="input mono" id="f-id" dir="ltr" value="">'):'')+
-   F(ar?'العنوان':'Title',bi2('title',item.title))+
-   F(arOn?'Slug (AR / EN)':'Slug (EN)',bi2('slug',item.slug))+
-   F(ar?'حالة النشر':'Publication status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:ar?'مسودة':'Draft',published:ar?'منشور':'Published',archived:ar?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
+  '<div class="composer-layout" data-pane="composer">'+
+   '<div class="composer-body">'+
+    '<section class="panel"><h2>'+(ar?'النص والمحتوى':'Title & editorial prose')+'</h2>'+
+     (isNew?F('ID (a-z0-9-)','<input class="input mono" id="f-id" dir="ltr" value="">'):'')+
+     F(ar?'العنوان':'Title',bi2('title',item.title))+
+     F(ar?'الملخص':'Excerpt',bi2('excerpt',item.excerpt,true))+
+    '</section>'+
+    '<section class="panel"><h2>'+(ar?'أقسام المقال':'Article sections')+'</h2><p class="sub">'+(ar?'تُعرض بالترتيب في الصفحة العامة.':'Rendered in sequence on the public article page.')+'</p>'+
+     '<div id="secs"></div>'+
+     '<div class="inline-acts mt-3">'+
+      '<button type="button" class="btn ghost sm" id="add-sec">+ '+(ar?'فقرة':'Paragraph')+'</button>'+
+      '<button type="button" class="btn ghost sm" data-add-kind="heading">+ '+(ar?'عنوان':'Heading')+'</button>'+
+      '<button type="button" class="btn ghost sm" data-add-kind="code">+ '+(ar?'كود':'Code')+'</button>'+
+      '<button type="button" class="btn ghost sm" data-add-kind="image">+ '+(ar?'صورة':'Image')+'</button>'+
+      '<button type="button" class="btn ghost sm" data-add-kind="callout">+ '+(ar?'تنبيه':'Callout')+'</button>'+
+      '<button type="button" class="btn ghost sm" data-add-kind="list">+ '+(ar?'قائمة':'List')+'</button>'+
+     '</div>'+
+    '</section>'+
+   '</div>'+
+   '<aside class="composer-meta">'+
+    '<details class="panel" open><summary style="cursor:pointer;font-weight:700;color:var(--gold);margin-bottom:14px">'+(ar?'البيانات الوصفية وSEO':'Metadata & SEO')+'</summary>'+
+     F(arOn?'Slug (AR / EN)':'Slug (EN)',bi2('slug',item.slug))+
+     F(ar?'حالة النشر':'Status','<select class="input" data-f="status">'+['draft','published','archived'].map(function(v){return '<option value="'+v+'"'+((item.status||'published')===v?' selected':'')+'>'+({draft:ar?'مسودة':'Draft',published:ar?'منشور':'Published',archived:ar?'مؤرشف':'Archived'})[v]+'</option>'}).join('')+'</select>')+
+     F(ar?'نوع الرايتب':'Writeup type','<select class="input" data-f="writeup_type"><option value="concept"'+(item.writeup_type!=='walkthrough'?' selected':'')+'>'+(ar?'شرح تقني':'Technical concept')+'</option><option value="walkthrough"'+(item.writeup_type==='walkthrough'?' selected':'')+'>'+(ar?'حل تحدٍّ':'Challenge walkthrough')+'</option></select>')+
+     F(ar?'معرّف التحدي المرتبط':'Related challenge ID','<input class="input mono" dir="ltr" data-f="related_challenge" value="'+A.esc(item.related_challenge||'')+'" placeholder="log4shell-lab">')+
+     F(ar?'الفئة':'Category',bi2('category',item.category))+
+     F(ar?'الوسوم (مفصولة بفواصل)':'Tags','<input class="input" data-f="tags" value="'+A.esc((item.tags||[]).join(', '))+'">')+
+     F(ar?'تقنيات ATT&CK':'MITRE ATT&CK','<input class="input mono" dir="ltr" data-f="attack" value="'+A.esc((item.attack||[]).join(', '))+'" placeholder="T1059.001, T1190">')+
+     '<div class="row2">'+
+      F(ar?'التاريخ':'Date','<input class="input mono" dir="ltr" data-f="date" value="'+A.esc(item.date||'')+'" placeholder="2026-11-25">')+
+      F(ar?'مدة القراءة':'Reading time','<input class="input" data-f="minutes" value="'+A.esc(item.minutes||'')+'" placeholder="5 min">')+
+     '</div>'+
+     F(ar?'موعد النشر المجدول (ISO)':'Scheduled publish_at (ISO)','<input class="input mono" dir="ltr" data-f="publish_at" value="'+A.esc(item.publish_at||'')+'" placeholder="2026-12-01T00:00:00Z">')+
+     '<div class="field"><label>'+(ar?'صورة الغلاف':'Cover image')+'</label><div class="inline-acts"><input class="input mono" dir="ltr" data-f="image" value="'+A.esc(item.image||'')+'" placeholder="assets/archive.jpg" style="flex:1"><button type="button" class="btn ghost sm" id="pick-img">'+(ar?'وسائط':'Media')+'</button></div></div>'+
+     F('SEO title',bi2('seo_title',item.seo_title))+
+     F('Meta description',bi2('meta_description',item.meta_description,true))+
+     '<label class="check"><input type="checkbox" data-f="hidden"'+(item.hidden?' checked':'')+'> <span>'+(ar?'مخفي (مؤرشف)':'Hidden (archived)')+'</span></label>'+
+    '</details>'+
+   '</aside>'+
+  '</div>';
 
-   F(ar?'الملخص':'Excerpt',bi2('excerpt',item.excerpt,true))+
-   '<div class="row2">'+
-    F(ar?'نوع الرايتب':'Writeup type','<select class="input" data-f="writeup_type"><option value="concept"'+(item.writeup_type!=='walkthrough'?' selected':'')+'>'+(ar?'شرح تقني / مفهوم':'Technical explanation')+'</option><option value="walkthrough"'+(item.writeup_type==='walkthrough'?' selected':'')+'>'+(ar?'حل تحدٍّ (Writeup)':'Challenge walkthrough / solution')+'</option></select>')+
-    F(ar?'معرّف التحدي المرتبط (اختياري)':'Related challenge ID (optional)','<input class="input mono" dir="ltr" data-f="related_challenge" value="'+A.esc(item.related_challenge||'')+'" placeholder="log4shell-lab">')+
-   '</div>'+
-   '<div class="row3">'+
-    F(ar?'تاريخ النشر (YYYY-MM-DD)':'Date (YYYY-MM-DD)','<input class="input mono" dir="ltr" data-f="date" value="'+A.esc(item.date||'')+'" placeholder="2026-11-25">')+
-    F(ar?'تقنيات MITRE ATT&CK (مفصولة بفواصل)':'MITRE ATT&CK IDs (comma-sep)','<input class="input mono" dir="ltr" data-f="attack" value="'+A.esc((item.attack||[]).join(', '))+'" placeholder="T1059.001, T1190">')+
-    F(ar?'موعد النشر المجدول (ISO اختياري)':'Scheduled publish_at (optional ISO)','<input class="input mono" dir="ltr" data-f="publish_at" value="'+A.esc(item.publish_at||'')+'" placeholder="2026-12-01T00:00:00Z">')+
-   '</div>'+
-   F(ar?'الفئة':'Category',bi2('category',item.category))+F('SEO title',bi2('seo_title',item.seo_title))+F('Meta description',bi2('meta_description',item.meta_description,true))+
-   '<div class="row3">'+
-    F(ar?'الصورة (مسار نسبي)':'Image (relative path)','<input class="input mono" dir="ltr" data-f="image" value="'+A.esc(item.image||'')+'" placeholder="assets/archive.jpg">')+
-    F(ar?'الوسوم (مفصولة بفواصل)':'Tags (comma-sep)','<input class="input" data-f="tags" value="'+A.esc((item.tags||[]).join(', '))+'">')+
-    F(ar?'مدة القراءة':'Reading time','<input class="input" data-f="minutes" value="'+A.esc(item.minutes||'')+'" placeholder="'+(ar?'٥ دقائق':'5 min')+'">')+
-   '</div>'+
-   '<label class="check"><input type="checkbox" data-f="hidden"'+(item.hidden?' checked':'')+'> <span>'+(ar?'مخفي (مؤرشف)':'Hidden (archived)')+'</span></label>'+
-  '</div></div>'+
-  '<div class="tabpane" data-pane="sections"><div class="panel"><h2>'+(ar?'أقسام المقال':'Article sections')+'</h2><p class="sub">'+(ar?'تُعرض بالترتيب في صفحة المقال.':'Rendered in order on the article page.')+'</p><div id="secs"></div>'+
-   '<button class="btn ghost" id="add-sec">+ '+(ar?'قسم':'Section')+'</button></div></div>';
-  document.querySelectorAll('.tabs button').forEach(function(b){b.onclick=function(){
-   document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on')});
-   document.querySelectorAll('.tabpane').forEach(function(x){x.classList.remove('on')});
-   b.classList.add('on');document.querySelector('[data-pane="'+b.dataset.tab+'"]').classList.add('on');}});
+  document.getElementById('pick-img').onclick=function(){
+   A.api('/admin/api/media').then(function(j){
+    var imgs=(j.media||[]).filter(function(m){return m.kind==='image'});
+    if(!imgs.length){A.toast(ar?'لا توجد صور':'No images','err');return}
+    var b='<div class="mgrid">'+imgs.map(function(m){return '<button type="button" class="mcard" data-pick-art="assets/'+A.esc(m.name)+'"><span class="pv"><img src="../assets/'+A.esc(m.name)+'" alt=""></span><span class="meta"><span class="nm">'+A.esc(m.name)+'</span></span></button>'}).join('')+'</div>';
+    A.modal({title:ar?'اختيار صورة الغلاف':'Choose cover image',html:true,body:b,confirmLabel:ar?'إغلاق':'Close',onConfirm:function(d){d()}});
+    setTimeout(function(){document.querySelectorAll('[data-pick-art]').forEach(function(btn){btn.onclick=function(){var inp=document.querySelector('[data-f="image"]');if(inp){inp.value=btn.dataset.pickArt;inp.dispatchEvent(new Event('input',{bubbles:true}))}var ok=document.querySelector('.modal [data-ok]');if(ok)ok.click()}})},30);
+   }).catch(function(){A.toast(A.t('errNet'),'err')});
+  };
   paintSecs();
+  c.querySelectorAll('[data-add-kind]').forEach(function(b){b.onclick=function(){item.sections.push({type:b.dataset.addKind,ar:'',en:''});paintSecs()}});
   document.getElementById('save').onclick=save;
  }
+
  function secRow(s,i){
-  var ar=A.lang()==='ar';
   var el=document.createElement('div');el.className='sec-row';
   el.innerHTML='<div class="head"><span class="num">'+(i+1)+'</span>'+
    '<select class="input" data-s="type">'+SEC_TYPES.map(function(t){return '<option'+(s.type===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'+
-   '<span style="flex:1"></span><button class="btn sm ghost" data-up>↑</button><button class="btn sm ghost" data-dn>↓</button><button class="btn sm danger" data-del>×</button></div>'+
+   '<span style="flex:1"></span><button type="button" class="btn sm ghost" data-up>↑</button><button type="button" class="btn sm ghost" data-dn>↓</button><button type="button" class="btn sm danger" data-del>×</button></div>'+
    '<div class="mini-grid"><textarea class="input ar-only" data-s="ar" rows="3" placeholder="العربية">'+A.esc(s.ar||'')+'</textarea>'+
    '<textarea class="input" data-s="en" rows="3" dir="ltr" placeholder="English">'+A.esc(s.en||'')+'</textarea></div>'+
-   (s.type==='code'?'<input class="input mono" dir="ltr" style="margin-top:10px" data-s="code" placeholder="code" value="'+A.esc(s.code||'')+'">':'');
+   (s.type==='code'?'<textarea class="input mono mt-2" dir="ltr" rows="5" data-s="code" placeholder="code">'+A.esc(s.code||'')+'</textarea>':'');
   el.querySelector('[data-s=type]').onchange=function(){s.type=this.value;paintSecs()};
   el.querySelector('[data-s=ar]').oninput=function(){s.ar=this.value};
   el.querySelector('[data-s=en]').oninput=function(){s.en=this.value};
@@ -102,7 +114,9 @@ A.boot().then(function(ok){
   A.sectionFields(el,s);
   return el;
  }
- function paintSecs(){var w=document.getElementById('secs');if(!w)return;w.innerHTML='';(item.sections||[]).forEach(function(s,i){w.appendChild(secRow(s,i))});
+ function paintSecs(){
+  var w=document.getElementById('secs');if(!w)return;w.innerHTML='';
+  (item.sections||[]).forEach(function(s,i){w.appendChild(secRow(s,i))});
   document.getElementById('add-sec').onclick=function(){item.sections.push({type:'paragraph',ar:'',en:''});paintSecs()};
  }
  function collect(){
@@ -120,12 +134,11 @@ A.boot().then(function(ok){
  }
  function save(){
   var bad=document.querySelector('textarea:invalid,input:invalid');if(bad){bad.reportValidity();A.toast(A.lang()==='ar'?'صحّح الحقول غير الصالحة':'Fix invalid fields','err');return}
-
   var errs=document.getElementById('errs');errs.className='errlist';
   var body=collect();
   A.api(id?'/admin/api/articles/'+encodeURIComponent(id):'/admin/api/articles',{method:id?'PUT':'POST',body:body}).then(function(r){
    if(r._code===200){A.toast(A.t('saved'),'ok');if(!id)setTimeout(function(){location.replace('article-edit.html?id='+encodeURIComponent(r.id))},500)}
-   else{errs.innerHTML='<b>'+A.t('failed')+'</b><ul style="margin:6px 18px 0">'+(r.details||[r.error||'?']).map(function(d){return '<li>'+A.esc(d)+'</li>'}).join('')+'</ul>';errs.className='errlist on';window.scrollTo(0,0)}
+   else{errs.innerHTML='<b>'+A.t('failed')+'</b><ul>'+(r.details||[r.error||'?']).map(function(d){return '<li>'+A.esc(d)+'</li>'}).join('')+'</ul>';errs.className='errlist on';window.scrollTo(0,0)}
   }).catch(function(){A.toast(A.t('errNet'),'err')});
  }
 });
